@@ -1,0 +1,21 @@
+{
+  "network": "devnet",
+  "updatedAt": "2026-08-29",
+  "reviewCandidate": {
+    "programId": "2WtSUhTyNfVsC7rDv5iWw3HBCkzCc9ymE1RLmQMvGShU",
+    "status": "fully-tested-pre-hardening",
+    "evidence": "docs/EVIDENCE.md"
+  },
+  "hardenedArtifact": {
+    "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",
+    "status": "deployed-metadata-verified-pending-runtime-proof",
+    "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
+    "bytes": 196167,
+    "sha256": "BBA5032C634A76AE835A2A01517B936BD13E64F4AF05AF4DD83542611BF030B5",
+    "deployedSlot": 4467228,
+    "dataLength": 196215,
+    "executableDataLength": 196167,
+    "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
+    "balanceRlo": 1.36654728
+  }
+}
