@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" data-mark="wordmark-fragment">
+  <title>MergePay</title>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 50V20m0 13c0-8 5-13 11-13s10 5 10 13v17m0-17c0-8 5-13 11-13s10 5 10 13v17" stroke="#102A27" stroke-width="9" />
+    <path d="M7 50V20m0 13c0-8 5-13 11-13s10 5 10 13v17m0-17c0-8 5-13 11-13s10 5 10 13v17" stroke="#EEF7F5" stroke-width="5" />
+    <path d="M53 50h6" stroke="#102A27" stroke-width="9" />
+    <path d="M53 50h6" stroke="#A9DDD3" stroke-width="5" />
+  </g>
+</svg>
