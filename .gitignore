@@ -1,0 +1,14 @@
+/target/
+**/target/
+/deployments/artifacts/
+**/node_modules/
+**/dist/
+**/.vinext/
+**/.next/
+**/.wrangler/
+**/coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.log

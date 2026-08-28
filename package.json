@@ -1,0 +1,20 @@
+{
+  "name": "mergepay",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @mergepay/web",
+    "build": "npm run build:client && npm run build:web",
+    "build:web": "npm run build --workspace @mergepay/web",
+    "build:client": "npm run build --workspace @mergepay/rialo-client",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspace @mergepay/web",
+    "test": "npm run test --workspaces --if-present",
+    "check:program": "cargo check -p mergepay-rialo",
+    "build:program": "cargo build --manifest-path programs/mergepay-rialo/artifact/Cargo.toml"
+  }
+}

@@ -1,0 +1,11 @@
+package rialo:mergepay-rialo@0.1.0;
+
+use rialo:primitives@0.1.0.{pubkey, lamports, timestamp, error};
+
+world mergepay-rialo {
+    export status: func() -> result<_, error>;
+    export fund: func() -> result<_, error>;
+    export check-merge: func() -> result<_, error>;
+    export refund: func() -> result<_, error>;
+    export create-bounty: func(beneficiary: pubkey, github-owner: string, github-repo: string, pull-number: u64, amount-kelvin: u64, deadline-unix-ms: u64) -> result<_, error>;
+}
