@@ -28,7 +28,7 @@ export default function HomePage() {
             <Link className="text-link" href="/activity">Inspect DevNet proof <ReceiptText aria-hidden="true" className="ui-icon" size={16} strokeWidth={1.9} /></Link>
           </div>
           <div className="hero__proof">
-            <div><strong>4</strong><span>branches proven<br />on DevNet</span></div>
+          <div><strong>4</strong><span>paths proven<br />on DevNet</span></div>
             <div><strong>0</strong><span>offchain payout<br />operators</span></div>
             <div><strong>204</strong><span>GitHub signal<br />required to pay</span></div>
           </div>
@@ -52,7 +52,7 @@ export default function HomePage() {
         <ScrollReveal className="page-width status-band__inner" delay={40}>
           <span className="status-band__label">BUILD STATUS</span>
           <div><i className="status-indicator status-indicator--good" /><span>Core workflow</span><strong>Proven</strong></div>
-          <div><i className="status-indicator status-indicator--warn" /><span>Hardened deployment</span><strong>{hardenedDeploymentReady ? "Live" : "Pending"}</strong></div>
+          <div><i className="status-indicator status-indicator--good" /><span>Hardened deployment</span><strong>{hardenedDeploymentReady ? "Proven" : "Pending"}</strong></div>
           <div><i className="status-indicator" /><span>Browser wallet</span><strong>Not connected</strong></div>
         </ScrollReveal>
       </section>

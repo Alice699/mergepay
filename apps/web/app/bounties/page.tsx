@@ -23,7 +23,7 @@ export default function BountiesPage() {
           <ul>
             <li><span>Network</span><strong className="state state--good">DevNet</strong></li>
             <li><span>Tested program</span><strong className="mono">{devnetDeployment.reviewCandidate.programId.slice(0, 6)}…{devnetDeployment.reviewCandidate.programId.slice(-6)}</strong></li>
-            <li><span>Hardened program</span><strong className={`state ${hardenedDeploymentReady ? "state--good" : "state--warn"}`}>{hardenedDeploymentReady ? "Deployed" : "Pending"}</strong></li>
+            <li><span>Hardened program</span><strong className={`state ${hardenedDeploymentReady ? "state--good" : "state--warn"}`}>{hardenedDeploymentReady ? "Runtime-proven" : "Pending"}</strong></li>
             <li><span>Account decoder</span><strong className="state">Unavailable</strong></li>
           </ul>
           <p className="panel-note">This state is intentional: unavailable data is shown as unavailable, never replaced with mock content.</p>

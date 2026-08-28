@@ -2,13 +2,18 @@
   "network": "devnet",
   "updatedAt": "2026-08-29",
   "reviewCandidate": {
+    "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",
+    "status": "fully-tested-hardened",
+    "evidence": "docs/EVIDENCE.md"
+  },
+  "historicalCandidate": {
     "programId": "2WtSUhTyNfVsC7rDv5iWw3HBCkzCc9ymE1RLmQMvGShU",
     "status": "fully-tested-pre-hardening",
     "evidence": "docs/EVIDENCE.md"
   },
   "hardenedArtifact": {
     "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",
-    "status": "deployed-metadata-verified-pending-runtime-proof",
+    "status": "deployed-runtime-proven",
     "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
     "bytes": 196167,
     "sha256": "BBA5032C634A76AE835A2A01517B936BD13E64F4AF05AF4DD83542611BF030B5",
@@ -16,6 +21,33 @@
     "dataLength": 196215,
     "executableDataLength": 196167,
     "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
-    "balanceRlo": 1.36654728
+    "balanceRlo": 1.36654728,
+    "runtimeProof": {
+      "recordedAt": "2026-08-29",
+      "mergedPayout": {
+        "workflowPda": "EJgmwWGUeXpB7b67qwz37PhYpewXawwSxjRk2ZHUvYUN",
+        "create": "2vpgJYQLEkF8rtNsdrEHMbx2xx8mRoAKnhhkvSaVk9GLDHWcgvMgcc3e3viUo2aJFRFZadoJ8BMW9JFGhvNogw1N",
+        "fund": "42qe8zwm1uRLLgVubHxkLeSQyqBfQhqURRp4zc3i2qyxxaKVBruFjp4xAyrWHWWtJEkmHmJzgqeCvEcpbShg678d",
+        "check": "5zwpvatvJd3LcaxLYbUKpmKyY3LjzZ6jHzMW62PnHyVJsRGG7dMEhB5wBLWXLvfZ3eX7JChcbiSnnpkVkD5hCo6x",
+        "callback": "Fu9AhK9o5HgQuQCucCFitQSmKswGMkhWiEL1fh3znkoRk1Z8V9UsRJiz8AHz9msHxMGHPTHFeimA1pWZBupZCVm",
+        "status": "32CXqHPnFQvTvRDpNaxspAQwT2ssX8vZuzdhAcs7tJ3J5t4TcwYvmgxZJTmSXvDuEL443gHqYDVq95eAE29C8H1z"
+      },
+      "openNoPayout": {
+        "workflowPda": "C6bHH6SDwC6fFeHiLgqvNrMJbbx8yek72MdUZNSBwXLv",
+        "create": "22gHsGGAr5Qpq5aGWfSYG8XYVoi9PrtdF3zrm9owg6LoSdQdbGVTWgPaFRFrU1PJsSsroxEjsxfsq5HTCWgNJ7vK",
+        "fund": "2Coo7BvSnmMnfT9aTsK1KcYPN1rWJCDmtVEnH7zGzBHhPhCz1VoKt5vRMFHJzRuFAzGL1Eup5cotd8MDvvf3soU8",
+        "check": "SgMkPcdL9xqT1e1AoYv34aM9L6Cj5oKbJGb3NV8D1SPVyiCsL89N9xXQpVCz52STstGU88nwofQnF6AYBhvxFmj",
+        "callback": "2TtNKtrzTuc9JnhnojQU1z6dFsBx8jwBg7ZL55KDsXhUNUiSwxzbV53MJybG6KNhjkwRmutDrS2eULVF2BdfuXbM",
+        "status": "2wxpS6uJSvjZRH5FcmmyP7hWVtzEJe3DwXVe3saDBWfQ83Cj2JKnv2XhyUiWJRojR7w4pTgTrAXRLHqdYig8ppRR"
+      },
+      "deadlineRefund": {
+        "workflowPda": "9BUGzXeuwXuXnfF65ptfe17wD8YPLWUSoUHDbhdAWyHe",
+        "create": "2PQQxuz1RA65sUChuDyw6ZUcLccbnvzp9eDnVXJxu71E8VvFgEXpaDxtj1BRiWY3LNs9DkYdPQwoQCP9q4j5dQXg",
+        "fund": "5uqdBj5CYi16kmUh1ozJ3t5UdvqVYncdZ8GcA7jRNr7ZN1vuK62VBa3t87DCaDLemBeNNypt8RL8PQnoyefQdRGt",
+        "earlyRefund": "2rPkxQ1qwPgp5ANpTuMRu7KAt4cQjS9uM792UmWkkLtbVyeW5T1Fam2J5EtJ9u1NhuKp7vho8HGAQgNCSjAAv8ez",
+        "validRefund": "2oitQdyDKtWrUBWbm2dfxZPJcRp6NidXomPQnKYMg7ghHauqEZ6WohNrXAZZELMZsjk6vvURxTJuV8eMZi8TqxRb",
+        "status": "3hUrurEmaw8WvqbaZeV79FxwVJuubEYJyLh5DgkLzoZsECRcFxXi7H3E71VPAnKE2mFdHQJxUnJfum59a2UE2v9r"
+      }
+    }
   }
 }

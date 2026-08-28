@@ -13,7 +13,7 @@ export default function ActivityPage() {
   return (
     <main className="page-main page-width">
       <div className="page-hero">
-        <div><p className="eyebrow">Verified activity</p><h1>Proof, not<br />promises.</h1><p>These are real callback and refund signatures recorded from the fully tested pre-hardening DevNet candidate.</p></div>
+        <div><p className="eyebrow">Verified activity</p><h1>Proof, not<br />promises.</h1><p>These are real callback and refund signatures recorded from the fully tested hardened DevNet candidate.</p></div>
         <div className="evidence-summary" aria-label={`${recordedPathCount} terminal paths recorded on Rialo DevNet`}>
           <div className="evidence-summary__meta"><span>EVIDENCE SET</span><i /><b>DEVNET</b></div>
           <div className="evidence-summary__metric">
@@ -32,7 +32,7 @@ export default function ActivityPage() {
           </article>
         ))}
       </section>
-      <section className="evidence-footnote"><div><p className="panel-label">EVIDENCE SCOPE</p><p>The signatures above belong to program <span className="mono">{devnetDeployment.reviewCandidate.programId}</span>. The hardened artifact is deployed and metadata-verified, but must pass fresh runtime proof before it replaces this candidate.</p></div><Link className="text-link" href="/docs">Read verification model <BookOpen aria-hidden="true" className="ui-icon" size={16} strokeWidth={1.9} /></Link></section>
+      <section className="evidence-footnote"><div><p className="panel-label">EVIDENCE SCOPE</p><p>The signatures above belong to the runtime-proven hardened program <span className="mono">{devnetDeployment.reviewCandidate.programId}</span>. Each path was inspected for transaction success, callback behavior, and final account state.</p></div><Link className="text-link" href="/docs">Read verification model <BookOpen aria-hidden="true" className="ui-icon" size={16} strokeWidth={1.9} /></Link></section>
     </main>
   );
 }

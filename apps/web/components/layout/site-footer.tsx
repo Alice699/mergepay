@@ -35,10 +35,10 @@ export function SiteFooter() {
 
           <div className="footer-deployment">
             <p>Deployment handoff</p>
-            <div className="footer-deployment__status"><span>{hardenedProgramId ? "Hardened deployed · proof pending" : "Pre-hardening candidate"}</span><strong>{hardenedProgramId ? "Deployed" : "Proven"}</strong></div>
+            <div className="footer-deployment__status"><span>{hardenedProgramId ? "Hardened deployed · runtime-proven" : "Pre-hardening candidate"}</span><strong>Proven</strong></div>
             <div className="footer-deployment__program">
               <span className="mono">{(hardenedProgramId ?? testedProgramId).slice(0, 12)}…{(hardenedProgramId ?? testedProgramId).slice(-10)}</span>
-              <span>{hardenedProgramId ? "Fresh runtime proof is pending; the proven candidate remains on Activity." : "Full address is available on the Activity page."}</span>
+              <span>{hardenedProgramId ? "Fresh runtime proof is recorded on Activity; this is the current review candidate." : "Full address is available on the Activity page."}</span>
             </div>
           </div>
         </div>

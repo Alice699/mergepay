@@ -13,12 +13,11 @@ No keeper, webhook server, cron job, or trusted payout backend is required.
 
 | Item | Value |
 | --- | --- |
-| Active hardened program | `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F` |
-| Runtime-proven review candidate | `2WtSUhTyNfVsC7rDv5iWw3HBCkzCc9ymE1RLmQMvGShU` |
+| Active runtime-proven program | `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F` |
+| Historical pre-hardening candidate | `2WtSUhTyNfVsC7rDv5iWw3HBCkzCc9ymE1RLmQMvGShU` |
 | Rialo release | `stable@0.18.1` |
 | Program format | RISC-V / PolkaVM |
-| Deployed candidate artifact | `195954` bytes; SHA-256 `8f1156b3…d7a2` |
-| Hardened artifact | `196167` bytes; deployed, runtime proof pending |
+| Hardened artifact | `196167` bytes; deployed and runtime-proven |
 | Merged-PR payout | Proven on DevNet |
 | Open-PR no-payout | Proven on DevNet |
 | Early refund rejection | Proven on DevNet |
@@ -125,7 +124,7 @@ Use a fresh 64-character hex slug. All CLI aliases below refer to local keypairs
 never commit those keypair files.
 
 ```bash
-MERGEPAY_PROGRAM_ID=2WtSUhTyNfVsC7rDv5iWw3HBCkzCc9ymE1RLmQMvGShU
+MERGEPAY_PROGRAM_ID=4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F
 MERGEPAY_SLUG=0000000000000000000000000000000000000000000000000000000000000008
 MERGEPAY_BENEFICIARY=REPLACE_WITH_PUBLIC_BENEFICIARY_ADDRESS
 MERGEPAY_DEADLINE_MS=REPLACE_WITH_FUTURE_UNIX_MILLISECONDS
