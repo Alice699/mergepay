@@ -9,6 +9,11 @@ If the deadline expires first, the sponsor can recover the escrow.
 
 No keeper, webhook server, cron job, or trusted payout backend is required.
 
+The reviewer-facing web app can use either a future Wallet Standard extension through
+Frost or a DevNet-only embedded Rialo signer. The embedded key is generated locally,
+stored only as password-encrypted ciphertext, and signs real transactions after an
+explicit review screen; it is not a production wallet and must not hold real funds.
+
 ## DevNet status
 
 | Item | Value |

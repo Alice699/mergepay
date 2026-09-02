@@ -26,6 +26,13 @@ MergePay is a DevNet MVP, not audited production software.
 - GitHub's public merge-status endpoint accurately represents public repository state.
 - The sponsor chooses the intended repository, PR, beneficiary, amount, and deadline.
 - DevNet transaction history and deployments may be reset.
+- The embedded wallet runs in the same browser origin as the dApp. While unlocked, an
+  origin compromise or malicious dependency could access signing capability; encrypted
+  storage protects data at rest, not a compromised runtime.
+- The same-origin RPC relay is a transport boundary, not a signer. It forwards only an
+  explicit method allowlist to a fixed HTTPS endpoint and never receives passwords or
+  private keys; signed transaction bytes and public addresses remain public network data.
+- Users retain the wallet password and encrypted backup. MergePay has no recovery key.
 
 ## Fail-closed behavior
 
@@ -52,10 +59,20 @@ sponsor-selected bounty locked until refund.
 - Workflow rent remains in the PDA after payout/refund; there is no close instruction.
 - CLI submission can print a transaction signature even when execution fails. Always
   inspect transaction metadata and require a successful status.
+- The embedded signer is DevNet-only. It rejects other networks, other program IDs,
+  non-public MergePay instruction discriminants, and signer mismatches.
+- Browser storage can be cleared by the user or browser. Without the encrypted backup
+  and its password, the local DevNet account cannot be recovered.
+- The public DevNet RPC and faucet may be restarted, reset, or rate-limited independently
+  of the dApp. The UI reports RPC reachability rather than claiming the whole network is
+  offline.
 
 ## Operational guidance
 
 - Never commit Rialo keypair files or private keys.
+- Never use the embedded DevNet wallet with real funds or copy a production key into it.
+- Download an encrypted backup before creating a workflow that must survive a browser
+  reset, and lock the wallet when signing is complete.
 - Treat all instruction arguments and transaction logs as public.
 - Revalidate mutable GitHub fixtures immediately before demos.
 - Follow the full workflow lineage and inspect the callback, not only the initiating
@@ -69,4 +86,5 @@ sponsor-selected bounty locked until refund.
 - Token support and decimal-safe UI amounts.
 - Rate-limit strategy, retries, and optional authenticated/private-repository design.
 - Version-gated clock semantics.
-- Frontend wallet integration and human-readable confirmation screens.
+- Production-grade wallet integration, independent wallet audit, phishing resistance,
+  hardware-backed key custody, and recovery UX.

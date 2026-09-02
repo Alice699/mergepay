@@ -29,6 +29,9 @@ signals across transactions.
 - Open-PR fail-closed path
 - Sponsor-only deadline refund
 - Persistent status and transaction-lineage evidence
+- Extension-free DevNet onboarding with a locally encrypted Rialo signer
+- Explicit transaction review, real SDK signing, DevNet faucet funding, submission,
+  and executed confirmation
 
 ## Three-minute demo
 
@@ -74,8 +77,10 @@ See [SECURITY.md](SECURITY.md) for the full threat model and limitations.
 
 This is a DevNet MVP, not an audited production payment protocol. It currently supports
 public GitHub repositories, native RLO, one beneficiary, and sponsor-triggered checks.
-The reactive external verification and settlement path is real and fully demonstrated;
-wallet UI, token support, retries, authenticated GitHub access, and audit work are next.
+The reactive external verification and settlement path is real and fully demonstrated.
+The dApp includes an experimental DevNet-only embedded signer because a public Rialo
+extension is not required for review. Token support, retries, authenticated GitHub
+access, production wallet hardening, and audit work remain out of scope.
 
 ## Review checklist
 
@@ -86,6 +91,7 @@ wallet UI, token support, retries, authenticated GitHub access, and audit work a
 - [x] Moves real DevNet balances on unanimous success
 - [x] Proves no-payout and refund branches
 - [x] Documents platform findings and limitations
+- [x] Provides a real no-extension DevNet signing and faucet path without mock state
 
 ## Requested review outcome
 

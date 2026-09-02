@@ -13,7 +13,8 @@ The source of truth for the interface is
 - `instructions/` constructs the exact bincode instruction payloads and account metas;
 - `accounts/` decodes workflow state;
 - `pda/` owns deterministic workflow, subscriber, REX, and event-data addresses;
-- `rpc/` owns typed reads, raw transaction inspection, submission, and confirmation;
+- `rpc/` owns typed reads, raw transaction inspection, DevNet faucet requests,
+  submission, and confirmation;
 - `transactions/` owns SDK-backed unsigned transaction creation;
 - `wallet/` is reserved for wallet adapters and never receives private-key material.
 
@@ -46,6 +47,7 @@ const signed = transaction.sign(Keypair.fromSecretKey(secretKey));
 const result = await mergePay.sendAndConfirm(signed);
 ```
 
-The browser integration should obtain the signature from a wallet adapter instead of
-calling `Keypair` with secret material. `MergePayClient.getWorkflow()` reads the PDA
-again from RPC, so a page reload does not depend on local UI state.
+The browser integration obtains signatures from a wallet adapter. The experimental
+embedded DevNet adapter owns its encrypted key boundary inside `apps/web`; secret
+material never enters this protocol package. `MergePayClient.getWorkflow()` reads the
+PDA again from RPC, so a page reload does not depend on local UI state.

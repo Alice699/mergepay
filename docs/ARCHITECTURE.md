@@ -11,6 +11,32 @@
 | Beneficiary | Writable callback account that receives a successful payout |
 | GitHub API | Supplies the compact merged/not-merged HTTP status |
 
+## Browser signing boundary
+
+The dApp exposes one wallet context with two interchangeable signers:
+
+| Adapter | Current purpose |
+| --- | --- |
+| Frost / Wallet Standard | Connect a compatible Rialo extension when available |
+| MergePay embedded signer | DevNet-only reviewer onboarding without an extension |
+
+The embedded path generates an Ed25519 key through `@rialo/ts-cdk`, encrypts its secret
+with AES-GCM and a password-derived key, and stores only the encrypted vault in
+IndexedDB. Signing occurs locally after a MergePay confirmation dialog. The adapter
+verifies network, payer, program ID, and public instruction discriminant before using
+the key. Signed bytes are submitted through the same typed Rialo client and are not
+reported as successful until RPC confirmation returns `executed=true`.
+
+The RPC faucet path is separate from signing: the SDK requests one DevNet RLO for the
+public address and waits for confirmation. It creates no fabricated balance state.
+
+Browser clients call the same-origin `/api/rialo` route. That route relays a narrow
+allowlist of JSON-RPC methods to the official DevNet endpoint, which does not emit an
+`Access-Control-Allow-Origin` header for arbitrary local origins. Keeping this transport
+boundary same-origin avoids a false “DevNet offline” state caused by browser CORS. The
+relay accepts no batch requests, limits request size, and caps each faucet request at
+one RLO.
+
 ## State
 
 ```text
