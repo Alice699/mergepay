@@ -183,3 +183,7 @@ See GitHub's [pull-request REST documentation](https://docs.github.com/en/rest/p
 - [Builder submission draft](docs/BUILDER_SUBMISSION.md)
 
 License: Apache-2.0.
+
+## DevNet review
+
+MergePay can be reviewed with a public GitHub pull request and the Rialo DevNet wallet.
