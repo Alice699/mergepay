@@ -114,6 +114,20 @@ export class MergePayRpcClient {
     return this.client.getHealth();
   }
 
+  async requestAirdropAndConfirm(
+    address: string,
+    amountKelvin: bigint,
+  ): Promise<MergePayConfirmation> {
+    if (amountKelvin <= 0n) {
+      throw new RangeError("airdrop amount must be greater than zero");
+    }
+    const result = await this.client.requestAirdropAndConfirm(
+      toPublicKey(address, "airdrop address"),
+      amountKelvin,
+    );
+    return normalizeConfirmation(result);
+  }
+
   async getSignatureStatuses(
     signatures: readonly string[],
   ): Promise<(MergePaySignatureStatus | null)[]> {

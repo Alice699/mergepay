@@ -1,13 +1,134 @@
 "use client";
 
-import { LockKeyhole } from "lucide-react";
+import { Check, CircleAlert, LoaderCircle, LockKeyhole } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useCreateBounty } from "@/features/create-bounty/use-create-bounty";
 import { useWallet } from "@/hooks/use-wallet";
+import { useNetwork } from "@/hooks/use-network";
+import { asError, describeRialoError } from "@/lib/errors";
+import { routes } from "@/lib/constants";
+import type { CreateBountyFormValues } from "../schema";
+
+function readFormValues(form: HTMLFormElement): CreateBountyFormValues {
+  const data = new FormData(form);
+  const value = (name: keyof CreateBountyFormValues) => {
+    const field = data.get(name);
+    return typeof field === "string" ? field.trim() : "";
+  };
+
+  const deadline = value("deadlineUnixMs");
+  const deadlineUnixMs = Date.parse(deadline);
+  if (!Number.isSafeInteger(deadlineUnixMs) || deadlineUnixMs <= Date.now()) {
+    throw new Error("Choose a future deadline.");
+  }
+
+  return {
+    workflowSlug: value("workflowSlug"),
+    beneficiary: value("beneficiary"),
+    githubOwner: value("githubOwner"),
+    githubRepo: value("githubRepo"),
+    pullNumber: value("pullNumber"),
+    amountKelvin: value("amountKelvin"),
+    deadlineUnixMs: String(deadlineUnixMs),
+  };
+}
 
 export function CreateBountyForm() {
   const wallet = useWallet();
+  const network = useNetwork();
+  const router = useRouter();
+  const createBounty = useCreateBounty();
+  const [formError, setFormError] = useState<Error | null>(null);
+  const isBusy = createBounty.status === "pending";
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity() || isBusy) return;
+
+    setFormError(null);
+    let values: CreateBountyFormValues;
+    try {
+      values = readFormValues(event.currentTarget);
+    } catch (cause) {
+      setFormError(asError(cause));
+      return;
+    }
+
+    try {
+      const result = await createBounty.execute(values);
+      router.push(routes.bounty(result.workflowSlug));
+    } catch {
+      // The transaction state below is the source of truth for submission failure.
+    }
+  }
+
+  const transactionPhase = createBounty.transaction.phase;
+  const unavailable =
+    wallet.status !== "connected" ||
+    !wallet.address ||
+    !network.isExpectedNetwork ||
+    wallet.networkSupported === false ||
+    network.rpcStatus !== "available";
+  const statusTone =
+    formError || createBounty.status === "error" || transactionPhase === "failed"
+      ? "error"
+      : createBounty.status === "success" || transactionPhase === "confirmed"
+        ? "success"
+        : isBusy || transactionPhase === "signing" || transactionPhase === "submitting"
+          ? "pending"
+          : "idle";
+
+  let statusTitle = "Ready to sign";
+  let statusCopy = "Your active signer will review the immutable terms.";
+  let buttonLabel = "Create bounty";
+
+  if (wallet.status === "discovering") {
+    statusTitle = "Loading wallet";
+    statusCopy = "Preparing the encrypted local vault and wallet discovery.";
+  } else if (wallet.status === "locked") {
+    statusTitle = "Wallet locked";
+    statusCopy = "Unlock your MergePay DevNet wallet before creating the workflow.";
+  } else if (wallet.status !== "connected" || !wallet.address) {
+    statusTitle = "Wallet required";
+    statusCopy = "Create, unlock, or connect a Rialo wallet before continuing.";
+  } else if (!network.isExpectedNetwork || wallet.networkSupported === false) {
+    statusTitle = "Wrong network";
+    statusCopy = `Switch to ${network.label} before signing.`;
+  } else if (network.rpcStatus === "checking") {
+    statusTitle = "Checking Rialo RPC";
+    statusCopy = "The network connection is being verified before signing.";
+  } else if (network.rpcStatus === "unavailable") {
+    statusTitle = "RPC unavailable";
+    statusCopy = "Rialo cannot be reached right now. Try again shortly.";
+  } else if (transactionPhase === "reviewing") {
+    statusTitle = "Review transaction";
+    statusCopy = "Verify the signer, program, amount, and workflow account.";
+    buttonLabel = "Awaiting review";
+  } else if (transactionPhase === "signing") {
+    statusTitle = "Awaiting signature";
+    statusCopy = "Review and approve the transaction in your wallet.";
+    buttonLabel = "Awaiting signature";
+  } else if (transactionPhase === "submitting") {
+    statusTitle = "Submitting transaction";
+    statusCopy = "The signed transaction is being sent to Rialo.";
+    buttonLabel = "Submitting";
+  } else if (createBounty.status === "success" || transactionPhase === "confirmed") {
+    statusTitle = "Bounty created";
+    statusCopy = "The workflow account is confirmed on Rialo. Opening its record.";
+    buttonLabel = "Confirmed";
+  } else if (formError) {
+    statusTitle = "Check the form";
+    statusCopy = describeRialoError(formError);
+    buttonLabel = "Try again";
+  } else if (createBounty.status === "error" || transactionPhase === "failed") {
+    statusTitle = "Transaction failed";
+    statusCopy = describeRialoError(createBounty.error ?? createBounty.transaction.error);
+    buttonLabel = "Try again";
+  }
 
   return (
-    <form className="bounty-form" aria-label="Create a MergePay bounty">
+    <form className="bounty-form" aria-label="Create a MergePay bounty" onSubmit={handleSubmit}>
       <fieldset className="form-section">
         <legend className="sr-only">GitHub target</legend>
         <div className="form-section__heading">
@@ -36,11 +157,14 @@ export function CreateBountyForm() {
       </fieldset>
 
       <div className="form-submit">
-        <div className="form-submit__status">
+        <div className={`form-submit__status form-submit__status--${statusTone}`} aria-live="polite">
           <i aria-hidden="true" />
-          <div><p>Transaction unavailable</p><span>{wallet.status === "connected" ? "Rialo transaction client is not connected." : "A supported Rialo wallet and transaction client are required."}</span></div>
+          <div><p>{statusTitle}</p><span>{statusCopy}</span></div>
         </div>
-        <button className="button" disabled type="submit">Creation unavailable <LockKeyhole aria-hidden="true" size={15} /></button>
+        <button className="button" disabled={unavailable || isBusy || statusTone === "success"} type="submit">
+          {isBusy || transactionPhase === "reviewing" || transactionPhase === "signing" || transactionPhase === "submitting" ? <LoaderCircle aria-hidden="true" className="ui-icon ui-icon--spin" size={15} /> : statusTone === "success" ? <Check aria-hidden="true" size={15} /> : statusTone === "error" ? <CircleAlert aria-hidden="true" size={15} /> : <LockKeyhole aria-hidden="true" size={15} />}
+          {buttonLabel}
+        </button>
       </div>
     </form>
   );

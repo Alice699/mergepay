@@ -1,7 +1,7 @@
 "use client";
 
 import { useContext } from "react";
-import { WalletContext } from "@/providers/wallet-provider";
+import { WalletContext } from "@/providers/wallet-context";
 
 export function useWallet() {
   const wallet = useContext(WalletContext);
