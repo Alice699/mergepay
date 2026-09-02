@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Menu, Plus, X } from "lucide-react";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { WalletControl } from "@/components/wallet/wallet-control";
+import { useNetwork } from "@/hooks/use-network";
 import { routes } from "@/lib/constants";
 
 const navigation = [
@@ -16,6 +17,7 @@ const navigation = [
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const network = useNetwork();
   const [menuOpen, setMenuOpen] = useState(false);
 
   function isCurrent(href: string) {
@@ -46,7 +48,17 @@ export function SiteHeader() {
             ))}
           </nav>
           <div className="site-header__actions">
-            <span className="network-pill"><i /> Rialo DevNet</span>
+            <span
+              aria-label={`${network.label} RPC ${network.rpcStatus === "available" ? "ready" : network.rpcStatus}`}
+              aria-live="polite"
+              className="network-pill"
+              data-state={network.rpcStatus}
+              title={network.rpcError?.message ?? network.rpcUrl}
+            >
+              <i aria-hidden="true" />
+              <span>{network.label.replace("Rialo ", "")}</span>
+              <b>{network.rpcStatus === "available" ? "ready" : network.rpcStatus === "unavailable" ? "issue" : "checking"}</b>
+            </span>
             <WalletControl />
             <Link className="nav-cta" href={routes.createBounty}>
               <span>New bounty</span>

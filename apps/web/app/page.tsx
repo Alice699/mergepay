@@ -10,6 +10,7 @@ import {
 import { WorkflowLifecycle } from "@/components/bounty/workflow-lifecycle";
 import { ScrollReveal } from "@/components/motion/scroll-reveal";
 import { CopyValue } from "@/components/ui/copy-value";
+import { WalletStatusSummary } from "@/components/wallet/wallet-status-summary";
 import { devnetDeployment, hardenedDeploymentReady } from "@/lib/deployment";
 
 export default function HomePage() {
@@ -53,7 +54,7 @@ export default function HomePage() {
           <span className="status-band__label">BUILD STATUS</span>
           <div><i className="status-indicator status-indicator--good" /><span>Core workflow</span><strong>Proven</strong></div>
           <div><i className="status-indicator status-indicator--good" /><span>Hardened deployment</span><strong>{hardenedDeploymentReady ? "Proven" : "Pending"}</strong></div>
-          <div><i className="status-indicator" /><span>Browser wallet</span><strong>Not connected</strong></div>
+          <WalletStatusSummary />
         </ScrollReveal>
       </section>
 

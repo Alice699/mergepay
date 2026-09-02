@@ -12,10 +12,12 @@ const requiredPaths = [
   "app/bounties/[slug]/page.tsx",
   "app/activity/page.tsx",
   "app/docs/page.tsx",
+  "app/api/rialo/route.ts",
   "components/ui/brand-mark.tsx",
   "components/feedback/route-placeholder.tsx",
   "components/motion/route-transition.tsx",
   "components/motion/scroll-reveal.tsx",
+  "components/wallet/transaction-approval-dialog.tsx",
   "features/create-bounty/components/create-bounty-form.tsx",
   "features/create-bounty/schema.ts",
   "features/create-bounty/use-create-bounty.ts",
@@ -24,10 +26,18 @@ const requiredPaths = [
   "features/refund-bounty/README.md",
   "features/workflow-status/README.md",
   "providers/index.tsx",
+  "providers/network-provider.tsx",
+  "providers/network-context.ts",
+  "providers/wallet-provider.tsx",
+  "providers/wallet-context.ts",
   "hooks/use-wallet.ts",
+  "hooks/use-network.ts",
+  "hooks/use-embedded-wallet.ts",
   "hooks/use-transaction.ts",
   "hooks/use-workflow.ts",
   "lib/config.ts",
+  "lib/rialo.ts",
+  "lib/embedded-wallet.ts",
   "lib/constants.ts",
   "lib/errors.ts",
   "lib/format.ts",
@@ -131,8 +141,10 @@ test("uses semantic symbols without directional arrow UI", async () => {
   const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
   assert.doesNotMatch(styles, /lifecycle__arrow|proof-stamp/);
   assert.doesNotMatch(styles, /button--compact/);
+  assert.doesNotMatch(styles, /wallet-ledger|wallet-faucet/);
   assert.match(styles, /evidence-summary/);
   assert.match(styles, /lookup__submit-mark/);
+  assert.match(styles, /wallet-quick-actions/);
   assert.match(styles, /prefers-reduced-motion/);
 });
 
@@ -147,4 +159,114 @@ test("keeps brand color separate from semantic state colors", async () => {
     styles,
     /--lime|#d7ff67|215, 255, 103|oklch\(0\.72 0\.155 42\)/i,
   );
+});
+
+test("uses the real Rialo wallet and transaction boundary", async () => {
+  const packageJson = JSON.parse(
+    await readFile(new URL("package.json", webRoot), "utf8"),
+  );
+  assert.equal(packageJson.dependencies["@rialo/frost"], "0.18.1");
+
+  const providers = await readFile(
+    new URL("providers/index.tsx", webRoot),
+    "utf8",
+  );
+  const walletProvider = await readFile(
+    new URL("providers/wallet-provider.tsx", webRoot),
+    "utf8",
+  );
+  const networkProvider = await readFile(
+    new URL("providers/network-provider.tsx", webRoot),
+    "utf8",
+  );
+  const networkContext = await readFile(
+    new URL("providers/network-context.ts", webRoot),
+    "utf8",
+  );
+  const walletContext = await readFile(
+    new URL("providers/wallet-context.ts", webRoot),
+    "utf8",
+  );
+  const networkHook = await readFile(
+    new URL("hooks/use-network.ts", webRoot),
+    "utf8",
+  );
+  const walletHook = await readFile(
+    new URL("hooks/use-wallet.ts", webRoot),
+    "utf8",
+  );
+  const form = await readFile(
+    new URL("features/create-bounty/components/create-bounty-form.tsx", webRoot),
+    "utf8",
+  );
+  const createHook = await readFile(
+    new URL("features/create-bounty/use-create-bounty.ts", webRoot),
+    "utf8",
+  );
+  const wallet = await readFile(
+    new URL("components/wallet/wallet-control.tsx", webRoot),
+    "utf8",
+  );
+  const embeddedWallet = await readFile(
+    new URL("lib/embedded-wallet.ts", webRoot),
+    "utf8",
+  );
+  const embeddedHook = await readFile(
+    new URL("hooks/use-embedded-wallet.ts", webRoot),
+    "utf8",
+  );
+  const approvalDialog = await readFile(
+    new URL("components/wallet/transaction-approval-dialog.tsx", webRoot),
+    "utf8",
+  );
+  const rpcRelay = await readFile(
+    new URL("app/api/rialo/route.ts", webRoot),
+    "utf8",
+  );
+  const config = await readFile(new URL("lib/config.ts", webRoot), "utf8");
+
+  assert.match(providers, /FrostProvider/);
+  assert.doesNotMatch(providers, /from "\.\/network-provider"/);
+  assert.doesNotMatch(providers, /from "\.\/wallet-provider"/);
+  assert.match(networkContext, /createContext<NetworkSnapshot \| null>/);
+  assert.match(walletContext, /createContext<WalletSnapshot \| null>/);
+  assert.match(networkProvider, /from "@\/providers\/network-context"/);
+  assert.match(walletProvider, /from "@\/providers\/wallet-context"/);
+  assert.match(networkHook, /from "@\/providers\/network-context"/);
+  assert.match(walletHook, /from "@\/providers\/wallet-context"/);
+  assert.doesNotMatch(networkProvider, /createContext/);
+  assert.doesNotMatch(walletProvider, /createContext/);
+  assert.match(walletProvider, /useConnectWallet/);
+  assert.match(walletProvider, /useNativeBalance/);
+  assert.match(walletProvider, /useSignTransaction/);
+  assert.match(walletProvider, /sendTransaction/);
+  assert.match(walletProvider, /confirm\(/);
+  assert.match(networkProvider, /getHealth/);
+  assert.match(form, /onSubmit={handleSubmit}/);
+  assert.match(createHook, /buildCreateBounty/);
+  assert.match(createHook, /buildTransaction/);
+  assert.match(walletProvider, /useWallets/);
+  assert.match(walletProvider, /requestAirdropAndConfirm/);
+  assert.match(walletProvider, /TRANSACTION_PROGRAM_REJECTED/);
+  assert.match(embeddedWallet, /PBKDF2_ITERATIONS = 600_000/);
+  assert.match(embeddedWallet, /AES-GCM/);
+  assert.match(embeddedWallet, /globalThis\.indexedDB/);
+  assert.match(embeddedHook, /Keypair\.generate\(\)/);
+  assert.match(embeddedHook, /transaction\.sign\(keypair\)/);
+  assert.match(embeddedHook, /keypair\.dispose\(\)/);
+  assert.match(approvalDialog, /Sign transaction/);
+  assert.match(wallet, /Create local wallet/);
+  assert.match(wallet, /Add funds/);
+  assert.match(wallet, /DevNet faucet adds 1 RLO per request/);
+  assert.match(wallet, /Wallet settings/);
+  assert.match(wallet, /Encrypted locally · auto-locks after 15 min/);
+  assert.match(config, /configuredRpcUrl \|\| "\/api\/rialo"/);
+  assert.match(rpcRelay, /allowedMethods/);
+  assert.match(rpcRelay, /MAX_DEVNET_AIRDROP_KELVIN = 1_000_000_000/);
+  assert.doesNotMatch(rpcRelay, /Access-Control-Allow-Origin/i);
+  assert.doesNotMatch(embeddedWallet, /localStorage/);
+  assert.doesNotMatch(embeddedHook, /createMockWallet/);
+  assert.doesNotMatch(form, /Transaction unavailable|Creation unavailable/);
+  assert.doesNotMatch(wallet, /integration is not connected yet|not available yet/);
+  assert.doesNotMatch(wallet, /wallet-ledger|LOCAL SIGNER|Fund this key/);
 });
