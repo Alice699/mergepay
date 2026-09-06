@@ -11,6 +11,7 @@ const requiredPaths = [
   "app/bounties/new/page.tsx",
   "app/bounties/[slug]/page.tsx",
   "app/activity/page.tsx",
+  "app/guide/page.tsx",
   "app/docs/page.tsx",
   "app/api/rialo/route.ts",
   "components/ui/brand-mark.tsx",
@@ -18,11 +19,18 @@ const requiredPaths = [
   "components/motion/route-transition.tsx",
   "components/motion/scroll-reveal.tsx",
   "components/wallet/transaction-approval-dialog.tsx",
+  "components/bounty/workflow-detail.tsx",
   "features/create-bounty/components/create-bounty-form.tsx",
   "features/create-bounty/schema.ts",
   "features/create-bounty/use-create-bounty.ts",
+  "features/fund-bounty/components/fund-bounty-action.tsx",
+  "features/fund-bounty/use-fund-bounty.ts",
   "features/fund-bounty/README.md",
+  "features/check-merge/components/check-merge-action.tsx",
+  "features/check-merge/use-check-merge.ts",
   "features/check-merge/README.md",
+  "features/refund-bounty/components/refund-bounty-action.tsx",
+  "features/refund-bounty/use-refund-bounty.ts",
   "features/refund-bounty/README.md",
   "features/workflow-status/README.md",
   "providers/index.tsx",
@@ -33,6 +41,7 @@ const requiredPaths = [
   "hooks/use-wallet.ts",
   "hooks/use-network.ts",
   "hooks/use-embedded-wallet.ts",
+  "hooks/use-deadline-passed.ts",
   "hooks/use-transaction.ts",
   "hooks/use-workflow.ts",
   "lib/config.ts",
@@ -56,6 +65,7 @@ test("ships product routes instead of route placeholders", async () => {
   const productRoutes = [
     "app/page.tsx",
     "app/activity/page.tsx",
+    "app/guide/page.tsx",
     "app/bounties/page.tsx",
     "app/bounties/new/page.tsx",
     "app/bounties/[slug]/page.tsx",
@@ -108,10 +118,15 @@ test("uses semantic symbols without directional arrow UI", async () => {
   const iconizedSources = [
     "app/page.tsx",
     "app/activity/page.tsx",
+    "app/guide/page.tsx",
     "app/bounties/page.tsx",
     "app/docs/page.tsx",
     "components/bounty/workflow-lifecycle.tsx",
+    "components/bounty/workflow-detail.tsx",
     "components/bounty/workflow-lookup.tsx",
+    "features/fund-bounty/components/fund-bounty-action.tsx",
+    "features/check-merge/components/check-merge-action.tsx",
+    "features/refund-bounty/components/refund-bounty-action.tsx",
     "components/layout/site-footer.tsx",
     "components/layout/site-header.tsx",
     "components/ui/copy-value.tsx",
@@ -199,8 +214,36 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
     new URL("features/create-bounty/components/create-bounty-form.tsx", webRoot),
     "utf8",
   );
+  const workflowDetail = await readFile(
+    new URL("components/bounty/workflow-detail.tsx", webRoot),
+    "utf8",
+  );
   const createHook = await readFile(
     new URL("features/create-bounty/use-create-bounty.ts", webRoot),
+    "utf8",
+  );
+  const fundHook = await readFile(
+    new URL("features/fund-bounty/use-fund-bounty.ts", webRoot),
+    "utf8",
+  );
+  const fundAction = await readFile(
+    new URL("features/fund-bounty/components/fund-bounty-action.tsx", webRoot),
+    "utf8",
+  );
+  const checkMergeHook = await readFile(
+    new URL("features/check-merge/use-check-merge.ts", webRoot),
+    "utf8",
+  );
+  const checkMergeAction = await readFile(
+    new URL("features/check-merge/components/check-merge-action.tsx", webRoot),
+    "utf8",
+  );
+  const refundHook = await readFile(
+    new URL("features/refund-bounty/use-refund-bounty.ts", webRoot),
+    "utf8",
+  );
+  const refundAction = await readFile(
+    new URL("features/refund-bounty/components/refund-bounty-action.tsx", webRoot),
     "utf8",
   );
   const wallet = await readFile(
@@ -243,8 +286,28 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(walletProvider, /confirm\(/);
   assert.match(networkProvider, /getHealth/);
   assert.match(form, /onSubmit={handleSubmit}/);
+  assert.match(form, /detailQuery/);
+  assert.match(workflowDetail, /getWorkflow/);
+  assert.match(workflowDetail, /Transaction confirmed/);
+  assert.match(workflowDetail, /Retry account read/);
   assert.match(createHook, /buildCreateBounty/);
   assert.match(createHook, /buildTransaction/);
+  assert.match(fundHook, /getWorkflow/);
+  assert.match(fundHook, /buildFund/);
+  assert.match(fundHook, /submitTransaction/);
+  assert.match(fundAction, /Fund escrow/);
+  assert.match(fundAction, /WORKFLOW STATE|Fund bounty/);
+  assert.match(checkMergeHook, /getWorkflow/);
+  assert.match(checkMergeHook, /buildCheckMerge/);
+  assert.match(checkMergeHook, /getWorkflowLineage/);
+  assert.match(checkMergeHook, /submitTransaction/);
+  assert.match(checkMergeAction, /Verify merge/);
+  assert.match(checkMergeAction, /No unanimous merge proof/);
+  assert.match(refundHook, /getWorkflow/);
+  assert.match(refundHook, /buildRefund/);
+  assert.match(refundHook, /submitTransaction/);
+  assert.match(refundAction, /Recover escrow/);
+  assert.match(refundAction, /Refund escrow/);
   assert.match(walletProvider, /useWallets/);
   assert.match(walletProvider, /requestAirdropAndConfirm/);
   assert.match(walletProvider, /TRANSACTION_PROGRAM_REJECTED/);
@@ -262,6 +325,8 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(wallet, /Encrypted locally · auto-locks after 15 min/);
   assert.match(config, /configuredRpcUrl \|\| "\/api\/rialo"/);
   assert.match(rpcRelay, /allowedMethods/);
+  assert.match(rpcRelay, /getWorkflowLineage/);
+  assert.match(rpcRelay, /getSignaturesForAddress/);
   assert.match(rpcRelay, /MAX_DEVNET_AIRDROP_KELVIN = 1_000_000_000/);
   assert.doesNotMatch(rpcRelay, /Access-Control-Allow-Origin/i);
   assert.doesNotMatch(embeddedWallet, /localStorage/);

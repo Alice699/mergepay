@@ -28,6 +28,7 @@ export function SiteFooter() {
 
           <nav className="footer-nav" aria-label="Protocol links">
             <p>Protocol</p>
+            <Link href="/guide">Using MergePay</Link>
             <Link href="/docs">How it works</Link>
             <a href="https://rialo.io/for-devs" rel="noreferrer" target="_blank">Rialo developers <BookOpen aria-hidden="true" className="ui-icon" size={13} /><span className="sr-only"> (opens in a new tab)</span></a>
             <a href="https://docs.github.com/en/rest/pulls/pulls#check-if-a-pull-request-has-been-merged" rel="noreferrer" target="_blank">GitHub signal <GitPullRequest aria-hidden="true" className="ui-icon" size={13} /><span className="sr-only"> (opens in a new tab)</span></a>

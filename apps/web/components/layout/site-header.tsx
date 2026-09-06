@@ -12,6 +12,7 @@ import { routes } from "@/lib/constants";
 const navigation = [
   { href: routes.bounties, label: "Bounties" },
   { href: routes.activity, label: "Activity" },
+  { href: routes.guide, label: "Guide" },
   { href: routes.docs, label: "Docs" },
 ];
 

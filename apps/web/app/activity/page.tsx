@@ -1,38 +1,34 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { BookOpen } from "lucide-react";
-import { CopyValue } from "@/components/ui/copy-value";
+import { Activity } from "lucide-react";
+import { WalletActivityFeed } from "@/components/activity/wallet-activity-feed";
 import { devnetDeployment } from "@/lib/deployment";
-import { verifiedEvidence } from "@/lib/evidence";
 
 export const metadata: Metadata = { title: "Activity" };
 
 export default function ActivityPage() {
-  const recordedPathCount = verifiedEvidence.length;
-
   return (
-    <main className="page-main page-width">
+    <main className="page-main page-width activity-page">
       <div className="page-hero">
-        <div><p className="eyebrow">Verified activity</p><h1>Proof, not<br />promises.</h1><p>These are real callback and refund signatures recorded from the fully tested hardened DevNet candidate.</p></div>
-        <div className="evidence-summary" aria-label={`${recordedPathCount} terminal paths recorded on Rialo DevNet`}>
-          <div className="evidence-summary__meta"><span>EVIDENCE SET</span><i /><b>DEVNET</b></div>
-          <div className="evidence-summary__metric">
-            <strong>{String(recordedPathCount).padStart(2, "0")}</strong>
-            <p><span>Terminal paths</span><small>Recorded</small></p>
-          </div>
+        <div>
+          <p className="eyebrow">Wallet activity</p>
+          <h1>Every action,<br />in context.</h1>
+          <p>See what the connected wallet has actually done on Rialo DevNet. Activity is read from the chain, scoped to one address, and never filled with sample records.</p>
+        </div>
+        <div className="activity-scope" aria-label="Live activity source">
+          <Activity aria-hidden="true" size={20} strokeWidth={1.6} />
+          <span>LIVE SOURCE</span>
+          <strong>Connected wallet</strong>
+          <small>Rialo DevNet</small>
         </div>
       </div>
-      <section className="evidence-list">
-        <div className="evidence-list__header"><span>OUTCOME</span><span>RESULT</span><span>TRANSACTION</span></div>
-        {verifiedEvidence.map((item, index) => (
-          <article className="evidence-row" key={item.signature}>
-            <div><span className={`evidence-index evidence-index--${item.tone}`}>{String(index + 1).padStart(2, "0")}</span><h2>{item.label}</h2></div>
-            <p>{item.detail}</p>
-            <CopyValue value={item.signature} />
-          </article>
-        ))}
+      <WalletActivityFeed />
+      <section className="activity-footnote">
+        <div>
+          <p className="panel-label">CURRENT PROGRAM</p>
+          <p>MergePay transactions are recognized against the runtime-proven DevNet program <span className="mono">{devnetDeployment.reviewCandidate.programId}</span>. Open the workflow record for decoded escrow state, beneficiary, deadline, and REX outcome.</p>
+        </div>
+        <span className="state state--good">Live data only</span>
       </section>
-      <section className="evidence-footnote"><div><p className="panel-label">EVIDENCE SCOPE</p><p>The signatures above belong to the runtime-proven hardened program <span className="mono">{devnetDeployment.reviewCandidate.programId}</span>. Each path was inspected for transaction success, callback behavior, and final account state.</p></div><Link className="text-link" href="/docs">Read verification model <BookOpen aria-hidden="true" className="ui-icon" size={16} strokeWidth={1.9} /></Link></section>
     </main>
   );
 }
