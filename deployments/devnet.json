@@ -1,9 +1,14 @@
 {
   "network": "devnet",
-  "updatedAt": "2026-08-29",
+  "updatedAt": "2026-09-02",
   "reviewCandidate": {
-    "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",
+    "programId": "6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB",
     "status": "fully-tested-hardened",
+    "evidence": "docs/EVIDENCE.md"
+  },
+  "previousRuntimeCandidate": {
+    "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",
+    "status": "reset-after-runtime-proof",
     "evidence": "docs/EVIDENCE.md"
   },
   "historicalCandidate": {
@@ -12,41 +17,41 @@
     "evidence": "docs/EVIDENCE.md"
   },
   "hardenedArtifact": {
-    "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",
+    "programId": "6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB",
     "status": "deployed-runtime-proven",
     "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
     "bytes": 196167,
     "sha256": "BBA5032C634A76AE835A2A01517B936BD13E64F4AF05AF4DD83542611BF030B5",
-    "deployedSlot": 4467228,
+    "deployedSlot": 7138100,
     "dataLength": 196215,
     "executableDataLength": 196167,
     "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
     "balanceRlo": 1.36654728,
     "runtimeProof": {
-      "recordedAt": "2026-08-29",
+      "recordedAt": "2026-09-02",
       "mergedPayout": {
-        "workflowPda": "EJgmwWGUeXpB7b67qwz37PhYpewXawwSxjRk2ZHUvYUN",
-        "create": "2vpgJYQLEkF8rtNsdrEHMbx2xx8mRoAKnhhkvSaVk9GLDHWcgvMgcc3e3viUo2aJFRFZadoJ8BMW9JFGhvNogw1N",
-        "fund": "42qe8zwm1uRLLgVubHxkLeSQyqBfQhqURRp4zc3i2qyxxaKVBruFjp4xAyrWHWWtJEkmHmJzgqeCvEcpbShg678d",
-        "check": "5zwpvatvJd3LcaxLYbUKpmKyY3LjzZ6jHzMW62PnHyVJsRGG7dMEhB5wBLWXLvfZ3eX7JChcbiSnnpkVkD5hCo6x",
-        "callback": "Fu9AhK9o5HgQuQCucCFitQSmKswGMkhWiEL1fh3znkoRk1Z8V9UsRJiz8AHz9msHxMGHPTHFeimA1pWZBupZCVm",
-        "status": "32CXqHPnFQvTvRDpNaxspAQwT2ssX8vZuzdhAcs7tJ3J5t4TcwYvmgxZJTmSXvDuEL443gHqYDVq95eAE29C8H1z"
+        "workflowPda": "8mQD6UHLuf3GxR64iwXVESWWZi3mhniM7stS24rtNSvU",
+        "create": "4iAcKRJFSgzmywkUqPE2Mmi1EaujGrg4NPt3dxpfognx2bESj56edHcyvy5qtJsh9NBvGChmT1dc9Adt8ZmfT9eH",
+        "fund": "3dNpNEacX85sNT1USV6ft5z7Ewyu6aN2oHwR5h5BRvkhTzb8XoszGjt4LZKgVSfsiC4voFb6AZ3tvKX1fVkCWtty",
+        "check": "5njvCt6ESqPsasd8C19oNAu6PffAS1ZdR9Wii8wWRetFzezhqQZyDPop8cWmnq48dBq3qjq9TEd5sAUzqgBmXwzF",
+        "callback": "5Rd8NV93C31nXBBubv4pqUszW9DCtgAjKTTrGPXsXEsLJfYVpopNH6SjeaYuyWz6khV6Vns51kpVzKWAGZoHJoCb",
+        "status": "4ZeejLn7DZR8Z6VCWV6LMqhr3uu9PLzfC9EaXGtnYtqTXAbPLPPU1su2VYHcFnFnruJT136tTP3DE68xhNFoe9Yw"
       },
       "openNoPayout": {
-        "workflowPda": "C6bHH6SDwC6fFeHiLgqvNrMJbbx8yek72MdUZNSBwXLv",
-        "create": "22gHsGGAr5Qpq5aGWfSYG8XYVoi9PrtdF3zrm9owg6LoSdQdbGVTWgPaFRFrU1PJsSsroxEjsxfsq5HTCWgNJ7vK",
-        "fund": "2Coo7BvSnmMnfT9aTsK1KcYPN1rWJCDmtVEnH7zGzBHhPhCz1VoKt5vRMFHJzRuFAzGL1Eup5cotd8MDvvf3soU8",
-        "check": "SgMkPcdL9xqT1e1AoYv34aM9L6Cj5oKbJGb3NV8D1SPVyiCsL89N9xXQpVCz52STstGU88nwofQnF6AYBhvxFmj",
-        "callback": "2TtNKtrzTuc9JnhnojQU1z6dFsBx8jwBg7ZL55KDsXhUNUiSwxzbV53MJybG6KNhjkwRmutDrS2eULVF2BdfuXbM",
-        "status": "2wxpS6uJSvjZRH5FcmmyP7hWVtzEJe3DwXVe3saDBWfQ83Cj2JKnv2XhyUiWJRojR7w4pTgTrAXRLHqdYig8ppRR"
+        "workflowPda": "FtNrhMgDGBWWeEpXn8eDpvWrmZge5gqi66coioTosK45",
+        "create": "3yc1Y983uENhPBzrBsARtqwTArr4Ng42TgJghhjzeKG4cRzoBpskSSwZLvuC4SSBiSBqi2jsJC8XWvQSadAXhZKm",
+        "fund": "ddPP3sSAAYT4tjH7zcHMj4f2qnbQuRpiMPPU6pD2vX6sqiaXXVEQ4WM67vTSWB6qgL7LfueZ7H7WtdZHhp5RVpE",
+        "check": "4wxAzC9WkbLnGfWHmo81Wm63ZB1aZ4cuioK1CikbHM9m8a9bmEzqWhA41wT5NZZ83C8MPsaD4viECc61GwQuziD5",
+        "callback": "bsZiH8vP4gqe1SVgtvC798ynQfjG237o1smPMfgNuo9TxctLLHhHy5qj23W4W5MhCTYxhwWr729GdZ6EcyFJoMy",
+        "status": "5U8Zy7Y7VW9hiRjWgDD9p5uNw3jeYHCMehmowCuPT4xiVWhiwBgMBribQGfDxendh5VDKx3QUi93hmhZQjTbpW26"
       },
       "deadlineRefund": {
-        "workflowPda": "9BUGzXeuwXuXnfF65ptfe17wD8YPLWUSoUHDbhdAWyHe",
-        "create": "2PQQxuz1RA65sUChuDyw6ZUcLccbnvzp9eDnVXJxu71E8VvFgEXpaDxtj1BRiWY3LNs9DkYdPQwoQCP9q4j5dQXg",
-        "fund": "5uqdBj5CYi16kmUh1ozJ3t5UdvqVYncdZ8GcA7jRNr7ZN1vuK62VBa3t87DCaDLemBeNNypt8RL8PQnoyefQdRGt",
-        "earlyRefund": "2rPkxQ1qwPgp5ANpTuMRu7KAt4cQjS9uM792UmWkkLtbVyeW5T1Fam2J5EtJ9u1NhuKp7vho8HGAQgNCSjAAv8ez",
-        "validRefund": "2oitQdyDKtWrUBWbm2dfxZPJcRp6NidXomPQnKYMg7ghHauqEZ6WohNrXAZZELMZsjk6vvURxTJuV8eMZi8TqxRb",
-        "status": "3hUrurEmaw8WvqbaZeV79FxwVJuubEYJyLh5DgkLzoZsECRcFxXi7H3E71VPAnKE2mFdHQJxUnJfum59a2UE2v9r"
+        "workflowPda": "4v2pwkPnb7MgMFg37a8X7e8ueN3ZwsVwgL2V64HMxXqj",
+        "create": "3hnWDf2AYFsEoj1irakAmVU4ibWVdX7T4txn5F3xXAiDvZAgXJ1iZFrojiZu2jLgmVpdig9t15g61vp7UnZw2Lcn",
+        "fund": "54vUvZ9e4gmCdmAuTcVYXTHTAjVDL88hi12jBpS3C48FAM2UDqXLgCBWYa685YtGZo1LHQ4uL22yVdrCzva1TpcA",
+        "earlyRefund": "4Y9ovp4FadFBe7PSNdCMU8qaYjg7bB3kS6xRTgEAeezrUjkMHMBxNPiR1mMPqmCXNEsdisAUwZzhQyX6EADUbmCM",
+        "validRefund": "3Y5U5H5FJd9RDnCQuZKN4CcFAzrmCRri34PVJSe7Z1mFWSDR9E5Q3ukX9jWj1FLqRs6QtscmBnMGCJvyk29ggWRw",
+        "status": "Uf6pF4bJ5pg2aANp4g5owSpyy1mzpfxLcbo8ErmAMNmrjAshbtzM7BEweDRhyykYHLGazMUGP7qZGPuxPWvRa1o"
       }
     }
   }

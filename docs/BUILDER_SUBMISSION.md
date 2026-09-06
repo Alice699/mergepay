@@ -18,9 +18,9 @@ signals across transactions.
 
 ## What is live
 
-- Runtime-proven review candidate: `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
-- Historical pre-hardening candidate: `2WtSUhTyNfVsC7rDv5iWw3HBCkzCc9ymE1RLmQMvGShU`
-- Hardened metadata: RISC-V executable, slot `4467228`, fresh runtime proof verified
+- Runtime-proven review candidate: `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB`
+- Previous reset deployment: `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
+- Hardened metadata: RISC-V executable, slot `7138100`, fresh runtime proof verified
 - RISC-V / PolkaVM Venus program built against `0.18.1`
 - Sponsor-created and funded workflow PDA
 - GitHub merge check through built-in HTTP REX
@@ -32,17 +32,19 @@ signals across transactions.
 - Extension-free DevNet onboarding with a locally encrypted Rialo signer
 - Explicit transaction review, real SDK signing, DevNet faucet funding, submission,
   and executed confirmation
+- Reviewer-facing create, fund, REX merge-check, payout, and post-deadline refund
+  actions backed by decoded workflow state rather than mock lifecycle data
 
 ## Three-minute demo
 
 1. Show `programs/mergepay-rialo/src/lib.rs` and the six workflow functions.
 2. Show the hardened deployment with `rialo client program show` and the fresh
    runtime-proven evidence in `docs/EVIDENCE.md`.
-3. Inspect merged check transaction `5zwpvatv...`.
-4. Follow its lineage to callback `Fu9AhK9o...`.
+3. Inspect merged check transaction `5njvCt6E...`.
+4. Follow its lineage to callback `5Rd8NV93...`.
 5. Show the callback release log and exact beneficiary/PDA balance deltas.
-6. Contrast open-PR callback `2TtNKtrz...`, where escrow remains locked.
-7. Show early refund rejection `2rPkxQ1q...` and valid refund `2oitQdyD...`.
+6. Contrast open-PR callback `bsZiH8vP...`, where escrow remains locked.
+7. Show early refund rejection `4Y9ovp4F...` and valid refund `3Y5U5H5F...`.
 
 Full signatures and balances are in [EVIDENCE.md](EVIDENCE.md).
 

@@ -14,12 +14,20 @@ Frost or a DevNet-only embedded Rialo signer. The embedded key is generated loca
 stored only as password-encrypted ciphertext, and signs real transactions after an
 explicit review screen; it is not a production wallet and must not hold real funds.
 
+The dApp now reads each sponsor-derived workflow PDA directly from DevNet. A confirmed
+create opens the decoded record, and an unfunded record exposes a sponsor-only funding
+action that re-reads on-chain state and balance before signing the exact escrow amount.
+Funded records expose a real REX merge check, track the asynchronous callback through
+Rialo workflow lineage, and show payout only after the decoded account confirms it.
+Once an unpaid workflow expires, the merge action is replaced by a sponsor-only refund
+that re-verifies eligibility before returning the exact escrow amount.
+
 ## DevNet status
 
 | Item | Value |
 | --- | --- |
-| Active runtime-proven program | `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F` |
-| Historical pre-hardening candidate | `2WtSUhTyNfVsC7rDv5iWw3HBCkzCc9ymE1RLmQMvGShU` |
+| Active runtime-proven program | `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB` |
+| Previous reset deployment | `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F` |
 | Rialo release | `stable@0.18.1` |
 | Program format | RISC-V / PolkaVM |
 | Hardened artifact | `196167` bytes; deployed and runtime-proven |
@@ -28,9 +36,9 @@ explicit review screen; it is not a production wallet and must not hold real fun
 | Early refund rejection | Proven on DevNet |
 | Post-deadline refund | Proven on DevNet |
 
-DevNet may be reset. Transaction signatures are retained in
-[docs/EVIDENCE.md](docs/EVIDENCE.md) so reviewers can reproduce the checks with the
-Rialo CLI while the deployment remains available.
+DevNet may be reset. The active deployment and current signatures are recorded in
+[docs/EVIDENCE.md](docs/EVIDENCE.md); the previous deployment is retained there as
+historical evidence only.
 
 ## Repository layout
 
@@ -129,7 +137,7 @@ Use a fresh 64-character hex slug. All CLI aliases below refer to local keypairs
 never commit those keypair files.
 
 ```bash
-MERGEPAY_PROGRAM_ID=4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F
+MERGEPAY_PROGRAM_ID=6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB
 MERGEPAY_SLUG=0000000000000000000000000000000000000000000000000000000000000008
 MERGEPAY_BENEFICIARY=REPLACE_WITH_PUBLIC_BENEFICIARY_ADDRESS
 MERGEPAY_DEADLINE_MS=REPLACE_WITH_FUTURE_UNIX_MILLISECONDS

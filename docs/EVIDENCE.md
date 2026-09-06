@@ -1,12 +1,14 @@
 # DevNet Evidence
 
-Runtime-proven review candidate: `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
+Runtime-proven review candidate: `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB`
+
+Previous runtime candidate reset by DevNet: `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
 
 Historical pre-hardening review candidate:
 `2WtSUhTyNfVsC7rDv5iWw3HBCkzCc9ymE1RLmQMvGShU`
 
 Hardened deployment (metadata and fresh runtime proof verified):
-`4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
+`6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB`
 
 Artifact for the fully tested, pre-hardening deployment:
 
@@ -21,14 +23,86 @@ Current hardened artifact and deployment record:
   `programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm`
 - Size: `196167` bytes
 - SHA-256: `BBA5032C634A76AE835A2A01517B936BD13E64F4AF05AF4DD83542611BF030B5`
-- Deployed slot: `4467228`
+- Deployed slot: `7138100`
 - Onchain data length: `196215` bytes; executable data length: `196167` bytes
 - Fresh payout, no-payout, early-refund rejection, and post-deadline refund proof is
   recorded below for this program.
 
 All signatures below were inspected with `rialo -n devnet client transaction`.
 
-## Hardened runtime proof (2026-08-29)
+## Current hardened runtime proof (2026-09-02)
+
+All workflows in this section ran against the current deployment
+`6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB` after the DevNet reset. The merged
+fixture returned HTTP `204` from GitHub's compact merge endpoint. The open fixture
+completed a mixed/inconclusive REX report and correctly failed closed without payout.
+
+### Merged PR payout
+
+Fixture: `microsoft/vscode#332677`; workflow slug ends in `...0009`.
+
+| Step | Signature | Result |
+| --- | --- | --- |
+| Create | `4iAcKRJFSgzmywkUqPE2Mmi1EaujGrg4NPt3dxpfognx2bESj56edHcyvy5qtJsh9NBvGChmT1dc9Adt8ZmfT9eH` | Success |
+| Fund | `3dNpNEacX85sNT1USV6ft5z7Ewyu6aN2oHwR5h5BRvkhTzb8XoszGjt4LZKgVSfsiC4voFb6AZ3tvKX1fVkCWtty` | Success |
+| Check | `5njvCt6ESqPsasd8C19oNAu6PffAS1ZdR9Wii8wWRetFzezhqQZyDPop8cWmnq48dBq3qjq9TEd5sAUzqgBmXwzF` | REX scheduled |
+| Callback | `5Rd8NV93C31nXBBubv4pqUszW9DCtgAjKTTrGPXsXEsLJfYVpopNH6SjeaYuyWz6khV6Vns51kpVzKWAGZoHJoCb` | `1,000,000` kelvin released |
+| Status | `4ZeejLn7DZR8Z6VCWV6LMqhr3uu9PLzfC9EaXGtnYtqTXAbPLPPU1su2VYHcFnFnruJT136tTP3DE68xhNFoe9Yw` | funded/merged/paid |
+
+Workflow PDA: `8mQD6UHLuf3GxR64iwXVESWWZi3mhniM7stS24rtNSvU`.
+
+- Callback log: `MergePay released 1000000 kelvin`.
+- PDA after payout: `0.00185832 RLO`, retaining the rent reserve.
+
+### Open PR fail-closed path
+
+Fixture: `microsoft/vscode#333137`; workflow slug ends in `...000a`.
+
+| Step | Signature | Result |
+| --- | --- | --- |
+| Create | `3yc1Y983uENhPBzrBsARtqwTArr4Ng42TgJghhjzeKG4cRzoBpskSSwZLvuC4SSBiSBqi2jsJC8XWvQSadAXhZKm` | Success |
+| Fund | `ddPP3sSAAYT4tjH7zcHMj4f2qnbQuRpiMPPU6pD2vX6sqiaXXVEQ4WM67vTSWB6qgL7LfueZ7H7WtdZHhp5RVpE` | Success |
+| Check | `4wxAzC9WkbLnGfWHmo81Wm63ZB1aZ4cuioK1CikbHM9m8a9bmEzqWhA41wT5NZZ83C8MPsaD4viECc61GwQuziD5` | REX scheduled |
+| Callback | `bsZiH8vP4gqe1SVgtvC798ynQfjG237o1smPMfgNuo9TxctLLHhHy5qj23W4W5MhCTYxhwWr729GdZ6EcyFJoMy` | Mixed report; escrow locked |
+| Status | `5U8Zy7Y7VW9hiRjWgDD9p5uNw3jeYHCMehmowCuPT4xiVWhiwBgMBribQGfDxendh5VDKx3QUi93hmhZQjTbpW26` | funded/not merged/not paid |
+
+Workflow PDA: `FtNrhMgDGBWWeEpXn8eDpvWrmZge5gqi66coioTosK45`.
+
+- Callback log: `MergePay REX report was not unanimous: 3/4 merged`.
+- PDA after callback: `0.00285832 RLO`; no payout occurred.
+
+### Deadline refund
+
+Workflow slug ends in `...000c`; the deadline was deliberately set shortly in the
+future, then the valid refund was sent after the clock passed it.
+
+| Step | Signature | Result |
+| --- | --- | --- |
+| Create | `3hnWDf2AYFsEoj1irakAmVU4ibWVdX7T4txn5F3xXAiDvZAgXJ1iZFrojiZu2jLgmVpdig9t15g61vp7UnZw2Lcn` | Success |
+| Fund | `54vUvZ9e4gmCdmAuTcVYXTHTAjVDL88hi12jBpS3C48FAM2UDqXLgCBWYa685YtGZo1LHQ4uL22yVdrCzva1TpcA` | Success |
+| Valid refund | `3Y5U5H5FJd9RDnCQuZKN4CcFAzrmCRri34PVJSe7Z1mFWSDR9E5Q3ukX9jWj1FLqRs6QtscmBnMGCJvyk29ggWRw` | `1,000,000` kelvin returned |
+| Status | `Uf6pF4bJ5pg2aANp4g5owSpyy1mzpfxLcbo8ErmAMNmrjAshbtzM7BEweDRhyykYHLGazMUGP7qZGPuxPWvRa1o` | funded/not merged/refunded |
+
+Workflow PDA: `4v2pwkPnb7MgMFg37a8X7e8ueN3ZwsVwgL2V64HMxXqj`.
+
+- Refund log: `MergePay refunded 1000000 kelvin to sponsor`.
+- PDA after refund: `0.00185832 RLO`, retaining the rent reserve.
+
+### Early refund rejection
+
+Workflow slug ends in `...000d`; the refund was attempted before its deadline.
+
+| Step | Signature | Result |
+| --- | --- | --- |
+| Early refund | `4Y9ovp4FadFBe7PSNdCMU8qaYjg7bB3kS6xRTgEAeezrUjkMHMBxNPiR1mMPqmCXNEsdisAUwZzhQyX6EADUbmCM` | Rejected: `InvalidArgument` |
+
+The CLI reports the failed signature, while transaction metadata confirms
+`InstructionError: InvalidArgument` and the workflow remains locked.
+
+## Previous hardened runtime proof before reset (2026-08-29)
+
+The records below were valid on the previous DevNet deployment and are retained for
+historical review only. That program account no longer exists after the reset.
 
 All workflows below ran against program
 `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`. The merged fixture returned HTTP
@@ -159,7 +233,7 @@ The compact endpoint then proved both response branches:
 ## Verification commands
 
 ```bash
-rialo -n devnet client program show 4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F
+rialo -n devnet client program show 6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB
 rialo -n devnet client transaction REPLACE_WITH_SIGNATURE
 rialo -n devnet --json client get-workflow-lineage REPLACE_WITH_CHECK_SIGNATURE
 rialo -n devnet client account REPLACE_WITH_WORKFLOW_PDA

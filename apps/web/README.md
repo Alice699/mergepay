@@ -38,12 +38,34 @@ separate from semantic state: jade means verified/success, amber means warning, 
 crimson means invalid/error. No lime/chartreuse or vermilion brand token remains.
 
 The UI follows a strict no-mock rule. Deployment facts come from
-`deployments/devnet.json`; Activity uses exact recorded DevNet signatures; wallet
-discovery and connection use Frost; native balance and RPC health use live Rialo
-queries; and transaction status comes from wallet signing plus onchain confirmation.
+`deployments/devnet.json`; Activity queries the connected wallet's live Rialo
+signature history and transaction details; wallet discovery and connection use Frost;
+native balance and RPC health use live Rialo queries; and transaction status comes
+from wallet signing plus onchain confirmation.
 Rejected signatures, unsupported networks, RPC failures, and failed execution remain
 distinct visible states. No wallet, balance, bounty, or transaction success state is
 simulated.
+
+The `/guide` route is the product-facing introduction for users and reviewers. It
+explains what MergePay is, walks through the five-step bounty journey, describes the
+Rialo REX fit, and keeps the DevNet and GitHub limitations explicit. `/docs` remains
+the lower-level protocol reference.
+
+The workflow detail route decodes the exact sponsor-derived PDA through the live RPC
+relay. It shows the confirmed transaction signature, immutable terms, account balance,
+and persisted lifecycle flags. Created workflows expose a sponsor-only Fund bounty
+action. Before opening wallet approval, that action re-reads the workflow, rejects
+wrong-wallet, expired, already-funded, paid, or refunded states, and verifies that the
+live sponsor balance covers the exact bounty amount plus fee headroom. The detail view
+refreshes from Rialo only after executed confirmation. Funded workflows expose a
+sponsor-only merge check that submits the generated one-shot REX instruction, follows
+its official workflow lineage, and distinguishes root scheduling from callback payout.
+The UI calls a bounty paid only after the decoded account contains both
+`merge_confirmed=true` and `paid=true`; failed, inconclusive, and delayed callbacks keep
+the escrow visibly locked. Once an unpaid funded workflow passes its immutable deadline,
+the merge action automatically becomes Refund escrow. That action re-reads all terminal
+flags before submitting the real `refund` instruction and reports Refunded only after
+the updated workflow account is decoded.
 
 ## Embedded DevNet wallet
 
@@ -60,8 +82,9 @@ shows the signer, program, action, workflow account, and committed amount before
 The official SDK faucet call can request and confirm 1 RLO for the generated address.
 Browser RPC calls use the same-origin `/api/rialo` relay because the official DevNet
 endpoint does not authorize arbitrary browser origins. The relay targets only the
-configured Rialo endpoint, exposes only the methods MergePay needs, caps faucet calls
-at 1 RLO, rejects batch payloads, and never handles wallet secrets.
+configured Rialo endpoint, exposes only the methods MergePay needs—including bounded
+workflow-lineage reads—caps faucet calls at 1 RLO, rejects batch payloads, and never
+handles wallet secrets.
 
 Users can download and restore an encrypted JSON backup. Passwords and private key
 material are never sent to MergePay, written to logs, stored as plaintext, or included
@@ -76,7 +99,7 @@ Copy `.env.example` into the runtime environment when overriding the defaults:
 NEXT_PUBLIC_RIALO_NETWORK=devnet
 NEXT_PUBLIC_RIALO_RPC_URL=/api/rialo
 RIALO_RPC_UPSTREAM_URL=https://devnet.rialo.io
-NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F
+NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB
 ```
 
 `NEXT_PUBLIC_RIALO_RPC_URL` should remain same-origin unless a replacement endpoint
