@@ -3,28 +3,28 @@ export const verifiedEvidence = [
     label: "Merged PR payout",
     detail: "1,000,000 kelvin released to the committed beneficiary",
     signature:
-      "Fu9AhK9o5HgQuQCucCFitQSmKswGMkhWiEL1fh3znkoRk1Z8V9UsRJiz8AHz9msHxMGHPTHFeimA1pWZBupZCVm",
+      "5Rd8NV93C31nXBBubv4pqUszW9DCtgAjKTTrGPXsXEsLJfYVpopNH6SjeaYuyWz6khV6Vns51kpVzKWAGZoHJoCb",
     tone: "positive",
   },
   {
     label: "Open PR protection",
-    detail: "Callback completed and escrow remained locked",
+    detail: "Callback completed; inconclusive report kept escrow locked",
     signature:
-      "2TtNKtrzTuc9JnhnojQU1z6dFsBx8jwBg7ZL55KDsXhUNUiSwxzbV53MJybG6KNhjkwRmutDrS2eULVF2BdfuXbM",
+      "bsZiH8vP4gqe1SVgtvC798ynQfjG237o1smPMfgNuo9TxctLLHhHy5qj23W4W5MhCTYxhwWr729GdZ6EcyFJoMy",
     tone: "neutral",
   },
   {
     label: "Early refund guard",
     detail: "Refund rejected before the workflow deadline",
     signature:
-      "2rPkxQ1qwPgp5ANpTuMRu7KAt4cQjS9uM792UmWkkLtbVyeW5T1Fam2J5EtJ9u1NhuKp7vho8HGAQgNCSjAAv8ez",
+      "4Y9ovp4FadFBe7PSNdCMU8qaYjg7bB3kS6xRTgEAeezrUjkMHMBxNPiR1mMPqmCXNEsdisAUwZzhQyX6EADUbmCM",
     tone: "neutral",
   },
   {
     label: "Expired bounty refund",
     detail: "1,000,000 kelvin returned after the deadline",
     signature:
-      "2oitQdyDKtWrUBWbm2dfxZPJcRp6NidXomPQnKYMg7ghHauqEZ6WohNrXAZZELMZsjk6vvURxTJuV8eMZi8TqxRb",
+      "3Y5U5H5FJd9RDnCQuZKN4CcFAzrmCRri34PVJSe7Z1mFWSDR9E5Q3ukX9jWj1FLqRs6QtscmBnMGCJvyk29ggWRw",
     tone: "warning",
   },
 ] as const;

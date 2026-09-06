@@ -1,13 +1,20 @@
 "use client";
 
-import { Check, CircleAlert, LoaderCircle, LockKeyhole } from "lucide-react";
+import {
+  Check,
+  CircleAlert,
+  LoaderCircle,
+  LockKeyhole,
+  RefreshCw,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCreateBounty } from "@/features/create-bounty/use-create-bounty";
 import { useWallet } from "@/hooks/use-wallet";
 import { useNetwork } from "@/hooks/use-network";
 import { asError, describeRialoError } from "@/lib/errors";
-import { routes } from "@/lib/constants";
+import { MINIMUM_CREATE_BALANCE_KELVIN, routes } from "@/lib/constants";
+import { generateWorkflowSlug } from "@/lib/validation";
 import type { CreateBountyFormValues } from "../schema";
 
 function readFormValues(form: HTMLFormElement): CreateBountyFormValues {
@@ -34,13 +41,24 @@ function readFormValues(form: HTMLFormElement): CreateBountyFormValues {
   };
 }
 
-export function CreateBountyForm() {
+interface CreateBountyFormProps {
+  initialWorkflowSlug: string;
+}
+
+export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps) {
   const wallet = useWallet();
   const network = useNetwork();
   const router = useRouter();
   const createBounty = useCreateBounty();
   const [formError, setFormError] = useState<Error | null>(null);
+  const [workflowSlug, setWorkflowSlug] = useState(initialWorkflowSlug);
   const isBusy = createBounty.status === "pending";
+
+  function regenerateWorkflowSlug() {
+    if (!isBusy && createBounty.transaction.phase !== "confirmed") {
+      setWorkflowSlug(generateWorkflowSlug());
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,19 +75,35 @@ export function CreateBountyForm() {
 
     try {
       const result = await createBounty.execute(values);
-      router.push(routes.bounty(result.workflowSlug));
+      const detailQuery = new URLSearchParams({
+        event: "create",
+        tx: result.signature,
+      });
+      if (wallet.address) detailQuery.set("sponsor", wallet.address);
+      router.push(routes.bounty(result.workflowSlug) + "?" + detailQuery.toString());
     } catch {
       // The transaction state below is the source of truth for submission failure.
     }
   }
 
   const transactionPhase = createBounty.transaction.phase;
+  const balanceChecking =
+    wallet.balance.status === "idle" || wallet.balance.status === "loading";
+  const balanceUnavailable =
+    wallet.balance.status === "error" || wallet.balance.kelvin === null;
+  const balanceNeedsFunding =
+    wallet.balance.status === "ready" &&
+    wallet.balance.kelvin !== null &&
+    wallet.balance.kelvin < MINIMUM_CREATE_BALANCE_KELVIN;
   const unavailable =
     wallet.status !== "connected" ||
     !wallet.address ||
     !network.isExpectedNetwork ||
     wallet.networkSupported === false ||
-    network.rpcStatus !== "available";
+    network.rpcStatus !== "available" ||
+    balanceChecking ||
+    balanceUnavailable ||
+    balanceNeedsFunding;
   const statusTone =
     formError || createBounty.status === "error" || transactionPhase === "failed"
       ? "error"
@@ -101,6 +135,15 @@ export function CreateBountyForm() {
   } else if (network.rpcStatus === "unavailable") {
     statusTitle = "RPC unavailable";
     statusCopy = "Rialo cannot be reached right now. Try again shortly.";
+  } else if (balanceChecking) {
+    statusTitle = "Checking wallet balance";
+    statusCopy = "Confirming the signer can cover workflow rent and the transaction fee.";
+  } else if (balanceUnavailable) {
+    statusTitle = "Balance unavailable";
+    statusCopy = "Refresh the active wallet balance before creating the workflow.";
+  } else if (balanceNeedsFunding) {
+    statusTitle = "Faucet required";
+    statusCopy = `Available balance is ${wallet.balance.formatted ?? "0"} RLO. Request 1 RLO from the DevNet faucet, then refresh.`;
   } else if (transactionPhase === "reviewing") {
     statusTitle = "Review transaction";
     statusCopy = "Verify the signer, program, amount, and workflow account.";
@@ -115,7 +158,7 @@ export function CreateBountyForm() {
     buttonLabel = "Submitting";
   } else if (createBounty.status === "success" || transactionPhase === "confirmed") {
     statusTitle = "Bounty created";
-    statusCopy = "The workflow account is confirmed on Rialo. Opening its record.";
+    statusCopy = "Transaction confirmed. Opening the verified workflow record.";
     buttonLabel = "Confirmed";
   } else if (formError) {
     statusTitle = "Check the form";
@@ -152,7 +195,35 @@ export function CreateBountyForm() {
           <label className="form-field form-grid__wide"><span>Beneficiary address <b aria-hidden="true">*</b></span><input aria-describedby="beneficiary-hint" name="beneficiary" autoComplete="off" placeholder="Rialo public address" required spellCheck={false} /><small id="beneficiary-hint">Receives the payout automatically after unanimous merge confirmation.</small></label>
           <label className="form-field"><span>Bounty amount <b aria-hidden="true">*</b></span><div className="input-affix"><input name="amountKelvin" inputMode="numeric" min="1" placeholder="Amount" required step="1" type="number" /><b>KELVIN</b></div></label>
           <label className="form-field"><span>Deadline <b aria-hidden="true">*</b></span><input name="deadlineUnixMs" required type="datetime-local" /></label>
-          <label className="form-field form-grid__wide"><span>Workflow ID <b aria-hidden="true">*</b></span><input aria-describedby="workflow-id-hint" name="workflowSlug" autoComplete="off" minLength={64} maxLength={64} pattern="[0-9a-fA-F]{64}" placeholder="64 hexadecimal characters" required spellCheck={false} /><small id="workflow-id-hint">A unique hexadecimal slug used in the sponsor-derived workflow PDA.</small></label>
+          <div className="form-field form-grid__wide">
+            <div className="form-field__label-row">
+              <label htmlFor="workflow-id">Workflow ID <b aria-hidden="true">*</b></label>
+              <button
+                aria-label="Generate a new workflow ID"
+                className="workflow-id__generate"
+                disabled={isBusy || transactionPhase === "confirmed"}
+                onClick={regenerateWorkflowSlug}
+                type="button"
+              >
+                <RefreshCw aria-hidden="true" size={13} />
+                Generate new
+              </button>
+            </div>
+            <input
+              id="workflow-id"
+              aria-describedby="workflow-id-hint"
+              name="workflowSlug"
+              autoComplete="off"
+              minLength={64}
+              maxLength={64}
+              pattern="[0-9a-fA-F]{64}"
+              required
+              readOnly
+              spellCheck={false}
+              value={workflowSlug}
+            />
+            <small id="workflow-id-hint">Generated automatically for this on-chain workflow. Generate a new ID if you need to retry.</small>
+          </div>
         </div>
       </fieldset>
 

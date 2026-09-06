@@ -8,8 +8,10 @@ const allowedMethods = new Set([
   "getBalance",
   "getHealth",
   "getRecentValidatorConfigHash",
+  "getSignaturesForAddress",
   "getSignatureStatuses",
   "getTransaction",
+  "getWorkflowLineage",
   "requestAirdrop",
   "sendTransaction",
 ]);
@@ -64,6 +66,60 @@ function isAllowedAirdrop(params: unknown): boolean {
   );
 }
 
+function isAllowedWorkflowLineage(params: unknown): boolean {
+  if (!Array.isArray(params) || params.length !== 1) return false;
+  const request = params[0];
+  if (typeof request !== "object" || request === null || Array.isArray(request)) {
+    return false;
+  }
+
+  const { include_events: includeEvents, max_depth: maxDepth, signature } =
+    request as Record<string, unknown>;
+  return (
+    typeof signature === "string" &&
+    /^[1-9A-HJ-NP-Za-km-z]{80,100}$/.test(signature) &&
+    (maxDepth === undefined ||
+      (typeof maxDepth === "number" &&
+        Number.isSafeInteger(maxDepth) &&
+        maxDepth >= 1 &&
+        maxDepth <= 5)) &&
+    (includeEvents === undefined || typeof includeEvents === "boolean")
+  );
+}
+
+function isAllowedSignaturesForAddress(params: unknown): boolean {
+  if (!Array.isArray(params) || params.length !== 1) return false;
+  const request = params[0];
+  if (typeof request !== "object" || request === null || Array.isArray(request)) {
+    return false;
+  }
+
+  const { address, config } = request as Record<string, unknown>;
+  if (
+    typeof address !== "string" ||
+    !/^[1-9A-HJ-NP-Za-km-z]{32,64}$/.test(address)
+  ) {
+    return false;
+  }
+  if (config === undefined) return true;
+  if (typeof config !== "object" || config === null || Array.isArray(config)) {
+    return false;
+  }
+
+  const { before, limit, until } = config as Record<string, unknown>;
+  return (
+    (limit === undefined ||
+      (typeof limit === "number" &&
+        Number.isSafeInteger(limit) &&
+        limit >= 1 &&
+        limit <= 25)) &&
+    (before === undefined ||
+      (typeof before === "string" && /^[1-9A-HJ-NP-Za-km-z]{80,100}$/.test(before))) &&
+    (until === undefined ||
+      (typeof until === "string" && /^[1-9A-HJ-NP-Za-km-z]{80,100}$/.test(until)))
+  );
+}
+
 export async function POST(request: Request) {
   const declaredLength = Number(request.headers.get("content-length") ?? 0);
   if (declaredLength > MAX_REQUEST_BYTES) {
@@ -101,6 +157,28 @@ export async function POST(request: Request) {
       rpcRequest.id,
       -32602,
       "DevNet faucet requests are limited to 1 RLO.",
+      400,
+    );
+  }
+  if (
+    rpcRequest.method === "getWorkflowLineage" &&
+    !isAllowedWorkflowLineage(rpcRequest.params)
+  ) {
+    return jsonRpcError(
+      rpcRequest.id,
+      -32602,
+      "Workflow lineage requests require one valid transaction signature and a depth of at most 5.",
+      400,
+    );
+  }
+  if (
+    rpcRequest.method === "getSignaturesForAddress" &&
+    !isAllowedSignaturesForAddress(rpcRequest.params)
+  ) {
+    return jsonRpcError(
+      rpcRequest.id,
+      -32602,
+      "Activity requests require one valid address and at most 25 signatures.",
       400,
     );
   }

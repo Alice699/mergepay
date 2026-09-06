@@ -6,6 +6,7 @@ import {
 } from "@/hooks/use-transaction";
 import { useWallet } from "@/hooks/use-wallet";
 import { useNetwork } from "@/hooks/use-network";
+import { MINIMUM_CREATE_BALANCE_KELVIN } from "@/lib/constants";
 import { MergePayUiError } from "@/lib/errors";
 import type { CreateBountyFormValues } from "./schema";
 
@@ -29,6 +30,31 @@ export function useCreateBounty() {
       throw new MergePayUiError(
         "Connect a Rialo wallet before creating a bounty.",
         "WALLET_DISCONNECTED",
+      );
+    }
+
+    if (wallet.balance.status !== "ready" || wallet.balance.kelvin === null) {
+      throw new MergePayUiError(
+        "The signer balance is not available yet. Refresh the wallet balance before creating a bounty.",
+        "BALANCE_UNAVAILABLE",
+      );
+    }
+
+    let liveBalance: bigint;
+    try {
+      liveBalance = await network.client.rpc.getBalance(wallet.address);
+    } catch (cause) {
+      throw new MergePayUiError(
+        "The signer balance could not be refreshed from Rialo DevNet.",
+        "BALANCE_UNAVAILABLE",
+        { cause: cause instanceof Error ? cause : undefined },
+      );
+    }
+
+    if (liveBalance < MINIMUM_CREATE_BALANCE_KELVIN) {
+      throw new MergePayUiError(
+        "The signer needs enough RLO for workflow rent and transaction fees.",
+        "INSUFFICIENT_FUNDS",
       );
     }
 

@@ -14,14 +14,17 @@ export interface WorkflowLoadState<TWorkflow> {
 interface InternalWorkflowLoadState<TWorkflow>
   extends WorkflowLoadState<TWorkflow> {
   slug: string | null;
+  refreshKey: number;
 }
 
 export function useWorkflow<TWorkflow>(
   slug: string | null,
   loader: WorkflowLoader<TWorkflow>,
+  refreshKey = 0,
 ): WorkflowLoadState<TWorkflow> {
   const [state, setState] = useState<InternalWorkflowLoadState<TWorkflow>>({
     slug: null,
+    refreshKey: 0,
     status: "idle",
     workflow: null,
     error: null,
@@ -39,26 +42,26 @@ export function useWorkflow<TWorkflow>(
     void loader(slug)
       .then((workflow) => {
         if (active) {
-          setState({ slug, status: "success", workflow, error: null });
+          setState({ slug, refreshKey, status: "success", workflow, error: null });
         }
       })
       .catch((cause: unknown) => {
         if (active) {
           const error = cause instanceof Error ? cause : new Error(String(cause));
-          setState({ slug, status: "error", workflow: null, error });
+          setState({ slug, refreshKey, status: "error", workflow: null, error });
         }
       });
 
     return () => {
       active = false;
     };
-  }, [loader, slug]);
+  }, [loader, refreshKey, slug]);
 
   if (!slug) {
     return { status: "idle", workflow: null, error: null };
   }
 
-  if (state.slug !== slug) {
+  if (state.slug !== slug || state.refreshKey !== refreshKey) {
     return { status: "loading", workflow: null, error: null };
   }
 

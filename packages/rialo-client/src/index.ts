@@ -9,6 +9,7 @@ export * from "./instructions/index.js";
 export * from "./pda/index.js";
 export * from "./rpc/index.js";
 export * from "./transactions/index.js";
+export type { MergePayActivityItem } from "./client.js";
 export type {
   DecodedMergePayWorkflow,
   MergePayDeployment,

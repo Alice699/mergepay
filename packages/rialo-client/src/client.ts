@@ -1,6 +1,7 @@
 import {
   MERGEPAY_PROGRAM_ID,
   DEFAULT_RIALO_NETWORK,
+  MERGEPAY_INSTRUCTION_DISCRIMINANTS,
 } from "./constants.js";
 import { decodeWorkflowAccount } from "./accounts/index.js";
 import {
@@ -28,9 +29,11 @@ import {
 import type {
   DecodedMergePayWorkflow,
   MergePayAccountInfo,
+  MergePayInstructionName,
   RialoNetwork,
   WorkflowSlug,
 } from "./types.js";
+import { decodeBase64 } from "./encoding.js";
 import type { HttpTransportConfig, Transaction } from "@rialo/ts-cdk";
 
 export interface MergePayClientOptions {
@@ -39,6 +42,17 @@ export interface MergePayClientOptions {
   rpcUrl?: string;
   transport?: HttpTransportConfig;
   rpc?: MergePayRpcClient;
+}
+
+export interface MergePayActivityItem {
+  signature: string;
+  blockHeight: bigint;
+  blockTime: bigint | null;
+  status: "confirmed" | "failed";
+  error: string | null;
+  action: MergePayInstructionName | "network";
+  workflowAddress: string | null;
+  feeKelvin: bigint | null;
 }
 
 export class MergePayClient {
@@ -131,6 +145,98 @@ export class MergePayClient {
 
   getTransaction(signature: string): Promise<MergePayTransactionResponse | null> {
     return this.rpc.getTransaction(signature);
+  }
+
+  async getWalletActivity(
+    address: string,
+    limit = 12,
+  ): Promise<MergePayActivityItem[]> {
+    const signatures = await this.rpc.getSignaturesForAddress(address, limit);
+    const records = await Promise.all(
+      signatures.map(async (signatureInfo) => ({
+        signatureInfo,
+        transaction: await this.getTransactionSafely(signatureInfo.signature),
+      })),
+    );
+
+    return records.map(({ signatureInfo, transaction }) => {
+      const mergePayInstruction = transaction
+        ? findMergePayInstruction(transaction, this.programId)
+        : null;
+      const error = signatureInfo.err ?? transaction?.meta.err ?? null;
+
+      return {
+        signature: signatureInfo.signature,
+        blockHeight: signatureInfo.blockHeight,
+        blockTime: signatureInfo.blockTime ?? transaction?.blockTime ?? null,
+        status: error ? "failed" : "confirmed",
+        error,
+        action: mergePayInstruction?.action ?? "network",
+        workflowAddress: mergePayInstruction?.workflowAddress ?? null,
+        feeKelvin: transaction?.meta.fee ?? null,
+      };
+    });
+  }
+
+  getWorkflowLineage(signature: string) {
+    return this.rpc.getWorkflowLineage({
+      signature,
+      maxDepth: 5,
+      includeEvents: true,
+    });
+  }
+
+  private async getTransactionSafely(
+    signature: string,
+  ): Promise<MergePayTransactionResponse | null> {
+    try {
+      return await this.getTransaction(signature);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function findMergePayInstruction(
+  transaction: MergePayTransactionResponse,
+  programId: string,
+): { action: MergePayInstructionName; workflowAddress: string | null } | null {
+  for (const instruction of transaction.transaction.message.instructions) {
+    const invokedProgram =
+      transaction.transaction.message.accountKeys[instruction.programIdIndex];
+    if (invokedProgram !== programId) continue;
+
+    const action = decodeInstructionName(instruction.data);
+    if (!action) continue;
+
+    const workflowAccountIndex = instruction.accounts[1];
+    return {
+      action,
+      workflowAddress:
+        workflowAccountIndex === undefined
+          ? null
+          : transaction.transaction.message.accountKeys[workflowAccountIndex] ?? null,
+    };
+  }
+
+  return null;
+}
+
+function decodeInstructionName(data: string): MergePayInstructionName | null {
+  try {
+    const bytes = decodeBase64(data, "transaction instruction");
+    if (bytes.byteLength < 4) return null;
+    const discriminant = new DataView(
+      bytes.buffer,
+      bytes.byteOffset,
+      bytes.byteLength,
+    ).getUint32(0, true);
+    const entry = Object.entries(MERGEPAY_INSTRUCTION_DISCRIMINANTS).find(
+      ([, value]) => value === discriminant,
+    );
+    return (entry?.[0] as MergePayInstructionName | undefined) ?? null;
+  } catch {
+    return null;
   }
 }
 

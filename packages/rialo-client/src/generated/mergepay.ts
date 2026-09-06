@@ -8,9 +8,9 @@
 
 export const MERGEPAY_MANIFEST_VERSION = "1.1" as const;
 
-/** Hardened MergePay program currently proven on Rialo DevNet. */
+/** Hardened MergePay program currently deployed and runtime-proven on Rialo DevNet. */
 export const MERGEPAY_PROGRAM_ID =
-  "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F" as const;
+  "6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB" as const;
 
 export const MERGEPAY_WELL_KNOWN_ADDRESSES = {
   systemProgram: "11111111111111111111111111111111",

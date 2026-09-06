@@ -67,10 +67,19 @@ export function describeRialoError(cause: unknown): string {
     case "TRANSACTION_PROGRAM_REJECTED":
     case "TRANSACTION_INSTRUCTION_REJECTED":
       return "The local wallet refused a transaction outside its approved MergePay boundary.";
+    case "BALANCE_UNAVAILABLE":
+      return "The signer balance is not available yet. Refresh the wallet balance before creating a bounty.";
+    case "INSUFFICIENT_FUNDS":
+      return "This wallet needs at least 0.002 RLO for workflow rent and transaction fees. Request 1 RLO from the DevNet faucet, refresh the balance, then try again.";
     case "AIRDROP_FAILED":
       return "The Rialo DevNet faucet rejected this request. Wait before trying again.";
-    case "TRANSACTION_FAILED":
-      return "Rialo confirmed the transaction but rejected its onchain execution.";
+    case "TRANSACTION_FAILED": {
+      const detail = errorText(cause).trim();
+      if (!detail || detail === "Rialo rejected the transaction onchain.") {
+        return "Rialo confirmed the transaction but rejected its onchain execution.";
+      }
+      return `Rialo rejected the transaction onchain: ${detail}`;
+    }
   }
 
   if (/rpc|network|fetch|timeout|gateway|service unavailable|failed to fetch/i.test(errorText(cause))) {

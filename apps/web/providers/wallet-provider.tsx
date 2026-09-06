@@ -43,6 +43,31 @@ const ALLOWED_EMBEDDED_INSTRUCTIONS = new Set<number>(
   Object.values(MERGEPAY_INSTRUCTION_DISCRIMINANTS),
 );
 
+const MAX_TRANSACTION_FAILURE_DETAIL_LENGTH = 220;
+
+function trimTransactionFailureDetail(detail: string): string {
+  const normalized = detail.replace(/\s+/g, " ").trim();
+  if (normalized.length <= MAX_TRANSACTION_FAILURE_DETAIL_LENGTH) return normalized;
+  return `${normalized.slice(0, MAX_TRANSACTION_FAILURE_DETAIL_LENGTH - 1)}…`;
+}
+
+async function readTransactionFailureDetail(
+  client: typeof import("@/lib/rialo").mergePayClient,
+  signature: string,
+  fallback?: string,
+): Promise<string | undefined> {
+  try {
+    const details = await client.getTransaction(signature);
+    const programLog = [...(details?.meta.logMessages ?? [])]
+      .reverse()
+      .find((message) => /^MergePay\s/i.test(message));
+    const detail = programLog ?? details?.meta.err ?? fallback;
+    return detail ? trimTransactionFailureDetail(detail) : undefined;
+  } catch {
+    return fallback ? trimTransactionFailureDetail(fallback) : undefined;
+  }
+}
+
 interface PendingApproval {
   resolve: () => void;
   reject: (error: Error) => void;
@@ -367,8 +392,13 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
         const confirmation = await network.client.confirm(signature);
 
         if (!confirmation.executed) {
+          const failureDetail = await readTransactionFailureDetail(
+            network.client,
+            signature,
+            confirmation.err,
+          );
           const error = new MergePayUiError(
-            confirmation.err ?? "Rialo rejected the transaction onchain.",
+            failureDetail ?? "Rialo rejected the transaction onchain.",
             "TRANSACTION_FAILED",
           );
           setTransaction({ phase: "failed", signature, error });

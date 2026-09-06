@@ -1,5 +1,7 @@
 import {
   AccountInfo as SdkAccountInfo,
+  type GetWorkflowLineageRequest,
+  type GetWorkflowLineageResponse,
   HttpTransport,
   type HttpTransportConfig,
   type RialoClient,
@@ -13,6 +15,13 @@ import type { RialoNetwork, MergePayAccountInfo } from "../types.js";
 export interface MergePaySignatureStatus {
   slot: bigint;
   executed: boolean;
+  err?: string;
+}
+
+export interface MergePaySignatureInfo {
+  signature: string;
+  blockHeight: bigint;
+  blockTime: bigint;
   err?: string;
 }
 
@@ -112,6 +121,23 @@ export class MergePayRpcClient {
 
   getHealth(): Promise<string> {
     return this.client.getHealth();
+  }
+
+  async getSignaturesForAddress(
+    address: string,
+    limit = 12,
+  ): Promise<MergePaySignatureInfo[]> {
+    const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 25);
+    return this.client.getSignaturesForAddress(
+      toPublicKey(address, "activity address"),
+      { limit: boundedLimit },
+    );
+  }
+
+  getWorkflowLineage(
+    request: GetWorkflowLineageRequest,
+  ): Promise<GetWorkflowLineageResponse> {
+    return this.client.getWorkflowLineage(request);
   }
 
   async requestAirdropAndConfirm(
@@ -266,8 +292,9 @@ function parseTransactionResponse(value: unknown): MergePayTransactionResponse {
     normalizedMeta.err =
       typeof meta.err === "string" ? meta.err : JSON.stringify(meta.err);
   }
-  if (Array.isArray(meta.logMessages)) {
-    normalizedMeta.logMessages = meta.logMessages.map((entry) =>
+  const rawLogMessages = meta.logMessages ?? meta.log_messages;
+  if (Array.isArray(rawLogMessages)) {
+    normalizedMeta.logMessages = rawLogMessages.map((entry) =>
       requireString(entry, "transaction log message"),
     );
   }
