@@ -7,6 +7,7 @@
     "packages/*"
   ],
   "scripts": {
+    "predev": "npm run build:client",
     "dev": "npm run dev --workspace @mergepay/web",
     "build": "npm run build:client && npm run build:web",
     "build:web": "npm run build --workspace @mergepay/web",

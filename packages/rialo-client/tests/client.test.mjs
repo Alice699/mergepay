@@ -1,14 +1,20 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   BincodeWriter,
+  MERGEPAY_CALLBACK_DISCRIMINANT,
+  MERGEPAY_INSTRUCTION_DISCRIMINANTS,
   MERGEPAY_PROGRAM_ID,
+  MERGEPAY_TIMER_CALLBACK_DISCRIMINANT,
+  MERGEPAY_MANIFEST_VERSION,
   MergePayClient,
   PublicKey,
   buildAcceptClaimInstruction,
   buildCheckMergeInstruction,
   buildCreateBountyInstruction,
   buildFundInstruction,
+  buildRefundInstruction,
   buildRequestClaimInstruction,
   buildUnsignedTransaction,
   decodeWorkflowState,
@@ -17,12 +23,39 @@ import {
   deriveWorkflowPda,
 } from "../dist/index.js";
 
+const manifest = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../../programs/mergepay-rialo/wit/mergepay-rialo-manifest.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+
 const payer = "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo";
 const beneficiary = "5wk6cLsYjhYSpr7brqtJ7xnvzbh1zvUpoSxeivbjyEkd";
 const slug = "0000000000000000000000000000000000000000000000000000000000000009";
 const claimSlug = "000000000000000000000000000000000000000000000000000000000000000a";
 const workflowPda = "2Y5Fgi3cRAsFTBJdj3ofvyoNUNnvX5UK4jU7CT5h7Uur";
 const claimWorkflow = "77gzoTExh1ZZ3KW8EWsr5cNBdgf7eZnK5mYpqkzZvMkt";
+
+test("keeps generated client constants aligned with the checked-in Venus manifest", () => {
+  assert.equal(manifest.version, MERGEPAY_MANIFEST_VERSION);
+  for (const [name, discriminant] of Object.entries(
+    MERGEPAY_INSTRUCTION_DISCRIMINANTS,
+  )) {
+    assert.equal(manifest.instructions[name].discriminant, discriminant, name);
+  }
+  assert.equal(
+    manifest.callbacks.run_merge_check.discriminant,
+    MERGEPAY_CALLBACK_DISCRIMINANT,
+  );
+  assert.equal(
+    manifest.callbacks.auto_refund.discriminant,
+    MERGEPAY_TIMER_CALLBACK_DISCRIMINANT,
+  );
+});
 
 test("derives the workflow and merge-check callback auxiliary PDAs from the ABI", () => {
   assert.deepEqual(deriveWorkflowPda(MERGEPAY_PROGRAM_ID, payer, slug), {
@@ -119,6 +152,15 @@ test("builds the exact external instruction wire format", () => {
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
     "GCEgAHgjuhXzFC7V9fdBTmHrhPQ2cddg5mpKu3owpL6U",
+  ]);
+
+  const refund = buildRefundInstruction(base);
+  assert.equal(Buffer.from(refund.data.slice(0, 4)).toString("hex"), "05000000");
+  assert.deepEqual(refund.accounts.map((account) => account.pubkey.toString()), [
+    payer,
+    workflowPda,
+    "11111111111111111111111111111111",
+    "Subscriber111111111111111111111111111111111",
   ]);
 
   const request = buildRequestClaimInstruction({

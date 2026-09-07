@@ -75,6 +75,9 @@ export function describeRialoError(cause: unknown): string {
       return "The Rialo DevNet faucet rejected this request. Wait before trying again.";
     case "TRANSACTION_FAILED": {
       const detail = errorText(cause).trim();
+      if (/InvalidInstructionData/i.test(detail)) {
+        return "The deployed MergePay program does not match this app's ABI. Restart the app so the Rialo client rebuilds, then use the matching deployed program.";
+      }
       if (!detail || detail === "Rialo rejected the transaction onchain.") {
         return "Rialo confirmed the transaction but rejected its onchain execution.";
       }
