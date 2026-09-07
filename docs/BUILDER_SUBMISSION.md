@@ -19,7 +19,7 @@ signals across transactions.
 ## What is live
 
 - Runtime-proven review candidate: `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB`
-- Marketplace ABI deployment: `6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL` (E2E pending)
+- Marketplace ABI deployment: `5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S` (E2E pending)
 - Previous reset deployment: `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
 - Hardened metadata: RISC-V executable, slot `7138100`, fresh runtime proof verified
 - RISC-V / PolkaVM Venus program built against `0.18.1`

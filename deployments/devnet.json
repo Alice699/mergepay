@@ -7,7 +7,7 @@
     "evidence": "docs/EVIDENCE.md"
   },
   "marketplaceCandidate": {
-    "programId": "6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL",
+    "programId": "5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S",
     "status": "deployed-awaiting-e2e",
     "abi": "marketplace-claims-v1",
     "evidence": "docs/EVIDENCE.md"
@@ -62,20 +62,20 @@
     }
   },
   "marketplaceArtifact": {
-    "programId": "6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL",
+    "programId": "5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S",
     "status": "deployed-awaiting-e2e",
     "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
-    "bytes": 212662,
-    "sha256": "594EDFCA83CD548559E921C5EC681ECE2E3D8BC48D5988895AD3A8EDADE680AA",
-    "deployedSlot": 10198662,
-    "dataLength": 212710,
-    "executableDataLength": 212662,
-    "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
-    "balanceRlo": 1.48135248,
+    "bytes": 218878,
+    "sha256": "FC64888E6D3136F4B6AED5DF5E8C0B5444FD472138D9F4B5C011D1124597AA47",
+    "deployedSlot": 10427824,
+    "dataLength": 218926,
+    "executableDataLength": 218878,
+    "authority": "DKR4REhMAeJFRAJukESpvLFKCJu4X6LHSUcrBoFoipS",
+    "balanceRlo": 1.52461584,
     "rexComponents": null,
     "deploymentSignatures": {
-      "first": "2NWpti2vmDcZrjCu7C3xmQzp5akRi4ZbzmBxRqSRxkaatEbQthFNX5fv8QDgRxSGZpqQmMknL2Wki6kxDxvMsfSG",
-      "last": "4vYAZbbThrJCoDDS3ZdttYy3fhZW9L1J3t2AbsrVCza1iimeXNrg9U72dB1nMXsov1d6AcGcxe5rqYM4XTjJx6ui"
+      "first": "3pe2C7GA8bdSN3AjH2NdPBkThAAL27pQ3btvbMjdtgZBojUqujQVQ8WXeT41KyBeZDf1qensUDYGfB69CMm6vysv",
+      "last": "5K8GwW7qfq6hK4tNKR8srk4gwqBosdQ3pHXxmBXXF99pU3aJ26SJVXaZmGgCHyYHzUnHzwAGPBKcx3eKeTi4LqoU"
     }
   }
 }

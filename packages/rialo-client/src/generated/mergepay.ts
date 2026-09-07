@@ -10,9 +10,9 @@
 
 export const MERGEPAY_MANIFEST_VERSION = "1.1" as const;
 
-/** Last recorded DevNet marketplace program; redeploy before using this ABI. */
+/** Current DevNet marketplace program; full claim and settlement E2E is still pending. */
 export const MERGEPAY_PROGRAM_ID =
-  "6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL" as const;
+  "5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S" as const;
 
 export const MERGEPAY_WELL_KNOWN_ADDRESSES = {
   systemProgram: "11111111111111111111111111111111",

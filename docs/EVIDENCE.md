@@ -10,7 +10,10 @@ Historical pre-hardening review candidate:
 Hardened deployment (metadata and fresh runtime proof verified):
 `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB`
 
-Marketplace ABI deployment (2026-09-07):
+Latest marketplace ABI deployment (2026-09-07):
+`5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S`
+
+Superseded marketplace ABI deployment:
 `6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL`
 
 The marketplace ABI is deployed and selected by the current client, but its claim
@@ -18,21 +21,24 @@ and settlement E2E flow is intentionally not marked runtime-proven yet. The E2E
 handoff is: create open bounty → OAuth claim → sponsor approval → fund → merge or
 refund.
 
-Marketplace deployment metadata:
+Latest marketplace deployment metadata:
 
 - Status: `deployed-awaiting-e2e`
 - Artifact: `programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm`
-- Size: `212662` bytes
-- SHA-256: `594EDFCA83CD548559E921C5EC681ECE2E3D8BC48D5988895AD3A8EDADE680AA`
-- Deployed slot: `10198662`
-- Onchain data length: `212710` bytes; executable data length: `212662` bytes
-- Authority: `2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo`
-- Program balance after deployment: `1.48135248 RLO`
+- Size: `218878` bytes
+- SHA-256: `FC64888E6D3136F4B6AED5DF5E8C0B5444FD472138D9F4B5C011D1124597AA47`
+- Deployed slot: `10427824`
+- Onchain data length: `218926` bytes; executable data length: `218878` bytes
+- Authority: `DKR4REhMAeJFRAJukESpvLFKCJu4X6LHSUcrBoFoipS`
+- Program balance after deployment: `1.52461584 RLO`
 - REX component bundle: not included in the artifact; the deployment command skipped
   optional `rex_components.bin`.
 - Deployment transaction range: first
-  `2NWpti2vmDcZrjCu7C3xmQzp5akRi4ZbzmBxRqSRxkaatEbQthFNX5fv8QDgRxSGZpqQmMknL2Wki6kxDxvMsfSG`,
-  final `4vYAZbbThrJCoDDS3ZdttYy3fhZW9L1J3t2AbsrVCza1iimeXNrg9U72dB1nMXsov1d6AcGcxe5rqYM4XTjJx6ui`.
+  `3pe2C7GA8bdSN3AjH2NdPBkThAAL27pQ3btvbMjdtgZBojUqujQVQ8WXeT41KyBeZDf1qensUDYGfB69CMm6vysv`,
+  final `5K8GwW7qfq6hK4tNKR8srk4gwqBosdQ3pHXxmBXXF99pU3aJ26SJVXaZmGgCHyYHzUnHzwAGPBKcx3eKeTi4LqoU`.
+
+The superseded deployment `6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL` used a
+212662-byte artifact at slot `10198662`; it remains historical only.
 
 Artifact for the fully tested, pre-hardening deployment:
 

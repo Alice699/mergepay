@@ -10,9 +10,9 @@ reactive callback releases escrow only when every validator result agrees that t
 merged. If the deadline expires first, the sponsor can recover the escrow.
 
 Verified payout does not depend on a keeper, webhook server, cron job, or trusted payout
-backend. The active DevNet deployment still uses sponsor-triggered merge checks and
-refunds; the source now contains a native deadline-refund prototype that must be deployed
-and proven before it is described as autonomous.
+backend. The latest DevNet deployment includes the native deadline-refund callback
+prototype, but that timer path still needs a complete E2E proof before it can be
+described as autonomous. Merge checks remain sponsor-triggered by design.
 
 The reviewer-facing web app can use either a future Wallet Standard extension through
 Frost or a DevNet-only embedded Rialo signer. The embedded key is generated locally,
@@ -44,7 +44,7 @@ historical indexer remains a separate release task.
 | Item | Value |
 | --- | --- |
 | Active runtime-proven program | `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB` |
-| Marketplace ABI deployment | `6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL` — deployed, E2E pending |
+| Marketplace ABI deployment | `5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S` — deployed, E2E pending |
 | Previous reset deployment | `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F` |
 | Rialo release | `stable@0.18.1` |
 | Program format | RISC-V / PolkaVM |
@@ -58,10 +58,12 @@ DevNet may be reset. The active deployment and current signatures are recorded i
 [docs/EVIDENCE.md](docs/EVIDENCE.md); the previous deployment is retained there as
 historical evidence only.
 
-The marketplace claim instructions are now deployed at
-`6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL`, with the artifact fingerprint and
-loader metadata recorded in [docs/EVIDENCE.md](docs/EVIDENCE.md). The claim and
-settlement E2E flow still needs to be run before this ABI is called runtime-proven.
+The latest marketplace claim instructions are deployed at
+`5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S`, with the artifact fingerprint and
+loader metadata recorded in [docs/EVIDENCE.md](docs/EVIDENCE.md). The claim,
+settlement, and timer E2E flow still needs to be run before this ABI is called
+runtime-proven. The previous marketplace deployment `6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL`
+is retained as superseded deployment history.
 The earlier `6QHx…` deployment remains the legacy runtime evidence.
 
 ## Repository layout
@@ -139,12 +141,11 @@ contributor wallet and points back to the sponsor's bounty.
 - `refund` is sponsor-only and succeeds only after the deadline.
 - `status` logs the persisted state for review.
 
-The current source candidate also registers a one-shot native timer during `fund`:
+The deployed source candidate also registers a one-shot native timer during `fund`:
 `AFTER deadline_unix_ms CALL [auto_refund]`. Its callback reuses the sponsor, deadline,
-terminal-state, rent, and balance checks from the manual refund path. The retry-safe
-merge-check ABI in this working tree still needs to be built with the Rialo toolchain and
-redeployed before it can be used by the DevNet UI; the program recorded in
-`deployments/devnet.json` is the previous deployment.
+terminal-state, rent, and balance checks from the manual refund path. The latest program
+is deployed, but the claim, settlement, and timer paths remain unproven until the DevNet
+E2E handoff is run.
 
 Payout and refund retain `Rent::minimum_balance(...)` in the workflow account. Paid or
 refunded workflows cannot release the escrow again.
@@ -188,7 +189,7 @@ Use a fresh 64-character hex slug. All CLI aliases below refer to local keypairs
 never commit those keypair files.
 
 ```bash
-MERGEPAY_PROGRAM_ID=6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL
+MERGEPAY_PROGRAM_ID=5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S
 MERGEPAY_SLUG=0000000000000000000000000000000000000000000000000000000000000008
 # Use the zero pubkey to publish an open bounty. The sponsor approves the real
 # contributor wallet later with accept_claim.

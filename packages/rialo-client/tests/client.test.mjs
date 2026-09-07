@@ -37,8 +37,8 @@ const payer = "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo";
 const beneficiary = "5wk6cLsYjhYSpr7brqtJ7xnvzbh1zvUpoSxeivbjyEkd";
 const slug = "0000000000000000000000000000000000000000000000000000000000000009";
 const claimSlug = "000000000000000000000000000000000000000000000000000000000000000a";
-const workflowPda = "2Y5Fgi3cRAsFTBJdj3ofvyoNUNnvX5UK4jU7CT5h7Uur";
-const claimWorkflow = "77gzoTExh1ZZ3KW8EWsr5cNBdgf7eZnK5mYpqkzZvMkt";
+const workflowPda = "BUGWKXmYFTb219VE1VpAz9Qt2fX6bpA4xmRQndv76ct9";
+const claimWorkflow = "7iEXrR3dM2WLTeTe4Afi91ZFDVC7gUX6jm5G3eWDbYBE";
 
 test("keeps generated client constants aligned with the checked-in Venus manifest", () => {
   assert.equal(manifest.version, MERGEPAY_MANIFEST_VERSION);
@@ -60,19 +60,19 @@ test("keeps generated client constants aligned with the checked-in Venus manifes
 test("derives the workflow and merge-check callback auxiliary PDAs from the ABI", () => {
   assert.deepEqual(deriveWorkflowPda(MERGEPAY_PROGRAM_ID, payer, slug), {
     address: workflowPda,
-    bump: 251,
+    bump: 255,
   });
 
   const accounts = deriveCheckMergeAccounts(MERGEPAY_PROGRAM_ID, payer, slug);
-  assert.equal(accounts.subscription.address, "5nun129aekBFNcVtVE3CGkzD2vP4eiq75T1Gu4iUuEPo");
-  assert.equal(accounts.rex.address, "DCqwQQnP1NAPn2wUnoev3izLLoMp428VDizjxmUmQzFz");
+  assert.equal(accounts.subscription.address, "3rs9FpzzgXMwuf6hAnJaryAX4CZHgCrQim5TmoajUvuL");
+  assert.equal(accounts.rex.address, "GAU2HjMRT9auJgkGrE5P1RRThWZFBLtAYZNMDXjZTYG5");
   assert.equal(
     Buffer.from(accounts.subscriptionSlug).toString("hex"),
-    "0f521781e42723eacfb00d0065a0b50ad070b077db473ba601cbb874cd9fd85b",
+    "171dacf3e69d53a43eead7faabdc959f2da8a6af56be16ab28060dc3cda55ce2",
   );
   assert.equal(
     Buffer.from(accounts.rexSlug).toString("hex"),
-    "1b2c4990e74bda81c326b93606c9833c73aa6a482626ac521c1cb1baf6e02099",
+    "617361f76b7b55d357d8d9e23565f633945b76691dbef409e2b84e7bd0e46e4e",
   );
   assert.equal(
     Buffer.from(deriveMultiAccountSlug(workflowPda, 0, 5)).toString("hex"),
@@ -107,8 +107,8 @@ test("builds the exact external instruction wire format", () => {
     "Qrac1eRegistry11111111111111111111111111111",
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
-    "5nun129aekBFNcVtVE3CGkzD2vP4eiq75T1Gu4iUuEPo",
-    "DCqwQQnP1NAPn2wUnoev3izLLoMp428VDizjxmUmQzFz",
+    "3rs9FpzzgXMwuf6hAnJaryAX4CZHgCrQim5TmoajUvuL",
+    "GAU2HjMRT9auJgkGrE5P1RRThWZFBLtAYZNMDXjZTYG5",
   ]);
 
   const retryCheck = buildCheckMergeInstruction({ ...base, branchNumber: 1 });
@@ -151,7 +151,7 @@ test("builds the exact external instruction wire format", () => {
     workflowPda,
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
-    "GCEgAHgjuhXzFC7V9fdBTmHrhPQ2cddg5mpKu3owpL6U",
+    "3YATYiPKjz3wnJdTtxS4sKuf8FtTCXCrwkWQxgKP5umc",
   ]);
 
   const refund = buildRefundInstruction(base);

@@ -71,9 +71,10 @@ sponsor-selected bounty locked until refund.
 - One sponsor, one approved beneficiary, one PR, and one fixed amount per workflow.
 - One claim record can be approved for a bounty in the current MVP; replacing or
   rejecting a submitted claim needs an explicit protocol instruction before funding.
-- The active DevNet deployment requires the sponsor to start each merge check and refund.
-  The source contains a native deadline-timer refund prototype, but it is not yet the
-  deployed or DevNet-proven ABI. The merge path still needs an explicit REX trigger.
+- The latest DevNet deployment includes a native deadline-timer refund callback, but the
+  timer path is not yet DevNet-proven. Until its E2E lineage is recorded, users should
+  treat sponsor-triggered refund as the reliable recovery path. The merge path still
+  needs an explicit REX trigger.
 - The native timestamp subscription currently receives an active window of roughly 100
   commits. A long-deadline deployment needs a heartbeat or rescheduling strategy; do not
   treat the local prototype as a 100% autonomous liveness guarantee.

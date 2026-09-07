@@ -117,11 +117,12 @@ terminal-state, rent, and checked-balance validation as manual refund. Equality 
 deadline boundary is treated as expired so the timer cannot consume its one-shot trigger
 without a valid settlement attempt.
 
-The recorded marketplace deployment at
-`6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL` predates the retry-safe merge-check ABI
-in this working tree. It must be rebuilt and redeployed before the new handler path can
-be tested. The claim, settlement, and timer paths remain unproven until the DevNet E2E
-handoff is run. Rialo's generated timestamp
+The latest marketplace deployment at
+`5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S` includes the retry-safe merge-check ABI
+and the native timer callback from this working tree. The claim, settlement, and timer
+paths remain unproven until the DevNet E2E handoff is run. The superseded deployment
+`6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL` is retained only as historical evidence.
+Rialo's generated timestamp
 predicate also uses an active window of roughly 100 commits, so long deadlines need a
 heartbeat or rescheduling design before this becomes a production liveness guarantee.
 Do not describe refund as autonomous until the deployed program's lineage contains the
