@@ -105,7 +105,7 @@ export function RefundBountyAction({
       <div className="workflow-refund__amount">
         <span>Refund amount</span>
         <strong>{formatRlo(workflow.state.amountKelvin)} RLO</strong>
-        <small>{workflow.state.amountKelvin.toString()} kelvin</small>
+        <small>Returned from the expired escrow</small>
       </div>
       <div className="workflow-refund__submit">
         <span aria-live="polite" data-tone={statusTone}>

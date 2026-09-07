@@ -1,15 +1,10 @@
 "use client";
 
 import {
-  useActiveAccount,
-  useActiveWallet,
   useConnectWallet,
-  useConnectionStatus,
   useDisconnectWallet,
-  useNativeBalance,
   useSignTransaction,
-  useWallets,
-  useWalletsReady,
+  useFrostConfig,
 } from "@rialo/frost";
 import { MERGEPAY_INSTRUCTION_DISCRIMINANTS } from "@mergepay/rialo-client";
 import { Transaction } from "@rialo/ts-cdk";
@@ -19,6 +14,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { useEmbeddedWallet } from "@/hooks/use-embedded-wallet";
@@ -44,6 +40,62 @@ const ALLOWED_EMBEDDED_INSTRUCTIONS = new Set<number>(
 );
 
 const MAX_TRANSACTION_FAILURE_DETAIL_LENGTH = 220;
+
+type FrostState = ReturnType<typeof useFrostConfig>["store"]["state"];
+
+const selectFrostConnectionStatus = (state: FrostState) => state.status;
+const selectFrostAccount = (state: FrostState) =>
+  state.accountAddress ? state.accounts.get(state.accountAddress) ?? null : null;
+const selectFrostWallet = (state: FrostState) =>
+  state.walletName ? state.wallets.get(state.walletName) ?? null : null;
+const selectFrostWallets = (state: FrostState) => state.wallets;
+const selectFrostWalletsReady = (state: FrostState) => state.wallets.size > 0;
+
+function useFrostSelector<T>(selector: (state: FrostState) => T): T {
+  const config = useFrostConfig();
+  const subscribe = useCallback(
+    (onStoreChange: () => void) =>
+      config.store.subscribe(() => {
+        onStoreChange();
+      }),
+    [config],
+  );
+  const getSnapshot = useCallback(
+    () => selector(config.store.state),
+    [config, selector],
+  );
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+function useFrostConnectionStatus() {
+  return useFrostSelector(selectFrostConnectionStatus);
+}
+
+function useFrostActiveAccount() {
+  return useFrostSelector(selectFrostAccount);
+}
+
+function useFrostActiveWallet() {
+  return useFrostSelector(selectFrostWallet);
+}
+
+function useWallets() {
+  const walletsMap = useFrostSelector(selectFrostWallets);
+  return useMemo(
+    () =>
+      Array.from(walletsMap.values()).sort((a, b) => {
+        const priorityDiff = (b.priority ?? 0) - (a.priority ?? 0);
+        if (priorityDiff !== 0) return priorityDiff;
+        return (b.lastConnectedAt ?? 0) - (a.lastConnectedAt ?? 0);
+      }),
+    [walletsMap],
+  );
+}
+
+function useWalletsReady() {
+  return useFrostSelector(selectFrostWalletsReady);
+}
 
 function trimTransactionFailureDetail(detail: string): string {
   const normalized = detail.replace(/\s+/g, " ").trim();
@@ -76,12 +128,11 @@ interface PendingApproval {
 export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) {
   const network = useNetwork();
   const embeddedWallet = useEmbeddedWallet();
-  const connectionStatus = useConnectionStatus();
-  const account = useActiveAccount();
-  const activeWallet = useActiveWallet();
+  const connectionStatus = useFrostConnectionStatus();
+  const account = useFrostActiveAccount();
+  const activeWallet = useFrostActiveWallet();
   const wallets = useWallets();
   const walletsReady = useWalletsReady();
-  const nativeBalance = useNativeBalance();
   const connectMutation = useConnectWallet();
   const disconnectMutation = useDisconnectWallet();
   const signMutation = useSignTransaction();
@@ -94,6 +145,9 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
   const [embeddedBalance, setEmbeddedBalance] = useState<
     Omit<WalletBalanceSnapshot, "refresh">
   >({ status: "idle", kelvin: null, formatted: null, error: null });
+  const [extensionBalance, setExtensionBalance] = useState<
+    Omit<WalletBalanceSnapshot, "refresh">
+  >({ status: "idle", kelvin: null, formatted: null, error: null });
   const [funding, setFunding] = useState<{
     phase: EmbeddedWalletFundingPhase;
     signature: string | null;
@@ -102,6 +156,7 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
   const approvalRef = useRef<PendingApproval | null>(null);
   const approvalIdRef = useRef(0);
   const balanceRequestRef = useRef(0);
+  const extensionBalanceRequestRef = useRef(0);
 
   const frostConnected = connectionStatus === "connected" && account !== null;
   const embeddedConnected = embeddedWallet.status === "unlocked";
@@ -247,6 +302,56 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
     }, 0);
     return () => window.clearTimeout(refreshTimer);
   }, [refreshEmbeddedBalance, source]);
+
+  const refreshExtensionBalance = useCallback(async () => {
+    const requestId = ++extensionBalanceRequestRef.current;
+    const extensionAddress = account?.address;
+    if (
+      source !== "extension" ||
+      !extensionAddress ||
+      network.rpcStatus !== "available"
+    ) {
+      setExtensionBalance({
+        status: "idle",
+        kelvin: null,
+        formatted: null,
+        error: null,
+      });
+      return;
+    }
+
+    setExtensionBalance((current) => ({
+      ...current,
+      status: "loading",
+      error: null,
+    }));
+    try {
+      const kelvin = await network.client.rpc.getBalance(extensionAddress);
+      if (requestId !== extensionBalanceRequestRef.current) return;
+      setExtensionBalance({
+        status: "ready",
+        kelvin,
+        formatted: formatRlo(kelvin),
+        error: null,
+      });
+    } catch (cause) {
+      if (requestId !== extensionBalanceRequestRef.current) return;
+      setExtensionBalance({
+        status: "error",
+        kelvin: null,
+        formatted: null,
+        error: asError(cause),
+      });
+    }
+  }, [account?.address, network.client, network.rpcStatus, source]);
+
+  useEffect(() => {
+    if (source !== "extension") return;
+    const refreshTimer = window.setTimeout(() => {
+      void refreshExtensionBalance();
+    }, 0);
+    return () => window.clearTimeout(refreshTimer);
+  }, [refreshExtensionBalance, source]);
 
   const requestApproval = useCallback(
     (unsignedTransaction: Transaction, intent?: WalletTransactionIntent) => {
@@ -407,6 +512,7 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
 
         setTransaction({ phase: "confirmed", signature, error: null });
         if (source === "embedded") void refreshEmbeddedBalance();
+        if (source === "extension") void refreshExtensionBalance();
         return confirmation;
       } catch (cause) {
         const error = asError(cause);
@@ -419,6 +525,7 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
       embeddedWallet,
       network,
       networkSupported,
+      refreshExtensionBalance,
       refreshEmbeddedBalance,
       requestApproval,
       signMutation,
@@ -472,19 +579,10 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
 
   const frostBalance: WalletBalanceSnapshot = useMemo(
     () => ({
-      status: !account
-        ? "idle"
-        : nativeBalance.isLoading
-          ? "loading"
-          : nativeBalance.isError
-            ? "error"
-            : "ready",
-      kelvin: nativeBalance.balance ?? null,
-      formatted: nativeBalance.formatted ?? null,
-      error: nativeBalance.error,
-      refresh: nativeBalance.refetch,
+      ...extensionBalance,
+      refresh: () => void refreshExtensionBalance(),
     }),
-    [account, nativeBalance],
+    [extensionBalance, refreshExtensionBalance],
   );
 
   const balance = useMemo<WalletBalanceSnapshot>(

@@ -111,8 +111,8 @@ export function useFundBounty() {
       action: "Fund bounty",
       summary:
         "Lock " +
-        workflow.state.amountKelvin.toString() +
-        " kelvin for " +
+        formatRlo(workflow.state.amountKelvin) +
+        " RLO for " +
         workflow.state.githubOwner +
         "/" +
         workflow.state.githubRepo +

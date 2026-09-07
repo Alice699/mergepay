@@ -4,7 +4,7 @@ import { Check, Fingerprint, LockKeyhole, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
-import { shortenAddress } from "@/lib/format";
+import { formatRlo, shortenAddress } from "@/lib/format";
 
 export function TransactionApprovalDialog() {
   const wallet = useWallet();
@@ -81,7 +81,7 @@ export function TransactionApprovalDialog() {
           {approval.amountKelvin && (
             <div>
               <dt>Committed amount</dt>
-              <dd>{approval.amountKelvin} kelvin</dd>
+              <dd>{formatRlo(BigInt(approval.amountKelvin))} RLO</dd>
             </div>
           )}
           {approval.workflowAddress && (

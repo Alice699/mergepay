@@ -1,9 +1,15 @@
 {
   "network": "devnet",
-  "updatedAt": "2026-09-02",
+  "updatedAt": "2026-09-07",
   "reviewCandidate": {
     "programId": "6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB",
     "status": "fully-tested-hardened",
+    "evidence": "docs/EVIDENCE.md"
+  },
+  "marketplaceCandidate": {
+    "programId": "6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL",
+    "status": "deployed-awaiting-e2e",
+    "abi": "marketplace-claims-v1",
     "evidence": "docs/EVIDENCE.md"
   },
   "previousRuntimeCandidate": {
@@ -53,6 +59,23 @@
         "validRefund": "3Y5U5H5FJd9RDnCQuZKN4CcFAzrmCRri34PVJSe7Z1mFWSDR9E5Q3ukX9jWj1FLqRs6QtscmBnMGCJvyk29ggWRw",
         "status": "Uf6pF4bJ5pg2aANp4g5owSpyy1mzpfxLcbo8ErmAMNmrjAshbtzM7BEweDRhyykYHLGazMUGP7qZGPuxPWvRa1o"
       }
+    }
+  },
+  "marketplaceArtifact": {
+    "programId": "6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL",
+    "status": "deployed-awaiting-e2e",
+    "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
+    "bytes": 212662,
+    "sha256": "594EDFCA83CD548559E921C5EC681ECE2E3D8BC48D5988895AD3A8EDADE680AA",
+    "deployedSlot": 10198662,
+    "dataLength": 212710,
+    "executableDataLength": 212662,
+    "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
+    "balanceRlo": 1.48135248,
+    "rexComponents": null,
+    "deploymentSignatures": {
+      "first": "2NWpti2vmDcZrjCu7C3xmQzp5akRi4ZbzmBxRqSRxkaatEbQthFNX5fv8QDgRxSGZpqQmMknL2Wki6kxDxvMsfSG",
+      "last": "4vYAZbbThrJCoDDS3ZdttYy3fhZW9L1J3t2AbsrVCza1iimeXNrg9U72dB1nMXsov1d6AcGcxe5rqYM4XTjJx6ui"
     }
   }
 }

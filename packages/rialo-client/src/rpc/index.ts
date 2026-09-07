@@ -128,9 +128,21 @@ export class MergePayRpcClient {
     limit = 12,
   ): Promise<MergePaySignatureInfo[]> {
     const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 25);
+    return this.getSignaturesForAddressPage(address, boundedLimit);
+  }
+
+  async getSignaturesForAddressPage(
+    address: string,
+    limit = 25,
+    before?: string,
+  ): Promise<MergePaySignatureInfo[]> {
+    const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 25);
     return this.client.getSignaturesForAddress(
       toPublicKey(address, "activity address"),
-      { limit: boundedLimit },
+      {
+        limit: boundedLimit,
+        ...(before ? { before } : {}),
+      },
     );
   }
 

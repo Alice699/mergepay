@@ -4,8 +4,12 @@ import {
   BincodeWriter,
   MERGEPAY_PROGRAM_ID,
   MergePayClient,
+  PublicKey,
+  buildAcceptClaimInstruction,
   buildCheckMergeInstruction,
   buildCreateBountyInstruction,
+  buildFundInstruction,
+  buildRequestClaimInstruction,
   buildUnsignedTransaction,
   decodeWorkflowState,
   deriveCheckMergeAccounts,
@@ -16,43 +20,77 @@ import {
 const payer = "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo";
 const beneficiary = "5wk6cLsYjhYSpr7brqtJ7xnvzbh1zvUpoSxeivbjyEkd";
 const slug = "0000000000000000000000000000000000000000000000000000000000000009";
-const workflowPda = "8mQD6UHLuf3GxR64iwXVESWWZi3mhniM7stS24rtNSvU";
+const claimSlug = "000000000000000000000000000000000000000000000000000000000000000a";
+const workflowPda = "2Y5Fgi3cRAsFTBJdj3ofvyoNUNnvX5UK4jU7CT5h7Uur";
+const claimWorkflow = "77gzoTExh1ZZ3KW8EWsr5cNBdgf7eZnK5mYpqkzZvMkt";
 
-test("derives the workflow and check_merge auxiliary PDAs from the ABI", () => {
+test("derives the workflow and merge-check callback auxiliary PDAs from the ABI", () => {
   assert.deepEqual(deriveWorkflowPda(MERGEPAY_PROGRAM_ID, payer, slug), {
     address: workflowPda,
-    bump: 255,
+    bump: 251,
   });
 
   const accounts = deriveCheckMergeAccounts(MERGEPAY_PROGRAM_ID, payer, slug);
-  assert.equal(accounts.subscription.address, "4WoE3cuaB923Xhvx4ciyKacvGQfbqNPRc2Uw7qu9Ti4q");
-  assert.equal(accounts.rex.address, "DGftcHqvFFDsYimEqEQi7db2eSFByyPfVj3AAwcPw7LZ");
+  assert.equal(accounts.subscription.address, "5nun129aekBFNcVtVE3CGkzD2vP4eiq75T1Gu4iUuEPo");
+  assert.equal(accounts.rex.address, "DCqwQQnP1NAPn2wUnoev3izLLoMp428VDizjxmUmQzFz");
   assert.equal(
     Buffer.from(accounts.subscriptionSlug).toString("hex"),
-    "780c13ef6bcf64a41f306b6d86d5d25b7cd84bffa53c7c180862404e525b60e0",
+    "0f521781e42723eacfb00d0065a0b50ad070b077db473ba601cbb874cd9fd85b",
   );
   assert.equal(
     Buffer.from(accounts.rexSlug).toString("hex"),
-    "5d1daa7e7e5360723fbad2367efec9d12fe216d8c2978b9e0af84c7712a7cc0d",
+    "1b2c4990e74bda81c326b93606c9833c73aa6a482626ac521c1cb1baf6e02099",
   );
   assert.equal(
     Buffer.from(deriveMultiAccountSlug(workflowPda, 0, 5)).toString("hex"),
     Buffer.from(accounts.subscriptionSlug).toString("hex"),
   );
+
+  const retryAccounts = deriveCheckMergeAccounts(
+    MERGEPAY_PROGRAM_ID,
+    payer,
+    slug,
+    1,
+  );
+  assert.notEqual(retryAccounts.subscription.address, accounts.subscription.address);
+  assert.notEqual(retryAccounts.rex.address, accounts.rex.address);
 });
 
 test("builds the exact external instruction wire format", () => {
-  const base = { programId: MERGEPAY_PROGRAM_ID, payer, workflowSlug: slug };
+  const base = {
+    programId: MERGEPAY_PROGRAM_ID,
+    payer,
+    workflowSlug: slug,
+    branchNumber: 0,
+  };
   const check = buildCheckMergeInstruction(base);
-  assert.equal(Buffer.from(check.data).toString("hex"), `02000000${slug}`);
+  assert.equal(
+    Buffer.from(check.data).toString("hex"),
+    `03000000${slug}0000000000000000`,
+  );
   assert.deepEqual(check.accounts.map((account) => account.pubkey.toString()), [
     payer,
     workflowPda,
     "Qrac1eRegistry11111111111111111111111111111",
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
-    "4WoE3cuaB923Xhvx4ciyKacvGQfbqNPRc2Uw7qu9Ti4q",
-    "DGftcHqvFFDsYimEqEQi7db2eSFByyPfVj3AAwcPw7LZ",
+    "5nun129aekBFNcVtVE3CGkzD2vP4eiq75T1Gu4iUuEPo",
+    "DCqwQQnP1NAPn2wUnoev3izLLoMp428VDizjxmUmQzFz",
+  ]);
+
+  const retryCheck = buildCheckMergeInstruction({ ...base, branchNumber: 1 });
+  assert.equal(
+    Buffer.from(retryCheck.data).toString("hex"),
+    `03000000${slug}0100000000000000`,
+  );
+  assert.deepEqual(retryCheck.accounts.map((account) => account.pubkey.toString()), [
+    payer,
+    workflowPda,
+    "Qrac1eRegistry11111111111111111111111111111",
+    "11111111111111111111111111111111",
+    "Subscriber111111111111111111111111111111111",
+    deriveCheckMergeAccounts(MERGEPAY_PROGRAM_ID, payer, slug, 1).subscription.address,
+    deriveCheckMergeAccounts(MERGEPAY_PROGRAM_ID, payer, slug, 1).rex.address,
   ]);
 
   const create = buildCreateBountyInstruction({
@@ -65,12 +103,55 @@ test("builds the exact external instruction wire format", () => {
     deadlineUnixMs: 1_787_941_094_399n,
   });
   assert.equal(create.data.length, 123);
-  assert.equal(Buffer.from(create.data.slice(0, 4)).toString("hex"), "05000000");
+  assert.equal(Buffer.from(create.data.slice(0, 4)).toString("hex"), "07000000");
   assert.deepEqual(create.accounts.map((account) => account.pubkey.toString()), [
     payer,
     workflowPda,
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
+  ]);
+
+  const fund = buildFundInstruction(base);
+  assert.equal(Buffer.from(fund.data.slice(0, 4)).toString("hex"), "01000000");
+  assert.deepEqual(fund.accounts.map((account) => account.pubkey.toString()), [
+    payer,
+    workflowPda,
+    "11111111111111111111111111111111",
+    "Subscriber111111111111111111111111111111111",
+    "GCEgAHgjuhXzFC7V9fdBTmHrhPQ2cddg5mpKu3owpL6U",
+  ]);
+
+  const request = buildRequestClaimInstruction({
+    programId: MERGEPAY_PROGRAM_ID,
+    payer,
+    workflowSlug: claimSlug,
+    targetWorkflow: workflowPda,
+    claimantGithub: "Alice699",
+    claimantGithubId: 123456789,
+  });
+  assert.equal(Buffer.from(request.data.slice(0, 4)).toString("hex"), "08000000");
+  assert.equal(Buffer.from(request.data.slice(-8)).readBigUInt64LE(), 123456789n);
+  assert.deepEqual(request.accounts.map((account) => account.pubkey.toString()), [
+    payer,
+    claimWorkflow,
+    "11111111111111111111111111111111",
+    "Subscriber111111111111111111111111111111111",
+    workflowPda,
+  ]);
+
+  const accept = buildAcceptClaimInstruction({
+    programId: MERGEPAY_PROGRAM_ID,
+    payer,
+    workflowSlug: slug,
+    claimWorkflow,
+  });
+  assert.equal(Buffer.from(accept.data.slice(0, 4)).toString("hex"), "09000000");
+  assert.deepEqual(accept.accounts.map((account) => account.pubkey.toString()), [
+    payer,
+    workflowPda,
+    "11111111111111111111111111111111",
+    "Subscriber111111111111111111111111111111111",
+    claimWorkflow,
   ]);
 });
 
@@ -89,10 +170,15 @@ test("decodes a bincode workflow account without fixed string offsets", () => {
     .writeBool(true)
     .writeBool(false)
     .writeBool(false)
-    .writeU64(1n);
+    .writeU64(1n)
+    .writeBool(false)
+    .writeFixedArray(new Uint8Array(32), 32)
+    .writeString("")
+    .writeU64(987654321n);
 
   const state = decodeWorkflowState(writer.toBytes());
   assert.equal(state.discriminator, 2n);
+  assert.equal(state.nextBranchNumber, 2n);
   assert.equal(state.initialized, true);
   assert.equal(state.githubOwner, "microsoft");
   assert.equal(state.githubRepo, "vscode");
@@ -106,8 +192,22 @@ test("decodes a bincode workflow account without fixed string offsets", () => {
       paid: state.paid,
       refunded: state.refunded,
       checks: state.checks,
+      claimRequest: state.claimRequest,
+      claimTarget: state.claimTarget,
+      claimantGithub: state.claimantGithub,
+      claimantGithubId: state.claimantGithubId,
     },
-    { funded: true, mergeConfirmed: true, paid: false, refunded: false, checks: 1n },
+    {
+      funded: true,
+      mergeConfirmed: true,
+      paid: false,
+      refunded: false,
+      checks: 1n,
+      claimRequest: false,
+      claimTarget: "11111111111111111111111111111111",
+      claimantGithub: "",
+      claimantGithubId: 987654321n,
+    },
   );
 });
 
@@ -116,6 +216,7 @@ test("builds an SDK transaction ready for wallet signing", () => {
     programId: MERGEPAY_PROGRAM_ID,
     payer,
     workflowSlug: slug,
+    branchNumber: 0,
   });
   const transaction = buildUnsignedTransaction(payer, [instruction], {
     validFrom: 1_787_941_000_000n,
@@ -207,4 +308,126 @@ test("derives wallet activity from Rialo signature and transaction records", asy
     },
     { action: "fund", status: "confirmed", workflowAddress: workflowPda, feeKelvin: 100n },
   );
+});
+
+test("discovers an open bounty from program history and decoded account state", async () => {
+  const signature =
+    "5qAb9BS7VTx39tuEjCLHQxLQp9YEDpRoRnhD8fUenfB1eyCdRPQLv5qMhYfFBfcmw7E3zuEL34omPbzTUjs7y7Se";
+  const futureDeadline = BigInt(Date.now() + 86_400_000);
+  const slugBytes = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
+  const slugHex = Buffer.from(slugBytes).toString("hex");
+  const openWorkflow = deriveWorkflowPda(MERGEPAY_PROGRAM_ID, payer, slugHex).address;
+  const instructionBytes = new Uint8Array(37);
+  instructionBytes.set([7, 0, 0, 0], 0);
+  instructionBytes.set(slugBytes, 4);
+
+  const stateWriter = new BincodeWriter();
+  stateWriter
+    .writeU64(1n)
+    .writeFixedArray(PublicKey.fromString(payer).toBytes(), 32)
+    .writeFixedArray(new Uint8Array(32), 32)
+    .writeString("Alice699")
+    .writeString("mergepay")
+    .writeU64(1n)
+    .writeU64(1_000_000n)
+    .writeU64(futureDeadline)
+    .writeBool(false)
+    .writeBool(false)
+    .writeBool(false)
+    .writeBool(false)
+    .writeU64(0n);
+
+  const client = new MergePayClient({
+    rpc: {
+      getSignaturesForAddressPage: async () => [
+        { signature, blockHeight: 12n, blockTime: 1_787_941_094n },
+      ],
+      getTransaction: async () => ({
+        blockHeight: 12n,
+        blockTime: 1_787_941_094n,
+        transaction: {
+          signatures: [signature],
+          validFrom: 1_787_941_000_000n,
+          message: {
+            accountKeys: [payer, openWorkflow, "11111111111111111111111111111111", "Subscriber111111111111111111111111111111111", MERGEPAY_PROGRAM_ID],
+            instructions: [
+              {
+                programIdIndex: 4,
+                accounts: [0, 1],
+                data: Buffer.from(instructionBytes).toString("base64"),
+              },
+            ],
+          },
+        },
+        meta: { fee: 100n },
+      }),
+      getAccountInfo: async () => ({
+        address: openWorkflow,
+        kelvin: 1_000_000n,
+        owner: MERGEPAY_PROGRAM_ID,
+        data: stateWriter.toBytes(),
+        executable: false,
+        rentEpoch: 0n,
+        space: BigInt(stateWriter.toBytes().length),
+      }),
+    },
+  });
+
+  const page = await client.getPublicBountiesPage();
+  assert.equal(page.items.length, 1);
+  assert.equal(page.items[0].status, "open");
+  assert.equal(page.scannedTransactions, 1);
+  assert.equal(page.nextBefore, null);
+  assert.equal(page.hasMore, false);
+
+  const bounties = await client.getOpenBounties(100);
+  assert.equal(bounties.length, 1);
+  assert.equal(bounties[0].workflow.address, openWorkflow);
+  assert.equal(bounties[0].workflow.state.githubOwner, "Alice699");
+  assert.equal(bounties[0].workflowSlug, Buffer.from(slugBytes).toString("hex"));
+});
+
+test("excludes legacy create instructions from public discovery", async () => {
+  const signature =
+    "5njvCt6ESqPsasd8C19oNAu6PffAS1ZdR9Wii8wWRetFzezhqQZyDPop8cWmnq48dBq3qjq9TEd5sAUzqgBmXwzF";
+  const legacySlugBytes = Uint8Array.from({ length: 32 }, (_, index) => index + 41);
+  const legacyWorkflow = deriveWorkflowPda(
+    MERGEPAY_PROGRAM_ID,
+    payer,
+    Buffer.from(legacySlugBytes).toString("hex"),
+  ).address;
+  const instructionBytes = new Uint8Array(37);
+  instructionBytes.set([5, 0, 0, 0], 0);
+  instructionBytes.set(legacySlugBytes, 4);
+
+  const client = new MergePayClient({
+    rpc: {
+      getSignaturesForAddressPage: async () => [
+        { signature, blockHeight: 13n, blockTime: 1_787_941_095n },
+      ],
+      getTransaction: async () => ({
+        blockHeight: 13n,
+        blockTime: 1_787_941_095n,
+        transaction: {
+          signatures: [signature],
+          validFrom: 1_787_941_000_000n,
+          message: {
+            accountKeys: [payer, legacyWorkflow, "11111111111111111111111111111111", "Subscriber111111111111111111111111111111111", MERGEPAY_PROGRAM_ID],
+            instructions: [
+              {
+                programIdIndex: 4,
+                accounts: [0, 1],
+                data: Buffer.from(instructionBytes).toString("base64"),
+              },
+            ],
+          },
+        },
+        meta: { fee: 100n },
+      }),
+    },
+  });
+
+  const page = await client.getPublicBountiesPage();
+  assert.deepEqual(page.items, []);
+  assert.equal(page.scannedTransactions, 1);
 });

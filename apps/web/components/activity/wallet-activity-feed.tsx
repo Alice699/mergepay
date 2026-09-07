@@ -29,6 +29,8 @@ const actionLabels: Record<MergePayInstructionName | "network", string> = {
   check_merge: "Checked merge",
   refund: "Refunded escrow",
   status: "Read workflow",
+  request_claim: "Requested bounty claim",
+  accept_claim: "Approved contributor",
   network: "Network transaction",
 };
 
@@ -38,6 +40,8 @@ const actionDetails: Record<MergePayInstructionName | "network", string> = {
   check_merge: "GitHub merge verification requested through REX",
   refund: "Expired escrow returned to the sponsor",
   status: "Workflow state read through the MergePay program",
+  request_claim: "Contributor claim record created",
+  accept_claim: "Beneficiary locked by the sponsor",
   network: "Recorded for this connected address",
 };
 

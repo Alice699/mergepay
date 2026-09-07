@@ -1,0 +1,63 @@
+name: Verify MergePay
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web and client checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build typed client
+        run: npm run build:client
+
+      - name: Typecheck web
+        run: npm run typecheck --workspace @mergepay/web
+
+      - name: Lint web
+        run: npm run lint --workspace @mergepay/web
+
+      - name: Test typed client
+        run: npm run test --workspace @mergepay/rialo-client
+
+      - name: Test web
+        run: npm run test --workspace @mergepay/web
+
+      - name: Build production web app
+        run: npm run build:web
+
+  program:
+    name: Rialo program check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check Venus program
+        run: cargo check -p mergepay-rialo

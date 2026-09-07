@@ -8,6 +8,7 @@ import { useWallet } from "@/hooks/use-wallet";
 import { useNetwork } from "@/hooks/use-network";
 import { MINIMUM_CREATE_BALANCE_KELVIN } from "@/lib/constants";
 import { MergePayUiError } from "@/lib/errors";
+import { parseRloToKelvin } from "@/lib/format";
 import type { CreateBountyFormValues } from "./schema";
 
 export type CreateBountyExecutor = TransactionExecutor<
@@ -58,14 +59,23 @@ export function useCreateBounty() {
       );
     }
 
+    let amountKelvin: bigint;
+    try {
+      amountKelvin = BigInt(parseRloToKelvin(values.amountRlo));
+    } catch (cause) {
+      throw new MergePayUiError(
+        cause instanceof Error ? cause.message : "Enter a valid RLO amount.",
+        "INVALID_AMOUNT",
+      );
+    }
+
     const instruction = network.client.buildCreateBounty({
       payer: wallet.address,
       workflowSlug: values.workflowSlug,
-      beneficiary: values.beneficiary,
       githubOwner: values.githubOwner,
       githubRepo: values.githubRepo,
       pullNumber: BigInt(values.pullNumber),
-      amountKelvin: BigInt(values.amountKelvin),
+      amountKelvin,
       deadlineUnixMs: BigInt(values.deadlineUnixMs),
     });
     const transaction = await network.client.buildTransaction(wallet.address, [
@@ -74,7 +84,7 @@ export function useCreateBounty() {
     const confirmation = await wallet.submitTransaction(transaction, {
       action: "Create bounty",
       summary: `Create a workflow for ${values.githubOwner}/${values.githubRepo} pull request #${values.pullNumber}.`,
-      amountKelvin: values.amountKelvin,
+      amountKelvin: amountKelvin.toString(),
       workflowAddress: instruction.workflowPda,
     });
 

@@ -103,9 +103,21 @@ export function useCheckMerge() {
       );
     }
 
+    // The first state field is Venus' next async branch. It also advances for
+    // native timers, so the GitHub check branch cannot be reconstructed from
+    // the user-facing check counter alone.
+    if (workflow.state.nextBranchNumber > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new MergePayUiError(
+        "This workflow has more async branches than the client can address safely.",
+        "WORKFLOW_CHECK_LIMIT",
+      );
+    }
+    const branchNumber = Number(workflow.state.nextBranchNumber);
+
     const instruction = network.client.buildCheckMerge({
       payer: wallet.address,
       workflowSlug,
+      branchNumber,
     });
     const transaction = await network.client.buildTransaction(wallet.address, [
       instruction,

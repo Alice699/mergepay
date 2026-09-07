@@ -123,7 +123,12 @@ export function deriveEventDataPda(
   );
 }
 
-/** Derive the two auxiliary accounts inserted by the generated check_merge ABI. */
+/**
+ * Derive the two auxiliary accounts inserted by the generated
+ * `run_merge_check` callback ABI. Each one-shot request needs the current
+ * Venus branch because the previous subscription/REX pair is consumed after
+ * its callback completes.
+ */
 export function deriveCheckMergeAccounts(
   programId: string,
   payer: string,

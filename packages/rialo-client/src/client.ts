@@ -1,18 +1,24 @@
 import {
   MERGEPAY_PROGRAM_ID,
   DEFAULT_RIALO_NETWORK,
+  MERGEPAY_CALLBACK_DISCRIMINANT,
   MERGEPAY_INSTRUCTION_DISCRIMINANTS,
+  MERGEPAY_UNASSIGNED_BENEFICIARY,
 } from "./constants.js";
 import { decodeWorkflowAccount } from "./accounts/index.js";
 import {
   buildCheckMergeInstruction,
+  buildAcceptClaimInstruction,
   buildCreateBountyInstruction,
   buildFundInstruction,
+  buildRequestClaimInstruction,
   buildRefundInstruction,
   buildStatusInstruction,
   type CheckMergeInstructionInput,
+  type AcceptClaimInstructionInput,
   type CreateBountyInstructionInput,
   type MergePayInstruction,
+  type RequestClaimInstructionInput,
   type WorkflowInstructionInput,
 } from "./instructions/index.js";
 import { deriveWorkflowPda } from "./pda/index.js";
@@ -33,7 +39,7 @@ import type {
   RialoNetwork,
   WorkflowSlug,
 } from "./types.js";
-import { decodeBase64 } from "./encoding.js";
+import { decodeBase58, decodeBase64 } from "./encoding.js";
 import type { HttpTransportConfig, Transaction } from "@rialo/ts-cdk";
 
 export interface MergePayClientOptions {
@@ -52,7 +58,37 @@ export interface MergePayActivityItem {
   error: string | null;
   action: MergePayInstructionName | "network";
   workflowAddress: string | null;
+  workflowSlug: string | null;
+  workflowPayer: string | null;
+  legacyInstruction: boolean;
   feeKelvin: bigint | null;
+}
+
+export type MergePayPublicBountyStatus =
+  | "open"
+  | "claimed"
+  | "funded"
+  | "merge_confirmed";
+
+export interface MergePayPublicBounty {
+  workflow: DecodedMergePayWorkflow;
+  workflowSlug: string;
+  status: MergePayPublicBountyStatus;
+  createdSignature: string;
+  blockHeight: bigint;
+  blockTime: bigint | null;
+}
+
+export interface MergePayPublicBountyPage {
+  items: MergePayPublicBounty[];
+  nextBefore: string | null;
+  hasMore: boolean;
+  scannedTransactions: number;
+}
+
+export interface MergePayPublicBountyPageOptions {
+  limit?: number;
+  before?: string;
 }
 
 export class MergePayClient {
@@ -86,6 +122,12 @@ export class MergePayClient {
     return decodeWorkflowAccount(account, this.programId);
   }
 
+  async getWorkflowByAddress(address: string): Promise<DecodedMergePayWorkflow | null> {
+    const account = await this.rpc.getAccountInfo(address);
+    if (!account) return null;
+    return decodeWorkflowAccount(account, this.programId);
+  }
+
   async getAccountInfo(address: string): Promise<MergePayAccountInfo | null> {
     return this.rpc.getAccountInfo(address);
   }
@@ -94,6 +136,18 @@ export class MergePayClient {
     input: Omit<CreateBountyInstructionInput, "programId">,
   ): MergePayInstruction {
     return buildCreateBountyInstruction({ ...input, programId: this.programId });
+  }
+
+  buildRequestClaim(
+    input: Omit<RequestClaimInstructionInput, "programId">,
+  ): MergePayInstruction {
+    return buildRequestClaimInstruction({ ...input, programId: this.programId });
+  }
+
+  buildAcceptClaim(
+    input: Omit<AcceptClaimInstructionInput, "programId">,
+  ): MergePayInstruction {
+    return buildAcceptClaimInstruction({ ...input, programId: this.programId });
   }
 
   buildFund(input: Omit<WorkflowInstructionInput, "programId">): MergePayInstruction {
@@ -152,6 +206,110 @@ export class MergePayClient {
     limit = 12,
   ): Promise<MergePayActivityItem[]> {
     const signatures = await this.rpc.getSignaturesForAddress(address, limit);
+    return this.decodeWalletActivity(signatures);
+  }
+
+  async getPublicBountiesPage(
+    options: MergePayPublicBountyPageOptions = {},
+  ): Promise<MergePayPublicBountyPage> {
+    const pageSize = Math.min(Math.max(Math.trunc(options.limit ?? 25), 1), 25);
+    const signatures = await this.rpc.getSignaturesForAddressPage(
+      this.programId,
+      pageSize,
+      options.before,
+    );
+    const activity = await this.decodeWalletActivity(signatures);
+    const candidates = activity.filter(
+      (item): item is MergePayActivityItem & {
+        action: "create_bounty";
+        workflowAddress: string;
+        workflowSlug: string;
+        workflowPayer: string;
+      } =>
+        item.action === "create_bounty" &&
+        !item.legacyInstruction &&
+        item.status === "confirmed" &&
+        item.workflowAddress !== null &&
+        item.workflowSlug !== null &&
+        item.workflowPayer !== null,
+    );
+
+    const seen = new Set<string>();
+    const now = BigInt(Date.now());
+    const records = await Promise.all(
+      candidates.map(async (item) => {
+        if (seen.has(item.workflowAddress)) return null;
+        seen.add(item.workflowAddress);
+
+        try {
+          const expectedWorkflow = deriveWorkflowPda(
+            this.programId,
+            item.workflowPayer,
+            item.workflowSlug,
+          );
+          if (expectedWorkflow.address !== item.workflowAddress) return null;
+
+          const workflow = await this.getWorkflowByAddress(item.workflowAddress);
+          if (!workflow || workflow.state.sponsor !== item.workflowPayer) return null;
+
+          const status = publicBountyStatus(workflow.state, now);
+          if (!status) return null;
+
+          return {
+            workflow,
+            workflowSlug: item.workflowSlug,
+            status,
+            createdSignature: item.signature,
+            blockHeight: item.blockHeight,
+            blockTime: item.blockTime,
+          } satisfies MergePayPublicBounty;
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    const nextBefore =
+      signatures.length === pageSize
+        ? signatures[signatures.length - 1]?.signature ?? null
+        : null;
+
+    return {
+      items: records
+        .filter((record): record is MergePayPublicBounty => record !== null)
+        .sort((left, right) => (left.blockHeight < right.blockHeight ? 1 : -1)),
+      nextBefore,
+      hasMore: nextBefore !== null,
+      scannedTransactions: signatures.length,
+    };
+  }
+
+  async getOpenBounties(limit = 100): Promise<MergePayPublicBounty[]> {
+    const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 100);
+    const openBounties: MergePayPublicBounty[] = [];
+    const seen = new Set<string>();
+    let before: string | undefined;
+
+    while (openBounties.length < boundedLimit) {
+      const page = await this.getPublicBountiesPage({
+        limit: 25,
+        ...(before ? { before } : {}),
+      });
+      for (const bounty of page.items) {
+        if (bounty.status !== "open" || seen.has(bounty.workflow.address)) continue;
+        seen.add(bounty.workflow.address);
+        openBounties.push(bounty);
+      }
+      if (!page.hasMore || !page.nextBefore) break;
+      before = page.nextBefore;
+    }
+
+    return openBounties.slice(0, boundedLimit);
+  }
+
+  private async decodeWalletActivity(
+    signatures: Awaited<ReturnType<MergePayRpcClient["getSignaturesForAddress"]>>,
+  ): Promise<MergePayActivityItem[]> {
     const records = await Promise.all(
       signatures.map(async (signatureInfo) => ({
         signatureInfo,
@@ -173,6 +331,9 @@ export class MergePayClient {
         error,
         action: mergePayInstruction?.action ?? "network",
         workflowAddress: mergePayInstruction?.workflowAddress ?? null,
+        workflowSlug: mergePayInstruction?.workflowSlug ?? null,
+        workflowPayer: mergePayInstruction?.workflowPayer ?? null,
+        legacyInstruction: mergePayInstruction?.legacyInstruction ?? false,
         feeKelvin: transaction?.meta.fee ?? null,
       };
     });
@@ -200,43 +361,118 @@ export class MergePayClient {
 function findMergePayInstruction(
   transaction: MergePayTransactionResponse,
   programId: string,
-): { action: MergePayInstructionName; workflowAddress: string | null } | null {
+): {
+  action: MergePayInstructionName;
+  workflowAddress: string | null;
+  workflowSlug: string | null;
+  workflowPayer: string | null;
+  legacyInstruction: boolean;
+} | null {
   for (const instruction of transaction.transaction.message.instructions) {
     const invokedProgram =
       transaction.transaction.message.accountKeys[instruction.programIdIndex];
     if (invokedProgram !== programId) continue;
 
-    const action = decodeInstructionName(instruction.data);
-    if (!action) continue;
+    const decodedInstruction = decodeInstructionName(instruction.data);
+    if (!decodedInstruction) continue;
+    const payerIndex = instruction.accounts[0];
+    const workflowPayer =
+      payerIndex === undefined
+        ? null
+        : transaction.transaction.message.accountKeys[payerIndex] ?? null;
 
     const workflowAccountIndex = instruction.accounts[1];
     return {
-      action,
+      action: decodedInstruction.action,
       workflowAddress:
         workflowAccountIndex === undefined
           ? null
           : transaction.transaction.message.accountKeys[workflowAccountIndex] ?? null,
+      workflowSlug: decodeWorkflowSlug(instruction.data),
+      workflowPayer,
+      legacyInstruction: decodedInstruction.legacy,
     };
   }
 
   return null;
 }
 
-function decodeInstructionName(data: string): MergePayInstructionName | null {
+function decodeWorkflowSlug(data: string): string | null {
   try {
-    const bytes = decodeBase64(data, "transaction instruction");
+    const bytes = decodeInstructionData(data);
+    if (bytes.byteLength < 36) return null;
+    return Array.from(bytes.slice(4, 36), (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
+  } catch {
+    return null;
+  }
+}
+
+function decodeInstructionName(
+  data: string,
+): { action: MergePayInstructionName; legacy: boolean } | null {
+  try {
+    const bytes = decodeInstructionData(data);
     if (bytes.byteLength < 4) return null;
     const discriminant = new DataView(
       bytes.buffer,
       bytes.byteOffset,
       bytes.byteLength,
     ).getUint32(0, true);
+    // The currently deployed hardened program predates the marketplace ABI
+    // and used discriminant 5 for create_bounty. Keep reads backward
+    // compatible while new transactions use the generated discriminant 7.
+    if (discriminant === 5 && bytes.byteLength > 36) {
+      return { action: "create_bounty", legacy: true };
+    }
+    // The retry-safe ABI invokes the generated run_merge_check timer handler
+    // directly so it can carry the current Venus branch number. It is still a
+    // user-facing merge-check action, not an internal callback report.
+    if (
+      discriminant === MERGEPAY_CALLBACK_DISCRIMINANT &&
+      bytes.byteLength === 44
+    ) {
+      return { action: "check_merge", legacy: false };
+    }
     const entry = Object.entries(MERGEPAY_INSTRUCTION_DISCRIMINANTS).find(
       ([, value]) => value === discriminant,
     );
-    return (entry?.[0] as MergePayInstructionName | undefined) ?? null;
+    return entry
+      ? { action: entry[0] as MergePayInstructionName, legacy: false }
+      : null;
   } catch {
     return null;
+  }
+}
+
+function publicBountyStatus(
+  state: DecodedMergePayWorkflow["state"],
+  now: bigint,
+): MergePayPublicBountyStatus | null {
+  if (
+    !state.initialized ||
+    !/^[A-Za-z0-9._-]{1,100}$/.test(state.githubOwner) ||
+    !/^[A-Za-z0-9._-]{1,100}$/.test(state.githubRepo) ||
+    state.pullNumber <= 0n ||
+    state.amountKelvin <= 0n ||
+    state.deadlineUnixMs <= now ||
+    state.paid ||
+    state.refunded
+  ) {
+    return null;
+  }
+  if (state.mergeConfirmed) return "merge_confirmed";
+  if (state.funded) return "funded";
+  if (state.beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY) return "claimed";
+  return "open";
+}
+
+function decodeInstructionData(data: string): Uint8Array {
+  try {
+    return decodeBase58(data, "transaction instruction");
+  } catch {
+    return decodeBase64(data, "transaction instruction");
   }
 }
 

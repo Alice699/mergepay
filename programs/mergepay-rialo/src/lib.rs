@@ -1,9 +1,10 @@
 //! MergePay: a GitHub pull-request bounty escrow built with Rialo Venus.
 //!
-//! A sponsor creates and funds a workflow PDA. Rialo REX checks GitHub's
-//! compact `GET /repos/{owner}/{repo}/pulls/{number}/merge` endpoint:
-//! HTTP 204 means merged, while HTTP 404 means not merged. A unanimous REX
-//! report releases the escrow to the beneficiary selected by the sponsor.
+//! A sponsor publishes and funds a workflow PDA. A contributor claims it with a
+//! separate wallet-owned record before Rialo REX checks GitHub's compact
+//! `GET /repos/{owner}/{repo}/pulls/{number}/merge` endpoint. HTTP 204 means
+//! merged, while HTTP 404 means not merged. A unanimous REX report releases
+//! the escrow to the contributor approved by the sponsor.
 
 use rialo_venus_proc_macro::rialo;
 
@@ -22,10 +23,15 @@ rialo! {
             paid: bool,
             refunded: bool,
             checks: u64,
+            claim_request: bool,
+            claim_target: Pubkey,
+            claimant_github: String,
+            claimant_github_id: u64,
         }
 
         program {
             use rialo_rex_processor_interface::state::RexReport;
+            use rialo_venus::read_from_storage;
             use rialo_s_program::{
                 entrypoint::ProgramResult,
                 msg,
@@ -60,10 +66,6 @@ rialo! {
                     current_unix_ms
                 );
 
-                if beneficiary == Pubkey::default() {
-                    msg!("MergePay rejected create: beneficiary is the default pubkey");
-                    return Err(ProgramError::InvalidArgument);
-                }
                 if amount_kelvin == 0 {
                     msg!("MergePay rejected create: amount is zero");
                     return Err(ProgramError::InvalidArgument);
@@ -97,21 +99,103 @@ rialo! {
                 self.paid = false;
                 self.refunded = false;
                 self.checks = 0;
+                self.claim_request = false;
+                self.claim_target = Pubkey::default();
+                self.claimant_github = String::new();
+                self.claimant_github_id = 0;
+
+                if self.beneficiary == Pubkey::default() {
+                    msg!(
+                        "MergePay bounty created: {}/{}#{} is open for a contributor claim ({} kelvin)",
+                        self.github_owner,
+                        self.github_repo,
+                        self.pull_number,
+                        self.amount_kelvin
+                    );
+                } else {
+                    msg!(
+                        "MergePay bounty created: {}/{}#{} -> {} ({} kelvin)",
+                        self.github_owner,
+                        self.github_repo,
+                        self.pull_number,
+                        self.beneficiary,
+                        self.amount_kelvin
+                    );
+                }
+                Ok(())
+            }
+
+            initiating fn request_claim(
+                &mut self,
+                target_workflow: Pubkey,
+                claimant_github: String,
+                claimant_github_id: u64,
+            ) -> ProgramResult {
+                let target_account = ReadAccountInfo::from(target_workflow);
+                if target_account.owner != self.program_id {
+                    return Err(ProgramError::IncorrectProgramId);
+                }
+                if !self.valid_github_slug(&claimant_github) || claimant_github_id == 0 {
+                    msg!("MergePay rejected claim: invalid GitHub identity");
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                let target_state = read_from_storage::<State>(&target_account.data.borrow())
+                    .map_err(|_| ProgramError::InvalidAccountData)?;
+                if target_state.claim_request
+                    || target_state.sponsor == Pubkey::default()
+                    || target_state.beneficiary != Pubkey::default()
+                    || target_state.funded
+                    || target_state.paid
+                    || target_state.refunded
+                {
+                    return Err(ProgramError::InvalidArgument);
+                }
+                if target_state.sponsor == *self.payer_account().key {
+                    msg!("MergePay rejected claim: sponsor cannot claim its own bounty");
+                    return Err(ProgramError::InvalidArgument);
+                }
+                let current_unix_ms = self.unix_timestamp();
+                if current_unix_ms < 0 || current_unix_ms as u64 >= target_state.deadline_unix_ms {
+                    msg!("MergePay rejected claim: bounty deadline has passed");
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                self.sponsor = target_state.sponsor;
+                self.beneficiary = *self.payer_account().key;
+                self.github_owner = target_state.github_owner;
+                self.github_repo = target_state.github_repo;
+                self.pull_number = target_state.pull_number;
+                self.amount_kelvin = target_state.amount_kelvin;
+                self.deadline_unix_ms = target_state.deadline_unix_ms;
+                self.funded = false;
+                self.merge_confirmed = false;
+                self.paid = false;
+                self.refunded = false;
+                self.checks = 0;
+                self.claim_request = true;
+                self.claim_target = *target_account.key;
+                self.claimant_github = claimant_github;
+                self.claimant_github_id = claimant_github_id;
 
                 msg!(
-                    "MergePay bounty created: {}/{}#{} -> {} ({} kelvin)",
+                    "MergePay claim requested by {} for {}/{}#{}",
+                    self.beneficiary,
                     self.github_owner,
                     self.github_repo,
-                    self.pull_number,
-                    self.beneficiary,
-                    self.amount_kelvin
+                    self.pull_number
                 );
                 Ok(())
             }
 
             control fn fund(&mut self) -> ProgramResult {
                 self.require_sponsor()?;
-                if self.funded || self.paid || self.refunded {
+                if self.claim_request
+                    || self.beneficiary == Pubkey::default()
+                    || self.funded
+                    || self.paid
+                    || self.refunded
+                {
                     return Err(ProgramError::InvalidArgument);
                 }
 
@@ -138,19 +222,107 @@ rialo! {
                 )?;
 
                 self.funded = true;
-                msg!("MergePay escrow funded with {} kelvin", self.amount_kelvin);
+                AFTER self.deadline_unix_ms CALL [auto_refund];
+                msg!(
+                    "MergePay escrow funded with {} kelvin; native refund timer scheduled for {}",
+                    self.amount_kelvin,
+                    self.deadline_unix_ms
+                );
                 Ok(())
             }
 
+            control fn accept_claim(&mut self, claim_workflow: Pubkey) -> ProgramResult {
+                self.require_sponsor()?;
+                if self.claim_request
+                    || self.beneficiary != Pubkey::default()
+                    || self.funded
+                    || self.paid
+                    || self.refunded
+                {
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                let claim_account = ReadAccountInfo::from(claim_workflow);
+                if claim_account.owner != self.program_id {
+                    return Err(ProgramError::IncorrectProgramId);
+                }
+                let claim_state = read_from_storage::<State>(&claim_account.data.borrow())
+                    .map_err(|_| ProgramError::InvalidAccountData)?;
+                if !claim_state.claim_request
+                    || claim_state.claim_target != *self.accounts[1].key
+                    || claim_state.sponsor != self.sponsor
+                    || claim_state.beneficiary == Pubkey::default()
+                    || claim_state.github_owner != self.github_owner
+                    || claim_state.github_repo != self.github_repo
+                    || claim_state.pull_number != self.pull_number
+                    || claim_state.amount_kelvin != self.amount_kelvin
+                    || claim_state.deadline_unix_ms != self.deadline_unix_ms
+                    || !self.valid_github_slug(&claim_state.claimant_github)
+                    || claim_state.claimant_github_id == 0
+                {
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                let current_unix_ms = self.unix_timestamp();
+                if current_unix_ms < 0 || current_unix_ms as u64 >= self.deadline_unix_ms {
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                self.beneficiary = claim_state.beneficiary;
+                self.claimant_github = claim_state.claimant_github;
+                self.claimant_github_id = claim_state.claimant_github_id;
+                msg!(
+                    "MergePay claim accepted: {} (@{} / GitHub {})",
+                    self.beneficiary,
+                    self.claimant_github,
+                    self.claimant_github_id
+                );
+                Ok(())
+            }
+
+            // Keep the public instruction as a control call. The control call
+            // only schedules a fresh native-timer handler; the handler below owns
+            // the REX request and therefore receives a new async branch for
+            // every retry. Putting the HTTP request directly in this control
+            // function would pin it to branch zero and make the next check
+            // reuse a consumed one-shot account.
             control fn check_merge(&mut self) -> ProgramResult {
                 self.require_sponsor()?;
-                if !self.funded || self.paid || self.refunded {
+                if !self.funded
+                    || self.beneficiary == Pubkey::default()
+                    || self.paid
+                    || self.refunded
+                {
                     return Err(ProgramError::InvalidArgument);
                 }
                 let current_unix_ms = self.unix_timestamp();
                 if current_unix_ms < 0 || current_unix_ms as u64 > self.deadline_unix_ms {
                     return Err(ProgramError::InvalidArgument);
                 }
+
+                // A short native timer is supported by the current Venus
+                // runtime and gives the handler a fresh branch number.
+                AFTER 1 second CALL [run_merge_check];
+
+                Ok(())
+            }
+
+            handler fn run_merge_check(&mut self) -> ProgramResult {
+                self.require_sponsor()?;
+                if !self.funded
+                    || self.beneficiary == Pubkey::default()
+                    || self.paid
+                    || self.refunded
+                {
+                    return Ok(());
+                }
+                let current_unix_ms = self.unix_timestamp();
+                if current_unix_ms < 0 || current_unix_ms as u64 > self.deadline_unix_ms {
+                    return Ok(());
+                }
+
+                self.checks += 1;
+                msg!("MergePay merge check #{} scheduled", self.checks);
 
                 let url = format!(
                     "https://api.github.com/repos/{}/{}/pulls/{}/merge",
@@ -163,9 +335,6 @@ rialo! {
 
                 AFTER report = [http_get url: &url headers: &headers]
                 CALL [handle_merge_response beneficiary: beneficiary report: report];
-
-                self.checks += 1;
-                msg!("MergePay merge check #{} scheduled", self.checks);
                 Ok(())
             }
 
@@ -274,14 +443,29 @@ rialo! {
 
             control fn refund(&mut self) -> ProgramResult {
                 self.require_sponsor()?;
+                self.execute_refund(true)
+            }
+
+            fn execute_refund(&mut self, enforce_deadline: bool) -> ProgramResult {
                 let current_unix_ms = self.unix_timestamp();
-                if !self.funded
-                    || self.paid
-                    || self.refunded
-                    || current_unix_ms < 0
-                    || current_unix_ms as u64 <= self.deadline_unix_ms
-                {
+                if !self.funded || self.paid || self.refunded {
+                    if enforce_deadline {
+                        return Err(ProgramError::InvalidArgument);
+                    }
+                    msg!("MergePay native refund callback is already settled");
+                    return Ok(());
+                }
+                if current_unix_ms < 0 {
                     return Err(ProgramError::InvalidArgument);
+                }
+                // The native timer is scheduled at the deadline boundary, so equality
+                // is already expired for the callback as well as the manual fallback.
+                if (current_unix_ms as u64) < self.deadline_unix_ms {
+                    if enforce_deadline {
+                        return Err(ProgramError::InvalidArgument);
+                    }
+                    msg!("MergePay native refund callback fired before the deadline");
+                    return Ok(());
                 }
 
                 let workflow_account = &self.accounts[1];
@@ -315,14 +499,22 @@ rialo! {
 
             control fn status(&mut self) -> ProgramResult {
                 msg!(
-                    "MergePay status: funded={}, merged={}, paid={}, refunded={}, checks={}",
+                    "MergePay status: funded={}, merged={}, paid={}, refunded={}, checks={}, claim_request={}, claimant=@{} (GitHub {})",
                     self.funded,
                     self.merge_confirmed,
                     self.paid,
                     self.refunded,
-                    self.checks
+                    self.checks,
+                    self.claim_request,
+                    self.claimant_github,
+                    self.claimant_github_id
                 );
                 Ok(())
+            }
+
+            handler fn auto_refund(&mut self) -> ProgramResult {
+                self.require_sponsor()?;
+                self.execute_refund(false)
             }
 
             fn require_sponsor(&self) -> ProgramResult {

@@ -140,7 +140,7 @@ export function FundBountyAction({
       <div className="workflow-fund__amount">
         <span>Committed amount</span>
         <strong>{formatRlo(workflow.state.amountKelvin)} RLO</strong>
-        <small>{workflow.state.amountKelvin.toString()} kelvin</small>
+        <small>Exact amount locked on-chain</small>
       </div>
       <div className="workflow-fund__submit">
         <span aria-live="polite" data-tone={statusTone}>

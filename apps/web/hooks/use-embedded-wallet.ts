@@ -27,6 +27,15 @@ export type EmbeddedWalletStatus =
   | "removing"
   | "error";
 
+interface ActiveEmbeddedSession {
+  address: string;
+  keypair: Keypair;
+}
+
+// Keep the decrypted keypair only in memory so route/provider remounts do not
+// force an unlock. A full reload or explicit lock still clears this session.
+let activeEmbeddedSession: ActiveEmbeddedSession | null = null;
+
 export interface EmbeddedWalletController {
   status: EmbeddedWalletStatus;
   address: string | null;
@@ -43,7 +52,9 @@ export interface EmbeddedWalletController {
 
 export function useEmbeddedWallet(): EmbeddedWalletController {
   const [vault, setVault] = useState<EncryptedWalletVault | null>(null);
-  const [status, setStatus] = useState<EmbeddedWalletStatus>("loading");
+  const [status, setStatus] = useState<EmbeddedWalletStatus>(() =>
+    activeEmbeddedSession ? "unlocked" : "loading",
+  );
   const [error, setError] = useState<Error | null>(null);
   const keypairRef = useRef<Keypair | null>(null);
   const autoLockRef = useRef<number | null>(null);
@@ -56,7 +67,12 @@ export function useEmbeddedWallet(): EmbeddedWalletController {
   }, []);
 
   const disposeKeypair = useCallback(() => {
-    keypairRef.current?.dispose();
+    const keypair = keypairRef.current;
+    if (!keypair) return;
+    if (activeEmbeddedSession?.keypair === keypair) {
+      activeEmbeddedSession = null;
+    }
+    keypair.dispose();
     keypairRef.current = null;
   }, []);
 
@@ -82,8 +98,24 @@ export function useEmbeddedWallet(): EmbeddedWalletController {
     void readStoredWalletVault()
       .then((storedVault) => {
         if (!active) return;
+        if (
+          activeEmbeddedSession &&
+          (!storedVault || activeEmbeddedSession.address !== storedVault.address)
+        ) {
+          activeEmbeddedSession.keypair.dispose();
+          activeEmbeddedSession = null;
+        }
         setVault(storedVault);
-        setStatus(storedVault ? "locked" : "empty");
+        if (
+          storedVault &&
+          activeEmbeddedSession?.address === storedVault.address
+        ) {
+          keypairRef.current = activeEmbeddedSession.keypair;
+          setStatus("unlocked");
+          armAutoLock();
+        } else {
+          setStatus(storedVault ? "locked" : "empty");
+        }
       })
       .catch((cause) => {
         if (!active) return;
@@ -94,9 +126,35 @@ export function useEmbeddedWallet(): EmbeddedWalletController {
     return () => {
       active = false;
       clearAutoLock();
-      disposeKeypair();
     };
-  }, [clearAutoLock, disposeKeypair]);
+  }, [armAutoLock, clearAutoLock]);
+
+  useEffect(() => {
+    if (status !== "unlocked") return;
+
+    const refreshLockTimer = () => {
+      if (document.visibilityState === "visible") armAutoLock();
+    };
+    const activityEvents = [
+      "pointerdown",
+      "keydown",
+      "touchstart",
+      "wheel",
+    ] as const;
+
+    for (const eventName of activityEvents) {
+      window.addEventListener(eventName, refreshLockTimer);
+    }
+    document.addEventListener("visibilitychange", refreshLockTimer);
+    refreshLockTimer();
+
+    return () => {
+      for (const eventName of activityEvents) {
+        window.removeEventListener(eventName, refreshLockTimer);
+      }
+      document.removeEventListener("visibilitychange", refreshLockTimer);
+    };
+  }, [armAutoLock, status]);
 
   const create = useCallback(
     async (password: string) => {
@@ -120,6 +178,10 @@ export function useEmbeddedWallet(): EmbeddedWalletController {
         await writeStoredWalletVault(nextVault);
         disposeKeypair();
         keypairRef.current = keypair;
+        activeEmbeddedSession = {
+          address: keypair.publicKey.toString(),
+          keypair,
+        };
         setVault(nextVault);
         setStatus("unlocked");
         armAutoLock();
@@ -153,6 +215,10 @@ export function useEmbeddedWallet(): EmbeddedWalletController {
         const keypair = Keypair.fromSecretKey(secretKey);
         disposeKeypair();
         keypairRef.current = keypair;
+        activeEmbeddedSession = {
+          address: keypair.publicKey.toString(),
+          keypair,
+        };
         setStatus("unlocked");
         armAutoLock();
       } catch (cause) {
@@ -214,6 +280,10 @@ export function useEmbeddedWallet(): EmbeddedWalletController {
         await writeStoredWalletVault(restoredVault);
         disposeKeypair();
         keypairRef.current = keypair;
+        activeEmbeddedSession = {
+          address: keypair.publicKey.toString(),
+          keypair,
+        };
         setVault(restoredVault);
         setStatus("unlocked");
         armAutoLock();
@@ -263,7 +333,7 @@ export function useEmbeddedWallet(): EmbeddedWalletController {
 
   return {
     status,
-    address: vault?.address ?? null,
+    address: vault?.address ?? activeEmbeddedSession?.address ?? null,
     createdAt: vault?.createdAt ?? null,
     error,
     create,

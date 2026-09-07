@@ -8,6 +8,7 @@ import type { WorkflowSlug } from "./types.js";
 
 const HEX_32_BYTES = /^[0-9a-fA-F]{64}$/;
 const MAX_U64 = (1n << 64n) - 1n;
+const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 export function toPublicKey(value: string, label = "public key"): PublicKey {
   try {
@@ -73,6 +74,34 @@ export function decodeBase64(value: string, label = "account data"): Uint8Array 
   } catch (error) {
     throw new TypeError(`${label} is not valid base64`, { cause: error });
   }
+}
+
+/** Decode the base58 instruction encoding returned by Rialo transaction RPC. */
+export function decodeBase58(value: string, label = "base58 value"): Uint8Array {
+  if (value.length === 0) return new Uint8Array();
+
+  let number = 0n;
+  for (const character of value) {
+    const digit = BASE58_ALPHABET.indexOf(character);
+    if (digit < 0) {
+      throw new TypeError(`${label} is not valid base58`);
+    }
+    number = number * 58n + BigInt(digit);
+  }
+
+  const bytes: number[] = [];
+  while (number > 0n) {
+    bytes.push(Number(number & 255n));
+    number >>= 8n;
+  }
+
+  for (const character of value) {
+    if (character !== "1") break;
+    bytes.push(0);
+  }
+
+  bytes.reverse();
+  return Uint8Array.from(bytes);
 }
 
 export function readPublicKey(reader: BincodeReader, label: string): string {

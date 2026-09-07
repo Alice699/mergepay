@@ -5,7 +5,9 @@ It owns the generated ABI constants, workflow-PDA derivation, transaction helper
 RPC adapter, and decoding of the onchain workflow state.
 
 The source of truth for the interface is
-`programs/mergepay-rialo/wit/mergepay-rialo-manifest.json`.
+`programs/mergepay-rialo/wit/mergepay-rialo-manifest.json`. Merge-check retries use the
+generated `run_merge_check` callback ABI and the workflow's persisted next branch; the
+friendly SDK method remains `buildCheckMerge()`.
 
 ## Boundaries
 
@@ -32,7 +34,7 @@ import {
 
 const mergePay = createMergePayClient({
   network: "devnet",
-  programId: "6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB",
+  programId: "6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL",
 });
 
 const instruction = mergePay.buildStatus({

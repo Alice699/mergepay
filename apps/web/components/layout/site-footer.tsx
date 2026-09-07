@@ -4,8 +4,7 @@ import { BrandMark } from "@/components/ui/brand-mark";
 import { devnetDeployment } from "@/lib/deployment";
 
 export function SiteFooter() {
-  const testedProgramId = devnetDeployment.reviewCandidate.programId;
-  const hardenedProgramId = devnetDeployment.hardenedArtifact.programId;
+  const marketplaceProgramId = devnetDeployment.marketplaceArtifact.programId;
 
   return (
     <footer className="site-footer">
@@ -36,10 +35,10 @@ export function SiteFooter() {
 
           <div className="footer-deployment">
             <p>Deployment handoff</p>
-            <div className="footer-deployment__status"><span>{hardenedProgramId ? "Hardened deployed · runtime-proven" : "Pre-hardening candidate"}</span><strong>Proven</strong></div>
+            <div className="footer-deployment__status"><span>Marketplace ABI deployed</span><strong className="state state--warn">E2E pending</strong></div>
             <div className="footer-deployment__program">
-              <span className="mono">{(hardenedProgramId ?? testedProgramId).slice(0, 12)}…{(hardenedProgramId ?? testedProgramId).slice(-10)}</span>
-              <span>{hardenedProgramId ? "Fresh runtime proof is recorded on Activity; this is the current review candidate." : "Full address is available on the Activity page."}</span>
+              <span className="mono">{marketplaceProgramId.slice(0, 12)}…{marketplaceProgramId.slice(-10)}</span>
+              <span>Claim-flow runtime proof is the next handoff; full address is available on Activity.</span>
             </div>
           </div>
         </div>

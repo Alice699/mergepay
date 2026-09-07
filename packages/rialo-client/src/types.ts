@@ -15,8 +15,10 @@ export interface MergePayWorkflowIdentity {
 }
 
 export interface MergePayWorkflowState {
-  /** The first bincode field emitted by the Venus state account. */
+  /** The next async branch allocated by the Venus workflow runtime. */
   discriminator: bigint;
+  /** Descriptive alias for the first Venus state field. */
+  nextBranchNumber: bigint;
   /** False when the account exists but has not been initialized by create_bounty. */
   initialized: boolean;
   sponsor: string;
@@ -31,6 +33,14 @@ export interface MergePayWorkflowState {
   paid: boolean;
   refunded: boolean;
   checks: bigint;
+  /** True for a contributor-owned claim record, false for the bounty record. */
+  claimRequest: boolean;
+  /** Sponsor-owned workflow address targeted by a claim record. */
+  claimTarget: string;
+  /** Canonical GitHub login returned by OAuth and shown for sponsor approval. */
+  claimantGithub: string;
+  /** Stable numeric GitHub user ID returned by OAuth. */
+  claimantGithubId: bigint;
 }
 
 export interface MergePayDeployment {

@@ -1,12 +1,20 @@
 import type { AccountMeta, Instruction } from "@rialo/ts-cdk";
 import { BincodeWriter, PublicKey } from "@rialo/ts-cdk";
 import {
+  MERGEPAY_ACCOUNT_INDEXES,
+  MERGEPAY_CALLBACK_DISCRIMINANT,
   MERGEPAY_INSTRUCTION_DISCRIMINANTS,
   MERGEPAY_SEEDS,
+  MERGEPAY_UNASSIGNED_BENEFICIARY,
   MERGEPAY_WELL_KNOWN_ADDRESSES,
 } from "../constants.js";
 import { asU64, toPublicKey, workflowSlugToBytes } from "../encoding.js";
-import { deriveCheckMergeAccounts, deriveWorkflowPda } from "../pda/index.js";
+import {
+  deriveCheckMergeAccounts,
+  deriveMultiAccountSlug,
+  deriveSubscriptionPda,
+  deriveWorkflowPda,
+} from "../pda/index.js";
 import type { MergePayInstructionName, WorkflowSlug } from "../types.js";
 
 export interface WorkflowInstructionInput {
@@ -16,7 +24,8 @@ export interface WorkflowInstructionInput {
 }
 
 export interface CreateBountyInstructionInput extends WorkflowInstructionInput {
-  beneficiary: string;
+  /** Omit or use the zero pubkey to publish an unclaimed bounty. */
+  beneficiary?: string;
   githubOwner: string;
   githubRepo: string;
   pullNumber: bigint | number;
@@ -24,9 +33,19 @@ export interface CreateBountyInstructionInput extends WorkflowInstructionInput {
   deadlineUnixMs: bigint | number;
 }
 
+export interface RequestClaimInstructionInput extends WorkflowInstructionInput {
+  targetWorkflow: string;
+  claimantGithub: string;
+  claimantGithubId: bigint | number;
+}
+
+export interface AcceptClaimInstructionInput extends WorkflowInstructionInput {
+  claimWorkflow: string;
+}
+
 export interface CheckMergeInstructionInput extends WorkflowInstructionInput {
-  /** Venus allocates the first async branch as branch zero. */
-  branchNumber?: number;
+  /** Current Venus async branch stored in the workflow account. */
+  branchNumber: number;
 }
 
 /** SDK instruction plus protocol-level metadata useful to the UI and tests. */
@@ -62,6 +81,45 @@ function simpleAccounts(payer: PublicKey, workflowPda: PublicKey): AccountMeta[]
   ];
 }
 
+function readOnlyUserAccountAccounts(
+  payer: PublicKey,
+  workflowPda: PublicKey,
+  userAccount: PublicKey,
+): AccountMeta[] {
+  // request_claim and accept_claim only bind a read-only user account. Venus
+  // places the subscriber interface before that account in the current
+  // generated workflow ABI.
+  return [
+    meta(payer, true, true),
+    meta(workflowPda, false, true),
+    meta(
+      PublicKey.fromString(MERGEPAY_WELL_KNOWN_ADDRESSES.systemProgram),
+      false,
+      false,
+    ),
+    meta(
+      PublicKey.fromString(MERGEPAY_WELL_KNOWN_ADDRESSES.subscriberInterface),
+      false,
+      false,
+    ),
+    meta(userAccount, false, false),
+  ];
+}
+
+function fundAccounts(payer: PublicKey, workflowPda: PublicKey): AccountMeta[] {
+  const subscriptionSlug = deriveMultiAccountSlug(
+    workflowPda.toString(),
+    0,
+    MERGEPAY_ACCOUNT_INDEXES.fundSubscriptionPda,
+  );
+  const subscription = deriveSubscriptionPda(payer.toString(), subscriptionSlug);
+
+  return [
+    ...simpleAccounts(payer, workflowPda),
+    meta(PublicKey.fromString(subscription.address), false, true),
+  ];
+}
+
 function instruction(
   name: MergePayInstructionName,
   input: WorkflowInstructionInput,
@@ -79,7 +137,10 @@ function instruction(
 }
 
 function controlInstruction(
-  name: Exclude<MergePayInstructionName, "create_bounty" | "check_merge">,
+  name: Exclude<
+    MergePayInstructionName,
+    "create_bounty" | "check_merge" | "request_claim"
+  >,
   input: WorkflowInstructionInput,
 ): MergePayInstruction {
   const payer = toPublicKey(input.payer, "payer");
@@ -93,7 +154,9 @@ function controlInstruction(
     name,
     input,
     writer.toBytes(),
-    simpleAccounts(payer, PublicKey.fromString(workflow.address)),
+    name === "fund"
+      ? fundAccounts(payer, PublicKey.fromString(workflow.address))
+      : simpleAccounts(payer, PublicKey.fromString(workflow.address)),
     workflow.address,
   );
 }
@@ -116,13 +179,69 @@ export function buildRefundInstruction(
   return controlInstruction("refund", input);
 }
 
+export function buildAcceptClaimInstruction(
+  input: AcceptClaimInstructionInput,
+): MergePayInstruction {
+  const payer = toPublicKey(input.payer, "payer");
+  const claimWorkflow = toPublicKey(input.claimWorkflow, "claim workflow");
+  const workflow = deriveWorkflowPda(input.programId, input.payer, input.workflowSlug);
+  const writer = new BincodeWriter();
+  writer
+    .writeU32(MERGEPAY_INSTRUCTION_DISCRIMINANTS.accept_claim)
+    .writeFixedArray(workflowSlugToBytes(input.workflowSlug), 32)
+    .writeFixedArray(claimWorkflow.toBytes(), 32);
+
+  return instruction(
+    "accept_claim",
+    input,
+    writer.toBytes(),
+    readOnlyUserAccountAccounts(
+      payer,
+      PublicKey.fromString(workflow.address),
+      claimWorkflow,
+    ),
+    workflow.address,
+  );
+}
+
+export function buildRequestClaimInstruction(
+  input: RequestClaimInstructionInput,
+): MergePayInstruction {
+  const payer = toPublicKey(input.payer, "payer");
+  const targetWorkflow = toPublicKey(input.targetWorkflow, "target workflow");
+  const claimantGithub = input.claimantGithub.trim();
+  validateGithubSlug(claimantGithub, "GitHub username");
+  const claimantGithubId = asU64(input.claimantGithubId, "GitHub user ID");
+  if (claimantGithubId === 0n) throw new RangeError("GitHub user ID must be greater than zero");
+  const workflow = deriveWorkflowPda(input.programId, input.payer, input.workflowSlug);
+  const writer = new BincodeWriter();
+  writer
+    .writeU32(MERGEPAY_INSTRUCTION_DISCRIMINANTS.request_claim)
+    .writeFixedArray(workflowSlugToBytes(input.workflowSlug), 32)
+    .writeFixedArray(targetWorkflow.toBytes(), 32)
+    .writeString(claimantGithub)
+    .writeU64(claimantGithubId);
+
+  return instruction(
+    "request_claim",
+    input,
+    writer.toBytes(),
+    readOnlyUserAccountAccounts(
+      payer,
+      PublicKey.fromString(workflow.address),
+      targetWorkflow,
+    ),
+    workflow.address,
+  );
+}
+
 export function buildCreateBountyInstruction(
   input: CreateBountyInstructionInput,
 ): MergePayInstruction {
-  const beneficiary = toPublicKey(input.beneficiary, "beneficiary");
-  if (beneficiary.equals(PublicKey.fromBytes(new Uint8Array(32)))) {
-    throw new TypeError("beneficiary must not be the default public key");
-  }
+  const beneficiary = toPublicKey(
+    input.beneficiary ?? MERGEPAY_UNASSIGNED_BENEFICIARY,
+    "beneficiary",
+  );
   validateGithubSlug(input.githubOwner, "github owner");
   validateGithubSlug(input.githubRepo, "github repository");
   const pullNumber = asU64(input.pullNumber, "pull number");
@@ -162,12 +281,17 @@ export function buildCheckMergeInstruction(
     input.programId,
     input.payer,
     input.workflowSlug,
-    input.branchNumber ?? 0,
+    input.branchNumber,
   );
   const writer = new BincodeWriter();
   writer
-    .writeU32(MERGEPAY_INSTRUCTION_DISCRIMINANTS.check_merge)
-    .writeFixedArray(workflowSlugToBytes(input.workflowSlug), 32);
+    // The current Venus runtime cannot expose a handler as a normal external
+    // instruction. `run_merge_check` is therefore invoked through its
+    // generated timer-handler ABI; the handler itself still enforces the
+    // sponsor/funded/active-workflow checks before starting REX.
+    .writeU32(MERGEPAY_CALLBACK_DISCRIMINANT)
+    .writeFixedArray(workflowSlugToBytes(input.workflowSlug), 32)
+    .writeU64(asU64(input.branchNumber, "branch number"));
 
   return instruction(
     "check_merge",

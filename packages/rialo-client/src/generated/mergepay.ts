@@ -1,16 +1,18 @@
 /**
- * Generated protocol constants for the deployed MergePay Venus interface.
+ * Generated protocol constants for the current MergePay Venus interface candidate.
  *
  * The values mirror programs/mergepay-rialo/wit/mergepay-rialo-manifest.json
- * and the runtime-proven deployment recorded in deployments/devnet.json.
+ * and the current marketplace deployment recorded in deployments/devnet.json.
+ * The source candidate now routes merge checks through a fresh generated
+ * handler branch so one-shot REX accounts can be retried safely.
  * Keep protocol values here so UI code never has to duplicate ABI details.
  */
 
 export const MERGEPAY_MANIFEST_VERSION = "1.1" as const;
 
-/** Hardened MergePay program currently deployed and runtime-proven on Rialo DevNet. */
+/** Last recorded DevNet marketplace program; redeploy before using this ABI. */
 export const MERGEPAY_PROGRAM_ID =
-  "6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB" as const;
+  "6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL" as const;
 
 export const MERGEPAY_WELL_KNOWN_ADDRESSES = {
   systemProgram: "11111111111111111111111111111111",
@@ -22,23 +24,30 @@ export const MERGEPAY_WELL_KNOWN_ADDRESSES = {
 /**
  * Initiating instruction discriminants from the public manifest.
  *
- * The handler variant is internal to the generated program and is not part of
- * the external initiating ABI. That is why check_merge is discriminant 2.
+ * `check_merge` is retained as the public ABI name used by the UI, while its
+ * wire instruction invokes the generated `run_merge_check` handler callback.
  */
 export const MERGEPAY_INSTRUCTION_DISCRIMINANTS = {
   status: 0,
   fund: 1,
   check_merge: 2,
-  refund: 4,
-  create_bounty: 5,
+  refund: 5,
+  create_bounty: 7,
+  request_claim: 8,
+  accept_claim: 9,
 } as const;
 
+/** `run_merge_check` callback discriminant. */
 export const MERGEPAY_CALLBACK_DISCRIMINANT = 3;
+export const MERGEPAY_TIMER_CALLBACK_DISCRIMINANT = 6;
 
-/** Account indexes used by the generated check_merge constructor. */
+/** Account indexes used by the generated merge-check callback constructor. */
 export const MERGEPAY_ACCOUNT_INDEXES = {
   payer: 0,
   workflowPda: 1,
+  fundSubscriptionPda: 4,
+  requestClaimTarget: 4,
+  acceptClaimWorkflow: 4,
   rexRegistry: 2,
   systemProgram: 3,
   subscriberInterface: 4,

@@ -6,6 +6,7 @@ import {
 } from "@/hooks/use-transaction";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
+import { formatRlo } from "@/lib/format";
 import { MergePayUiError } from "@/lib/errors";
 
 export interface RefundBountyInput {
@@ -99,8 +100,8 @@ export function useRefundBounty() {
       action: "Refund expired bounty",
       summary:
         "Return " +
-        workflow.state.amountKelvin.toString() +
-        " kelvin from the expired " +
+        formatRlo(workflow.state.amountKelvin) +
+        " RLO from the expired " +
         workflow.state.githubOwner +
         "/" +
         workflow.state.githubRepo +

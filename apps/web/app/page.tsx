@@ -11,10 +11,10 @@ import { WorkflowLifecycle } from "@/components/bounty/workflow-lifecycle";
 import { ScrollReveal } from "@/components/motion/scroll-reveal";
 import { CopyValue } from "@/components/ui/copy-value";
 import { WalletStatusSummary } from "@/components/wallet/wallet-status-summary";
-import { devnetDeployment, hardenedDeploymentReady } from "@/lib/deployment";
+import { marketplaceDeployment, marketplaceDeploymentReady } from "@/lib/deployment";
 
 export default function HomePage() {
-  const deployedProgramId = devnetDeployment.hardenedArtifact.programId;
+  const deployedProgramId = marketplaceDeployment.programId;
 
   return (
     <main>
@@ -45,7 +45,7 @@ export default function HomePage() {
             <div className="trace-connector"><span>reactive callback</span></div>
             <div className="trace-node"><span className="trace-node__icon"><Vault aria-hidden="true" size={17} /></span><div><small>WORKFLOW PDA</small><strong>Release escrow</strong></div><span className="trace-code">RLO</span></div>
           </div>
-          <div className="execution-card__footer"><span>{deployedProgramId ? "Hardened deployment" : "Tested candidate"}</span><CopyValue value={deployedProgramId ?? devnetDeployment.reviewCandidate.programId} /></div>
+          <div className="execution-card__footer"><span>Marketplace deployment</span><CopyValue value={deployedProgramId} /></div>
         </aside>
       </section>
 
@@ -53,7 +53,7 @@ export default function HomePage() {
         <ScrollReveal className="page-width status-band__inner" delay={40}>
           <span className="status-band__label">BUILD STATUS</span>
           <div><i className="status-indicator status-indicator--good" /><span>Core workflow</span><strong>Proven</strong></div>
-          <div><i className="status-indicator status-indicator--good" /><span>Hardened deployment</span><strong>{hardenedDeploymentReady ? "Proven" : "Pending"}</strong></div>
+          <div><i className="status-indicator status-indicator--warn" /><span>Marketplace ABI</span><strong>{marketplaceDeploymentReady ? "Deployed · E2E pending" : "Pending"}</strong></div>
           <WalletStatusSummary />
         </ScrollReveal>
       </section>

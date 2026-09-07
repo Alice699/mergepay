@@ -5,6 +5,12 @@ MergePay is a DevNet MVP, not audited production software.
 ## Security invariants
 
 - The sponsor pubkey is committed at creation.
+- An open bounty starts with the zero pubkey sentinel and cannot be funded until a
+  sponsor-approved contributor claim assigns a beneficiary.
+- A contributor claim is derived from the contributor payer, points to one sponsor-owned
+  target, and copies no terms into the main bounty until the sponsor approves it.
+- Claim approval rechecks the target address, sponsor, repository, PR number, amount,
+  deadline, beneficiary, and bounded GitHub login before locking the payout wallet.
 - Sponsor-only controls compare the current payer against committed state.
 - The reactive handler also requires the callback payer to match the committed sponsor.
 - The payout account pubkey must match the committed beneficiary.
@@ -24,7 +30,15 @@ MergePay is a DevNet MVP, not audited production software.
 - Rialo DevNet, its REX validators, registry, and subscriber programs behave according
   to the tested `0.18.1` release.
 - GitHub's public merge-status endpoint accurately represents public repository state.
-- The sponsor chooses the intended repository, PR, beneficiary, amount, and deadline.
+- The sponsor chooses the intended repository, PR, amount, and deadline, then reviews the
+  contributor claim before funding.
+- Contributor claims require GitHub OAuth. The server compares the authenticated
+  numeric GitHub user ID with the author ID returned for the exact public pull request;
+  a typed username is not accepted as identity proof. The claim record stores the
+  canonical login and numeric ID alongside the receiving Rialo wallet.
+- OAuth remains an off-chain identity boundary: Rialo cannot call GitHub from inside the
+  program. Sponsor approval is still required and must review the exact PR, identity,
+  and wallet before funding.
 - DevNet transaction history and deployments may be reset.
 - The embedded wallet runs in the same browser origin as the dApp. While unlocked, an
   origin compromise or malicious dependency could access signing capability; encrypted
@@ -32,6 +46,9 @@ MergePay is a DevNet MVP, not audited production software.
 - The same-origin RPC relay is a transport boundary, not a signer. It forwards only an
   explicit method allowlist to a fixed HTTPS endpoint and never receives passwords or
   private keys; signed transaction bytes and public addresses remain public network data.
+- Production GitHub OAuth requires an explicitly configured HTTPS callback at the exact
+  `/api/github/auth/callback` path. Request-derived callbacks are limited to local
+  development so a forwarded host cannot silently change the registered OAuth origin.
 - Users retain the wallet password and encrypted backup. MergePay has no recovery key.
 
 ## Fail-closed behavior
@@ -48,11 +65,21 @@ sponsor-selected bounty locked until refund.
 ## Known limitations
 
 - DevNet only; no security audit.
+- The marketplace claim instructions are deployed at the recorded marketplace program,
+  but the claim, funding, payout, and refund E2E flow is not runtime-proven yet.
 - Native RLO escrow only; no token interface yet.
-- One sponsor, one beneficiary, one PR, and one fixed amount per workflow.
-- The sponsor manually starts each merge check. The callback itself is reactive and
-  automatic, but the MVP does not periodically poll GitHub.
-- Public GitHub data only. No secret API token is stored or sent.
+- One sponsor, one approved beneficiary, one PR, and one fixed amount per workflow.
+- One claim record can be approved for a bounty in the current MVP; replacing or
+  rejecting a submitted claim needs an explicit protocol instruction before funding.
+- The active DevNet deployment requires the sponsor to start each merge check and refund.
+  The source contains a native deadline-timer refund prototype, but it is not yet the
+  deployed or DevNet-proven ABI. The merge path still needs an explicit REX trigger.
+- The native timestamp subscription currently receives an active window of roughly 100
+  commits. A long-deadline deployment needs a heartbeat or rescheduling strategy; do not
+  treat the local prototype as a 100% autonomous liveness guarantee.
+- The current PR and merge proof paths target public repositories only. GitHub OAuth
+  access tokens are exchanged and used server-side for identity lookup, never stored in
+  the browser session or exposed to the client.
 - GitHub unauthenticated rate limits can make a check inconclusive.
 - Deadline values use milliseconds because that is the observed DevNet `0.18.1` clock
   unit. Revalidate this assumption when upgrading Rialo.

@@ -10,6 +10,30 @@ Historical pre-hardening review candidate:
 Hardened deployment (metadata and fresh runtime proof verified):
 `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB`
 
+Marketplace ABI deployment (2026-09-07):
+`6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL`
+
+The marketplace ABI is deployed and selected by the current client, but its claim
+and settlement E2E flow is intentionally not marked runtime-proven yet. The E2E
+handoff is: create open bounty → OAuth claim → sponsor approval → fund → merge or
+refund.
+
+Marketplace deployment metadata:
+
+- Status: `deployed-awaiting-e2e`
+- Artifact: `programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm`
+- Size: `212662` bytes
+- SHA-256: `594EDFCA83CD548559E921C5EC681ECE2E3D8BC48D5988895AD3A8EDADE680AA`
+- Deployed slot: `10198662`
+- Onchain data length: `212710` bytes; executable data length: `212662` bytes
+- Authority: `2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo`
+- Program balance after deployment: `1.48135248 RLO`
+- REX component bundle: not included in the artifact; the deployment command skipped
+  optional `rex_components.bin`.
+- Deployment transaction range: first
+  `2NWpti2vmDcZrjCu7C3xmQzp5akRi4ZbzmBxRqSRxkaatEbQthFNX5fv8QDgRxSGZpqQmMknL2Wki6kxDxvMsfSG`,
+  final `4vYAZbbThrJCoDDS3ZdttYy3fhZW9L1J3t2AbsrVCza1iimeXNrg9U72dB1nMXsov1d6AcGcxe5rqYM4XTjJx6ui`.
+
 Artifact for the fully tested, pre-hardening deployment:
 
 - Historical pre-reorganization path:

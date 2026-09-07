@@ -20,9 +20,17 @@ export function decodeWorkflowState(data: Uint8Array): MergePayWorkflowState {
   const paid = reader.readBool();
   const refunded = reader.readBool();
   const checks = reader.readU64();
+  const claimRequest = reader.remaining() > 0 ? reader.readBool() : false;
+  const claimTarget =
+    reader.remaining() >= 32
+      ? readPublicKey(reader, "claim target")
+      : "11111111111111111111111111111111";
+  const claimantGithub = reader.remaining() > 0 ? reader.readString() : "";
+  const claimantGithubId = reader.remaining() >= 8 ? reader.readU64() : 0n;
 
   return {
     discriminator,
+    nextBranchNumber: discriminator,
     initialized: discriminator !== 0n,
     sponsor,
     beneficiary,
@@ -36,6 +44,10 @@ export function decodeWorkflowState(data: Uint8Array): MergePayWorkflowState {
     paid,
     refunded,
     checks,
+    claimRequest,
+    claimTarget,
+    claimantGithub,
+    claimantGithubId,
   };
 }
 

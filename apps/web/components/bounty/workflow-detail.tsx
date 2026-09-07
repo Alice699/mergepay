@@ -1,9 +1,16 @@
 "use client";
 
-import type { DecodedMergePayWorkflow } from "@mergepay/rialo-client";
+import {
+  MERGEPAY_UNASSIGNED_BENEFICIARY,
+  type DecodedMergePayWorkflow,
+} from "@mergepay/rialo-client";
 import { Check, CircleAlert, LoaderCircle, RadioTower, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { AcceptClaimAction } from "@/features/claim-bounty/components/accept-claim-action";
+import { RequestClaimAction } from "@/features/claim-bounty/components/request-claim-action";
+import type { AcceptClaimResult } from "@/features/claim-bounty/use-accept-claim";
+import type { RequestClaimResult } from "@/features/claim-bounty/use-request-claim";
 import { FundBountyAction } from "@/features/fund-bounty/components/fund-bounty-action";
 import { CheckMergeAction } from "@/features/check-merge/components/check-merge-action";
 import type { CheckMergeResult } from "@/features/check-merge/use-check-merge";
@@ -13,34 +20,23 @@ import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
 import { useWorkflow } from "@/hooks/use-workflow";
 import { routes } from "@/lib/constants";
-import { formatRlo, shortenAddress } from "@/lib/format";
+import { formatDeadline, formatRlo, shortenAddress } from "@/lib/format";
 import { CopyValue } from "@/components/ui/copy-value";
 
 interface WorkflowDetailProps {
   slug: string;
   sponsorHint: string | null;
+  claimWorkflowHint: string | null;
   transactionSignature: string | null;
   callbackSignature: string | null;
-  transactionKind: "create" | "fund" | "check" | "refund";
+  transactionKind: "create" | "fund" | "check" | "refund" | "claim" | "accept_claim";
+  workflowAddressHint: string | null;
 }
 
 interface ConfirmedTransaction {
   signature: string;
   callbackSignature: string | null;
-  kind: "create" | "fund" | "check" | "refund";
-}
-
-function formatDeadline(deadlineUnixMs: bigint): string {
-  const date = new Date(Number(deadlineUnixMs));
-  if (!Number.isFinite(date.getTime())) return "Unavailable";
-
-  return (
-    new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "UTC",
-    }).format(date) + " UTC"
-  );
+  kind: "create" | "fund" | "check" | "refund" | "claim" | "accept_claim";
 }
 
 function workflowStatus(workflow: DecodedMergePayWorkflow) {
@@ -50,27 +46,42 @@ function workflowStatus(workflow: DecodedMergePayWorkflow) {
     return { label: "Merge confirmed", className: "state--good" };
   }
   if (workflow.state.funded) return { label: "Funded", className: "state--good" };
-  return { label: "Created", className: "state--warn" };
+  if (workflow.state.beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY) {
+    return { label: "Claimed", className: "state--good" };
+  }
+  if (workflow.state.claimRequest) {
+    return { label: "Claim requested", className: "state--warn" };
+  }
+  return { label: "Open claim", className: "state--warn" };
 }
 
 function WorkflowRecord({
   workflow,
   workflowSlug,
+  claimWorkflowHint,
   onFundConfirmed,
   onCheckCompleted,
   onRefundConfirmed,
+  onClaimSubmitted,
+  onClaimAccepted,
 }: Readonly<{
   workflow: DecodedMergePayWorkflow;
   workflowSlug: string;
+  claimWorkflowHint: string | null;
   onFundConfirmed: (signature: string) => void;
   onCheckCompleted: (result: CheckMergeResult) => void;
   onRefundConfirmed: (signature: string) => void;
+  onClaimSubmitted: (result: RequestClaimResult) => void;
+  onClaimAccepted: (result: AcceptClaimResult) => void;
 }>) {
   const status = workflowStatus(workflow);
   const { state } = workflow;
   const deadlinePassed = useDeadlinePassed(state.deadlineUnixMs);
+  const isUnclaimed = state.beneficiary === MERGEPAY_UNASSIGNED_BENEFICIARY;
+  const isSponsor = useWallet().address === state.sponsor;
   const checks = [
     ["Created", state.initialized],
+    ["Claim approved", !isUnclaimed],
     ["Funded", state.funded],
     ["Merge confirmed", state.mergeConfirmed],
     ["Paid", state.paid],
@@ -100,12 +111,12 @@ function WorkflowRecord({
           <dt>Bounty amount</dt>
           <dd>
             <strong>{formatRlo(state.amountKelvin)} RLO</strong>
-            <span>{state.amountKelvin.toString()} kelvin</span>
+            <span>Exact reward for the approved contributor</span>
           </dd>
         </div>
         <div>
           <dt>Deadline</dt>
-          <dd><strong>{formatDeadline(state.deadlineUnixMs)}</strong></dd>
+          <dd><strong suppressHydrationWarning>{formatDeadline(state.deadlineUnixMs)}</strong></dd>
         </div>
         <div>
           <dt>Workflow account</dt>
@@ -117,11 +128,46 @@ function WorkflowRecord({
         </div>
         <div>
           <dt>Beneficiary</dt>
-          <dd><CopyValue value={state.beneficiary} /></dd>
+          {isUnclaimed ? (
+            <dd><strong>Waiting for approved claim</strong><span>Contributor wallet is not assigned</span></dd>
+          ) : (
+            <dd>
+              <CopyValue value={state.beneficiary} />
+              {state.claimantGithub ? <span>@{state.claimantGithub}{state.claimantGithubId > 0n ? ` · GitHub ${state.claimantGithubId.toString()}` : ""}</span> : null}
+            </dd>
+          )}
         </div>
       </dl>
 
-      {!state.funded && !state.paid && !state.refunded ? (
+      {isUnclaimed && !state.claimRequest && !isSponsor && !claimWorkflowHint ? (
+        <RequestClaimAction
+          onConfirmed={onClaimSubmitted}
+          workflow={workflow}
+        />
+      ) : null}
+
+      {isUnclaimed && !state.claimRequest && isSponsor ? (
+        <AcceptClaimAction
+          key={claimWorkflowHint ?? "manual-claim-approval"}
+          claimWorkflowHint={claimWorkflowHint}
+          onConfirmed={onClaimAccepted}
+          workflow={workflow}
+          workflowSlug={workflowSlug}
+        />
+      ) : null}
+
+      {isUnclaimed && !state.claimRequest && !isSponsor && claimWorkflowHint ? (
+        <section className="workflow-claim workflow-claim--shared">
+          <div className="workflow-claim__copy">
+            <p className="panel-label">CLAIM REQUEST READY</p>
+            <h3>Waiting for sponsor approval</h3>
+            <p>Share this contributor claim record with the sponsor. The bounty cannot be funded until the sponsor approves it.</p>
+          </div>
+          <CopyValue value={claimWorkflowHint} />
+        </section>
+      ) : null}
+
+      {!isUnclaimed && !state.funded && !state.paid && !state.refunded ? (
         <FundBountyAction
           onConfirmed={onFundConfirmed}
           workflow={workflow}
@@ -146,18 +192,21 @@ function WorkflowRecord({
       ) : null}
 
       <div className="workflow-record__footer">
-        <div>
+        <div className="workflow-record__balance">
           <p className="panel-label">WORKFLOW STATE</p>
-          <p>Account balance: <strong>{formatRlo(workflow.account.kelvin)} RLO</strong></p>
+          <p><span>Account balance</span><strong>{formatRlo(workflow.account.kelvin)} RLO</strong></p>
         </div>
-        <ul className="workflow-checks" aria-label="Workflow state">
-          {checks.map(([label, complete]) => (
-            <li data-complete={complete} key={label}>
-              <span>{complete ? <Check aria-hidden="true" size={13} /> : null}</span>
-              {label}
-            </li>
-          ))}
-        </ul>
+        <div className="workflow-record__lifecycle">
+          <p className="panel-label">ONCHAIN LIFECYCLE</p>
+          <ul className="workflow-checks" aria-label="Workflow state">
+            {checks.map(([label, complete]) => (
+              <li aria-label={`${label}: ${complete ? "complete" : "not complete"}`} data-complete={complete} key={label}>
+                <span>{complete ? <Check aria-hidden="true" size={13} /> : null}</span>
+                {label}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
   );
@@ -166,13 +215,16 @@ function WorkflowRecord({
 export function WorkflowDetail({
   slug,
   sponsorHint,
+  claimWorkflowHint,
   transactionSignature,
   callbackSignature,
   transactionKind,
+  workflowAddressHint,
 }: Readonly<WorkflowDetailProps>) {
   const router = useRouter();
   const network = useNetwork();
   const wallet = useWallet();
+  const accountHint = workflowAddressHint?.trim() || null;
   const [refreshToken, setRefreshToken] = useState(0);
   const [confirmedTransaction, setConfirmedTransaction] =
     useState<ConfirmedTransaction | null>(
@@ -184,10 +236,14 @@ export function WorkflowDetail({
           }
         : null,
     );
-  const sponsor = sponsorHint?.trim() || wallet.address;
+  const sponsor = sponsorHint?.trim() || (accountHint ? null : wallet.address);
+  const lookupKey = accountHint || (sponsor ? slug : null);
 
   const loadWorkflow = useCallback(
     (requestedSlug: string) => {
+      if (accountHint) {
+        return network.client.getWorkflowByAddress(accountHint);
+      }
       if (!sponsor) {
         return Promise.reject(
           new Error("Connect the wallet that created this workflow to read its account."),
@@ -195,15 +251,16 @@ export function WorkflowDetail({
       }
       return network.client.getWorkflow(sponsor, requestedSlug);
     },
-    [network.client, sponsor],
+    [accountHint, network.client, sponsor],
   );
 
   const workflowRead = useWorkflow<DecodedMergePayWorkflow | null>(
-    network.rpcStatus === "available" && sponsor ? slug : null,
+    network.rpcStatus === "available" && lookupKey ? lookupKey : null,
     loadWorkflow,
     refreshToken,
   );
   const workflow = workflowRead.workflow;
+  const displaySponsor = workflow?.state.sponsor ?? sponsor;
   const pendingStateSignature =
     confirmedTransaction?.kind === "check" &&
     !confirmedTransaction.callbackSignature &&
@@ -211,7 +268,10 @@ export function WorkflowDetail({
       ? confirmedTransaction.signature
       : confirmedTransaction?.kind === "refund" && !workflow?.state.refunded
         ? confirmedTransaction.signature
-        : null;
+        : confirmedTransaction?.kind === "accept_claim" &&
+            workflow?.state.beneficiary === MERGEPAY_UNASSIGNED_BENEFICIARY
+          ? confirmedTransaction.signature
+          : null;
 
   useEffect(() => {
     if (!pendingStateSignature) return;
@@ -227,7 +287,7 @@ export function WorkflowDetail({
   }, [pendingStateSignature]);
 
   const readLoading =
-    Boolean(sponsor) &&
+    Boolean(lookupKey) &&
     (network.rpcStatus === "checking" ||
       workflowRead.status === "idle" ||
       workflowRead.status === "loading");
@@ -252,12 +312,18 @@ export function WorkflowDetail({
     network.refreshRpcHealth();
   }
 
+  function addWorkflowAccount(query: URLSearchParams) {
+    const account = workflow?.address ?? accountHint;
+    if (account) query.set("account", account);
+  }
+
   function handleFundConfirmed(signature: string) {
     const confirmedSponsor = workflow?.state.sponsor ?? sponsor;
     setConfirmedTransaction({ signature, callbackSignature: null, kind: "fund" });
     setRefreshToken((value) => value + 1);
 
     const query = new URLSearchParams({ event: "fund", tx: signature });
+    addWorkflowAccount(query);
     if (confirmedSponsor) query.set("sponsor", confirmedSponsor);
     router.replace(routes.bounty(slug) + "?" + query.toString(), { scroll: false });
   }
@@ -272,6 +338,7 @@ export function WorkflowDetail({
     setRefreshToken((value) => value + 1);
 
     const query = new URLSearchParams({ event: "check", tx: result.signature });
+    addWorkflowAccount(query);
     if (result.callbackSignature) query.set("callback", result.callbackSignature);
     if (confirmedSponsor) query.set("sponsor", confirmedSponsor);
     router.replace(routes.bounty(slug) + "?" + query.toString(), { scroll: false });
@@ -287,6 +354,33 @@ export function WorkflowDetail({
     setRefreshToken((value) => value + 1);
 
     const query = new URLSearchParams({ event: "refund", tx: signature });
+    addWorkflowAccount(query);
+    if (confirmedSponsor) query.set("sponsor", confirmedSponsor);
+    router.replace(routes.bounty(slug) + "?" + query.toString(), { scroll: false });
+  }
+
+  function handleClaimSubmitted(result: RequestClaimResult) {
+    const confirmedSponsor = workflow?.state.sponsor ?? sponsor;
+    setConfirmedTransaction({ signature: result.signature, callbackSignature: null, kind: "claim" });
+    setRefreshToken((value) => value + 1);
+
+    const query = new URLSearchParams({
+      event: "claim",
+      tx: result.signature,
+      claim: result.claimWorkflowAddress,
+    });
+    addWorkflowAccount(query);
+    if (confirmedSponsor) query.set("sponsor", confirmedSponsor);
+    router.replace(routes.bounty(slug) + "?" + query.toString(), { scroll: false });
+  }
+
+  function handleClaimAccepted(result: AcceptClaimResult) {
+    const confirmedSponsor = workflow?.state.sponsor ?? sponsor;
+    setConfirmedTransaction({ signature: result.signature, callbackSignature: null, kind: "accept_claim" });
+    setRefreshToken((value) => value + 1);
+
+    const query = new URLSearchParams({ event: "accept_claim", tx: result.signature });
+    addWorkflowAccount(query);
     if (confirmedSponsor) query.set("sponsor", confirmedSponsor);
     router.replace(routes.bounty(slug) + "?" + query.toString(), { scroll: false });
   }
@@ -326,6 +420,21 @@ export function WorkflowDetail({
       confirmationCopy =
         "The initiating transaction executed. Rialo REX is processing the GitHub proof callback.";
     }
+  } else if (confirmedTransaction?.kind === "claim") {
+    confirmationTitle = "Claim request confirmed";
+    confirmationCopy =
+      "The contributor claim record is live on Rialo. Share its address with the sponsor for approval.";
+  } else if (confirmedTransaction?.kind === "accept_claim") {
+    if (workflow && workflow.state.beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY) {
+      confirmationTitle = "Claim approved";
+      confirmationCopy =
+        "The sponsor locked the contributor wallet. Funding is now available for this bounty.";
+    } else {
+      confirmationTone = "pending";
+      confirmationTitle = "Claim approval submitted";
+      confirmationCopy =
+        "The approval transaction executed. Rialo is refreshing the workflow beneficiary.";
+    }
   }
 
   let readTitle = "Reading workflow account.";
@@ -338,7 +447,9 @@ export function WorkflowDetail({
     readCopy = "The transaction may already be confirmed, but the account cannot be verified until the DevNet RPC responds.";
   } else if (workflowRead.status === "error") {
     readTitle = "Workflow could not be verified.";
-    readCopy = "Rialo returned an error while reading this account. Nothing is inferred or replaced with sample data.";
+    readCopy = workflowRead.error?.message
+      ? `Rialo returned an error while reading this account: ${workflowRead.error.message}`
+      : "Rialo returned an error while reading this account. Nothing is inferred or replaced with sample data.";
   } else if (workflowRead.status === "success" && !workflow) {
     readTitle = confirmedTransaction
       ? "Transaction confirmed. Account read is still catching up."
@@ -350,7 +461,11 @@ export function WorkflowDetail({
           ? "The merge check executed, but this workflow account cannot be read yet. Retry without assuming a payout."
           : confirmedTransaction.kind === "refund"
             ? "The refund transaction executed, but the updated account cannot be read yet. Retry without assuming its terminal state."
-            : "The create transaction executed, but this account read returned no data yet. Retry the read in a moment."
+            : confirmedTransaction.kind === "claim"
+              ? "The claim transaction executed, but the sponsor-owned bounty is unchanged until approval. Keep the claim record address from the confirmation above."
+              : confirmedTransaction.kind === "accept_claim"
+                ? "The approval transaction executed, but the beneficiary change is not visible yet. Retry the account read before funding."
+                : "The create transaction executed, but this account read returned no data yet. Retry the read in a moment."
       : "No initialized workflow was returned for this sponsor and workflow ID.";
   }
 
@@ -372,7 +487,10 @@ export function WorkflowDetail({
       <div className="content-grid workflow-detail__grid">
         {workflow ? (
           <WorkflowRecord
+            claimWorkflowHint={claimWorkflowHint}
             onCheckCompleted={handleCheckCompleted}
+            onClaimAccepted={handleClaimAccepted}
+            onClaimSubmitted={handleClaimSubmitted}
             onFundConfirmed={handleFundConfirmed}
             onRefundConfirmed={handleRefundConfirmed}
             workflow={workflow}
@@ -402,7 +520,7 @@ export function WorkflowDetail({
             <li><span>Network</span><strong>{network.label.replace("Rialo ", "")}</strong></li>
             <li><span>RPC</span><strong className={network.rpcStatus === "available" ? "state state--good" : "state"}>{rpcLabel}</strong></li>
             <li><span>Decoder</span><strong className={decoderGood ? "state state--good" : "state"}>{decoderLabel}</strong></li>
-            {sponsor ? <li><span>Sponsor</span><strong className="mono" title={sponsor}>{shortenAddress(sponsor, 6)}</strong></li> : null}
+            {displaySponsor ? <li><span>Sponsor</span><strong className="mono" title={displaySponsor}>{shortenAddress(displaySponsor, 6)}</strong></li> : null}
           </ul>
           <p className="panel-note">Every value is read from Rialo. A missing account or RPC failure stays visible as a missing account or RPC failure.</p>
         </aside>

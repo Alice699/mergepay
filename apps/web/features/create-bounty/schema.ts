@@ -1,19 +1,17 @@
 export interface CreateBountyFormValues {
   workflowSlug: string;
-  beneficiary: string;
   githubOwner: string;
   githubRepo: string;
   pullNumber: string;
-  amountKelvin: string;
+  amountRlo: string;
   deadlineUnixMs: string;
 }
 
 export const CREATE_BOUNTY_FIELDS = [
   "workflowSlug",
-  "beneficiary",
   "githubOwner",
   "githubRepo",
   "pullNumber",
-  "amountKelvin",
+  "amountRlo",
   "deadlineUnixMs",
 ] as const satisfies ReadonlyArray<keyof CreateBountyFormValues>;

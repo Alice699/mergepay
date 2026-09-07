@@ -1,6 +1,7 @@
 export {
   DEFAULT_RIALO_NETWORK,
   MERGEPAY_INSTRUCTION_NAMES,
+  MERGEPAY_UNASSIGNED_BENEFICIARY,
 } from "./constants.js";
 export * from "./accounts/index.js";
 export * from "./client.js";

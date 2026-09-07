@@ -8,12 +8,13 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCreateBounty } from "@/features/create-bounty/use-create-bounty";
 import { useWallet } from "@/hooks/use-wallet";
 import { useNetwork } from "@/hooks/use-network";
 import { asError, describeRialoError } from "@/lib/errors";
 import { MINIMUM_CREATE_BALANCE_KELVIN, routes } from "@/lib/constants";
+import { formatTimeZoneLabel, parseRloToKelvin } from "@/lib/format";
 import { generateWorkflowSlug } from "@/lib/validation";
 import type { CreateBountyFormValues } from "../schema";
 
@@ -29,14 +30,14 @@ function readFormValues(form: HTMLFormElement): CreateBountyFormValues {
   if (!Number.isSafeInteger(deadlineUnixMs) || deadlineUnixMs <= Date.now()) {
     throw new Error("Choose a future deadline.");
   }
+  parseRloToKelvin(value("amountRlo"));
 
   return {
     workflowSlug: value("workflowSlug"),
-    beneficiary: value("beneficiary"),
     githubOwner: value("githubOwner"),
     githubRepo: value("githubRepo"),
     pullNumber: value("pullNumber"),
-    amountKelvin: value("amountKelvin"),
+    amountRlo: value("amountRlo"),
     deadlineUnixMs: String(deadlineUnixMs),
   };
 }
@@ -52,7 +53,15 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
   const createBounty = useCreateBounty();
   const [formError, setFormError] = useState<Error | null>(null);
   const [workflowSlug, setWorkflowSlug] = useState(initialWorkflowSlug);
+  const [timeZoneLabel, setTimeZoneLabel] = useState("local time");
   const isBusy = createBounty.status === "pending";
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setTimeZoneLabel(formatTimeZoneLabel());
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   function regenerateWorkflowSlug() {
     if (!isBusy && createBounty.transaction.phase !== "confirmed") {
@@ -78,6 +87,7 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
       const detailQuery = new URLSearchParams({
         event: "create",
         tx: result.signature,
+        account: result.workflowAddress,
       });
       if (wallet.address) detailQuery.set("sponsor", wallet.address);
       router.push(routes.bounty(result.workflowSlug) + "?" + detailQuery.toString());
@@ -192,9 +202,15 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
           <div><p className="form-section__eyebrow mono">IMMUTABLE STATE</p><h2>Settlement terms</h2><p>These values are committed to the workflow account.</p></div>
         </div>
         <div className="form-grid form-grid--two">
-          <label className="form-field form-grid__wide"><span>Beneficiary address <b aria-hidden="true">*</b></span><input aria-describedby="beneficiary-hint" name="beneficiary" autoComplete="off" placeholder="Rialo public address" required spellCheck={false} /><small id="beneficiary-hint">Receives the payout automatically after unanimous merge confirmation.</small></label>
-          <label className="form-field"><span>Bounty amount <b aria-hidden="true">*</b></span><div className="input-affix"><input name="amountKelvin" inputMode="numeric" min="1" placeholder="Amount" required step="1" type="number" /><b>KELVIN</b></div></label>
-          <label className="form-field"><span>Deadline <b aria-hidden="true">*</b></span><input name="deadlineUnixMs" required type="datetime-local" /></label>
+          <div className="form-field form-grid__wide form-field--notice">
+            <span>Contributor claim</span>
+            <div className="form-field__notice">
+              <strong>The payout address is selected after the PR author claims this bounty.</strong>
+              <small>MergePay verifies the public GitHub pull request, then the sponsor approves the contributor wallet before funding. The beneficiary is locked once approved.</small>
+            </div>
+          </div>
+          <label className="form-field"><span>Bounty amount <b aria-hidden="true">*</b></span><div className="input-affix"><input aria-describedby="amount-hint" name="amountRlo" inputMode="decimal" min="0.000000001" placeholder="0.001" required step="0.000000001" type="text" /><b>RLO</b></div><small id="amount-hint">The contributor receives this exact amount in RLO.</small></label>
+          <label className="form-field"><span>Deadline <b aria-hidden="true">*</b></span><input aria-describedby="deadline-hint" name="deadlineUnixMs" required type="datetime-local" /><small id="deadline-hint">Uses your local time · {timeZoneLabel}.</small></label>
           <div className="form-field form-grid__wide">
             <div className="form-field__label-row">
               <label htmlFor="workflow-id">Workflow ID <b aria-hidden="true">*</b></label>

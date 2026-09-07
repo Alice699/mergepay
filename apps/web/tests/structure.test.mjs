@@ -14,15 +14,26 @@ const requiredPaths = [
   "app/guide/page.tsx",
   "app/docs/page.tsx",
   "app/api/rialo/route.ts",
+  "app/api/github/pull/route.ts",
+  "app/api/github/auth/start/route.ts",
+  "app/api/github/auth/callback/route.ts",
+  "app/api/github/auth/session/route.ts",
+  "app/api/github/auth/logout/route.ts",
   "components/ui/brand-mark.tsx",
   "components/feedback/route-placeholder.tsx",
   "components/motion/route-transition.tsx",
   "components/motion/scroll-reveal.tsx",
   "components/wallet/transaction-approval-dialog.tsx",
   "components/bounty/workflow-detail.tsx",
+  "components/bounty/open-bounty-feed.tsx",
   "features/create-bounty/components/create-bounty-form.tsx",
   "features/create-bounty/schema.ts",
   "features/create-bounty/use-create-bounty.ts",
+  "features/claim-bounty/components/request-claim-action.tsx",
+  "features/claim-bounty/components/accept-claim-action.tsx",
+  "features/claim-bounty/use-request-claim.ts",
+  "features/claim-bounty/use-accept-claim.ts",
+  "features/claim-bounty/README.md",
   "features/fund-bounty/components/fund-bounty-action.tsx",
   "features/fund-bounty/use-fund-bounty.ts",
   "features/fund-bounty/README.md",
@@ -44,6 +55,7 @@ const requiredPaths = [
   "hooks/use-deadline-passed.ts",
   "hooks/use-transaction.ts",
   "hooks/use-workflow.ts",
+  "hooks/use-github-identity.ts",
   "lib/config.ts",
   "lib/rialo.ts",
   "lib/embedded-wallet.ts",
@@ -132,6 +144,8 @@ test("uses semantic symbols without directional arrow UI", async () => {
     "components/ui/copy-value.tsx",
     "components/wallet/wallet-control.tsx",
     "features/create-bounty/components/create-bounty-form.tsx",
+    "features/claim-bounty/components/request-claim-action.tsx",
+    "features/claim-bounty/components/accept-claim-action.tsx",
   ];
 
   const sources = await Promise.all(
@@ -222,6 +236,38 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
     new URL("features/create-bounty/use-create-bounty.ts", webRoot),
     "utf8",
   );
+  const requestClaimHook = await readFile(
+    new URL("features/claim-bounty/use-request-claim.ts", webRoot),
+    "utf8",
+  );
+  const requestClaimAction = await readFile(
+    new URL("features/claim-bounty/components/request-claim-action.tsx", webRoot),
+    "utf8",
+  );
+  const acceptClaimHook = await readFile(
+    new URL("features/claim-bounty/use-accept-claim.ts", webRoot),
+    "utf8",
+  );
+  const acceptClaimAction = await readFile(
+    new URL("features/claim-bounty/components/accept-claim-action.tsx", webRoot),
+    "utf8",
+  );
+  const githubProofRoute = await readFile(
+    new URL("app/api/github/pull/route.ts", webRoot),
+    "utf8",
+  );
+  const githubAuthRoutes = await Promise.all(
+    [
+      "app/api/github/auth/start/route.ts",
+      "app/api/github/auth/callback/route.ts",
+      "app/api/github/auth/session/route.ts",
+      "app/api/github/auth/logout/route.ts",
+    ].map((path) => readFile(new URL(path, webRoot), "utf8")),
+  );
+  const githubIdentityHook = await readFile(
+    new URL("hooks/use-github-identity.ts", webRoot),
+    "utf8",
+  );
   const fundHook = await readFile(
     new URL("features/fund-bounty/use-fund-bounty.ts", webRoot),
     "utf8",
@@ -267,6 +313,11 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
     "utf8",
   );
   const config = await readFile(new URL("lib/config.ts", webRoot), "utf8");
+  const bountyFeed = await readFile(
+    new URL("components/bounty/open-bounty-feed.tsx", webRoot),
+    "utf8",
+  );
+  const format = await readFile(new URL("lib/format.ts", webRoot), "utf8");
 
   assert.match(providers, /FrostProvider/);
   assert.doesNotMatch(providers, /from "\.\/network-provider"/);
@@ -280,7 +331,7 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.doesNotMatch(networkProvider, /createContext/);
   assert.doesNotMatch(walletProvider, /createContext/);
   assert.match(walletProvider, /useConnectWallet/);
-  assert.match(walletProvider, /useNativeBalance/);
+  assert.match(walletProvider, /useFrostSelector/);
   assert.match(walletProvider, /useSignTransaction/);
   assert.match(walletProvider, /sendTransaction/);
   assert.match(walletProvider, /confirm\(/);
@@ -292,6 +343,28 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(workflowDetail, /Retry account read/);
   assert.match(createHook, /buildCreateBounty/);
   assert.match(createHook, /buildTransaction/);
+  assert.match(requestClaimHook, /buildRequestClaim/);
+  assert.match(requestClaimHook, /submitTransaction/);
+  assert.match(requestClaimAction, /Connect GitHub/);
+  assert.match(requestClaimAction, /Verify PR/);
+  assert.doesNotMatch(requestClaimAction, /your-github-handle|Enter the GitHub username/);
+  assert.match(requestClaimAction, /Request claim/);
+  assert.match(requestClaimHook, /claimantGithubId/);
+  assert.match(acceptClaimHook, /buildAcceptClaim/);
+  assert.match(acceptClaimHook, /submitTransaction/);
+  assert.match(acceptClaimAction, /Approve claim/);
+  assert.match(githubProofRoute, /api.github.com/);
+  assert.match(githubProofRoute, /merged_at/);
+  assert.match(githubProofRoute, /getGitHubIdentity/);
+  assert.match(githubProofRoute, /authorId !== identity.id/);
+  assert.match(githubIdentityHook, /api\/github\/auth\/session/);
+  assert.match(githubIdentityHook, /window.location.assign/);
+  assert.match(githubAuthRoutes[0], /login\/oauth\/authorize/);
+  assert.match(githubAuthRoutes[1], /login\/oauth\/access_token/);
+  assert.match(githubAuthRoutes[1], /api\.github\.com\/user/);
+  assert.match(githubAuthRoutes[1], /createSessionCookie/);
+  assert.match(githubAuthRoutes[2], /getGitHubIdentity/);
+  assert.match(githubAuthRoutes[3], /clearGitHubCookies/);
   assert.match(fundHook, /getWorkflow/);
   assert.match(fundHook, /buildFund/);
   assert.match(fundHook, /submitTransaction/);
@@ -328,6 +401,13 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(rpcRelay, /getWorkflowLineage/);
   assert.match(rpcRelay, /getSignaturesForAddress/);
   assert.match(rpcRelay, /MAX_DEVNET_AIRDROP_KELVIN = 1_000_000_000/);
+  assert.match(bountyFeed, /getPublicBountiesPage/);
+  assert.match(bountyFeed, /no sponsor URL required/);
+  assert.match(bountyFeed, /Load older listings/);
+  assert.match(bountyFeed, /Shared DevNet test bounty/);
+  assert.match(bountyFeed, /legacy/);
+  assert.match(bountyFeed, /visibilitychange/);
+  assert.match(format, /fractionPart\.padEnd\(9, "0"\)/);
   assert.doesNotMatch(rpcRelay, /Access-Control-Allow-Origin/i);
   assert.doesNotMatch(embeddedWallet, /localStorage/);
   assert.doesNotMatch(embeddedHook, /createMockWallet/);
