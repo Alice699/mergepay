@@ -6,7 +6,10 @@ import {
   useSignTransaction,
   useFrostConfig,
 } from "@rialo/frost";
-import { MERGEPAY_INSTRUCTION_DISCRIMINANTS } from "@mergepay/rialo-client";
+import {
+  MERGEPAY_CALLBACK_DISCRIMINANT,
+  MERGEPAY_INSTRUCTION_DISCRIMINANTS,
+} from "@mergepay/rialo-client";
 import { Transaction } from "@rialo/ts-cdk";
 import {
   useCallback,
@@ -36,7 +39,12 @@ import {
 
 const DEVNET_AIRDROP_KELVIN = 1_000_000_000n;
 const ALLOWED_EMBEDDED_INSTRUCTIONS = new Set<number>(
-  Object.values(MERGEPAY_INSTRUCTION_DISCRIMINANTS),
+  [
+    ...Object.values(MERGEPAY_INSTRUCTION_DISCRIMINANTS),
+    // check_merge is currently submitted through the generated
+    // run_merge_check timer-handler ABI so each retry can carry its branch.
+    MERGEPAY_CALLBACK_DISCRIMINANT,
+  ],
 );
 
 const MAX_TRANSACTION_FAILURE_DETAIL_LENGTH = 220;
@@ -110,10 +118,20 @@ async function readTransactionFailureDetail(
 ): Promise<string | undefined> {
   try {
     const details = await client.getTransaction(signature);
-    const programLog = [...(details?.meta.logMessages ?? [])]
+    const logs = details?.meta.logMessages ?? [];
+    const programLog = [...logs]
       .reverse()
       .find((message) => /^MergePay\s/i.test(message));
-    const detail = programLog ?? details?.meta.err ?? fallback;
+    const diagnosticLog = [...logs]
+      .filter(
+        (message) =>
+          !/^Program .* (invoke|success)/i.test(message) &&
+          /^(?:Program log:|Error:)|IncorrectProgramId|InvalidAccountData|InvalidInstructionData/i.test(
+            message,
+          ),
+      )
+      .reverse()[0];
+    const detail = programLog ?? diagnosticLog ?? details?.meta.err ?? fallback;
     return detail ? trimTransactionFailureDetail(detail) : undefined;
   } catch {
     return fallback ? trimTransactionFailureDetail(fallback) : undefined;
@@ -370,12 +388,14 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
           }),
         ),
       );
-      if (
-        programs.length === 0 ||
-        programs.some((program) => program !== network.client.programId)
-      ) {
+      const unexpectedPrograms = programs.filter(
+        (program) => program !== network.client.programId,
+      );
+      if (programs.length === 0 || unexpectedPrograms.length > 0) {
         throw new MergePayUiError(
-          "The local wallet only signs instructions for the active MergePay program.",
+          unexpectedPrograms.length > 0
+            ? `The transaction targets ${unexpectedPrograms.join(", ")}, but this app is configured for ${network.client.programId}. Refresh the app before signing.`
+            : "The transaction has no approved MergePay program instruction.",
           "TRANSACTION_PROGRAM_REJECTED",
         );
       }

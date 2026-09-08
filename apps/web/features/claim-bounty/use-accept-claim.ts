@@ -79,13 +79,19 @@ export function useAcceptClaim() {
         "CLAIM_RECORD_NOT_FOUND",
       );
     }
+    if (account.owner !== network.client.programId) {
+      throw new MergePayUiError(
+        "That address is not a MergePay claim record for this DevNet. Do not paste the payout wallet; paste the claim-record address shown after the contributor's claim request is confirmed.",
+        "CLAIM_RECORD_OWNER_MISMATCH",
+      );
+    }
 
     let claim: DecodedMergePayWorkflow;
     try {
       claim = decodeWorkflowAccount(account, network.client.programId);
     } catch (cause) {
       throw new MergePayUiError(
-        "The claim record could not be decoded from Rialo.",
+        "The address is not a valid MergePay claim record. The contributor must complete Request claim and share the address from the claim confirmation, not the payout wallet.",
         "CLAIM_RECORD_INVALID",
         { cause: cause instanceof Error ? cause : undefined },
       );

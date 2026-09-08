@@ -252,6 +252,10 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
     new URL("features/claim-bounty/components/accept-claim-action.tsx", webRoot),
     "utf8",
   );
+  assert.match(acceptClaimHook, /CLAIM_RECORD_OWNER_MISMATCH/);
+  assert.match(acceptClaimHook, /not the payout wallet/);
+  assert.match(acceptClaimAction, /confirmed claim-record address/);
+  assert.match(acceptClaimAction, /different from the payout wallet/);
   const githubProofRoute = await readFile(
     new URL("app/api/github/pull/route.ts", webRoot),
     "utf8",
@@ -378,6 +382,8 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(checkMergeHook, /submitTransaction/);
   assert.match(checkMergeAction, /Verify merge/);
   assert.match(checkMergeAction, /No unanimous merge proof/);
+  assert.match(walletProvider, /MERGEPAY_CALLBACK_DISCRIMINANT/);
+  assert.match(walletProvider, /run_merge_check timer-handler ABI/);
   assert.match(refundHook, /getWorkflow/);
   assert.match(refundHook, /buildRefund/);
   assert.match(refundHook, /submitTransaction/);

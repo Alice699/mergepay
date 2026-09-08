@@ -64,9 +64,10 @@ export function describeRialoError(cause: unknown): string {
     case "EMBEDDED_WALLET_INVALID_BACKUP":
       return "That file is not a valid MergePay encrypted wallet backup.";
     case "EMBEDDED_WALLET_SIGNER_MISMATCH":
-    case "TRANSACTION_PROGRAM_REJECTED":
     case "TRANSACTION_INSTRUCTION_REJECTED":
       return "The local wallet refused a transaction outside its approved MergePay boundary.";
+    case "TRANSACTION_PROGRAM_REJECTED":
+      return errorText(cause);
     case "BALANCE_UNAVAILABLE":
       return "The signer balance is not available yet. Refresh the wallet balance before creating a bounty.";
     case "INSUFFICIENT_FUNDS":
@@ -76,6 +77,9 @@ export function describeRialoError(cause: unknown): string {
     case "WORKFLOW_ACCOUNT_NOT_FOUND":
       return "This bounty workflow is not available on the configured program. Return to the marketplace and open a current listing.";
     case "WORKFLOW_PROGRAM_MISMATCH":
+      return errorText(cause);
+    case "CLAIM_RECORD_OWNER_MISMATCH":
+    case "CLAIM_RECORD_INVALID":
       return errorText(cause);
     case "TRANSACTION_FAILED": {
       const detail = errorText(cause).trim();

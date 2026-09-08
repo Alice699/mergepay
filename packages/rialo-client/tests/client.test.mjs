@@ -177,7 +177,6 @@ test("builds the exact external instruction wire format", () => {
     payer,
     claimWorkflow,
     "11111111111111111111111111111111",
-    "Subscriber111111111111111111111111111111111",
     workflowPda,
   ]);
 
@@ -192,7 +191,6 @@ test("builds the exact external instruction wire format", () => {
     payer,
     workflowPda,
     "11111111111111111111111111111111",
-    "Subscriber111111111111111111111111111111111",
     claimWorkflow,
   ]);
 });

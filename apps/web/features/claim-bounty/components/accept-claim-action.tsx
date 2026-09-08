@@ -139,26 +139,29 @@ export function AcceptClaimAction({
         </span>
       </div>
       <div className="workflow-claim__approval-body">
-        <label className="form-field">
-          <span>Contributor claim record</span>
-          <input
-            autoComplete="off"
-            disabled={busy || acceptClaim.status === "success"}
-            onChange={(event) => {
-              setClaimWorkflow(event.target.value);
-              setFormError(null);
-            }}
-            placeholder="Paste the claim workflow address"
-            spellCheck={false}
-            value={claimWorkflow}
-          />
-          <small>The address is created by the contributor wallet and can be shared from the claim confirmation.</small>
-        </label>
+        <div className="workflow-claim__approval-entry">
+          <label className="form-field" htmlFor="contributor-claim-record">
+            <span>Contributor claim record</span>
+            <input
+              autoComplete="off"
+              disabled={busy || acceptClaim.status === "success"}
+              id="contributor-claim-record"
+              onChange={(event) => {
+                setClaimWorkflow(event.target.value);
+                setFormError(null);
+              }}
+              placeholder="Paste the confirmed claim-record address"
+              spellCheck={false}
+              value={claimWorkflow}
+            />
+          </label>
+          <button className="button workflow-claim__approval-submit" disabled={unavailable} onClick={approveClaim} type="button">
+            {busy ? <LoaderCircle aria-hidden="true" className="ui-icon ui-icon--spin" size={15} /> : acceptClaim.status === "success" ? <Check aria-hidden="true" size={15} /> : <KeyRound aria-hidden="true" size={15} />}
+            {buttonLabel}
+          </button>
+        </div>
+        <p className="workflow-claim__approval-help">Use the address shown after &quot;Claim request confirmed&quot;. It is different from the payout wallet above.</p>
         {acceptClaim.result?.beneficiary ? <div className="workflow-claim__approved"><span>Locked beneficiary</span><CopyValue value={acceptClaim.result.beneficiary} /></div> : null}
-        <button className="button" disabled={unavailable} onClick={approveClaim} type="button">
-          {busy ? <LoaderCircle aria-hidden="true" className="ui-icon ui-icon--spin" size={15} /> : acceptClaim.status === "success" ? <Check aria-hidden="true" size={15} /> : <KeyRound aria-hidden="true" size={15} />}
-          {buttonLabel}
-        </button>
       </div>
     </section>
   );

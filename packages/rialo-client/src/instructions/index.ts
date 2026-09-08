@@ -81,24 +81,21 @@ function simpleAccounts(payer: PublicKey, workflowPda: PublicKey): AccountMeta[]
   ];
 }
 
-function readOnlyUserAccountAccounts(
+function userAccountAccounts(
   payer: PublicKey,
   workflowPda: PublicKey,
   userAccount: PublicKey,
 ): AccountMeta[] {
-  // request_claim and accept_claim only bind a read-only user account. Venus
-  // places the subscriber interface before that account in the current
-  // generated workflow ABI.
+  // request_claim and accept_claim do not schedule Venus work. Their generated
+  // ABI therefore contains the system program followed immediately by the
+  // user-provided account. Adding Subscriber111... here shifts the user
+  // account by one slot and makes the onchain program read the subscriber
+  // program as target_workflow/claim_workflow, which returns IncorrectProgramId.
   return [
     meta(payer, true, true),
     meta(workflowPda, false, true),
     meta(
       PublicKey.fromString(MERGEPAY_WELL_KNOWN_ADDRESSES.systemProgram),
-      false,
-      false,
-    ),
-    meta(
-      PublicKey.fromString(MERGEPAY_WELL_KNOWN_ADDRESSES.subscriberInterface),
       false,
       false,
     ),
@@ -195,7 +192,7 @@ export function buildAcceptClaimInstruction(
     "accept_claim",
     input,
     writer.toBytes(),
-    readOnlyUserAccountAccounts(
+    userAccountAccounts(
       payer,
       PublicKey.fromString(workflow.address),
       claimWorkflow,
@@ -226,7 +223,7 @@ export function buildRequestClaimInstruction(
     "request_claim",
     input,
     writer.toBytes(),
-    readOnlyUserAccountAccounts(
+    userAccountAccounts(
       payer,
       PublicKey.fromString(workflow.address),
       targetWorkflow,

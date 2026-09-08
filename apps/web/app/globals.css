@@ -4302,27 +4302,56 @@ input:user-valid {
 }
 
 .workflow-claim__approval-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   margin-top: 1.25rem;
 }
 
-.workflow-claim__approval-body > .form-field {
+.workflow-claim__approval-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(11.5rem, auto);
+  align-items: end;
+  gap: 1rem;
+}
+
+.workflow-claim__approval-entry > .form-field {
   min-width: 0;
 }
 
-.workflow-claim__approval-body > .form-field small {
-  margin-top: 0.625rem;
+.workflow-claim__approval-entry .form-field small {
+  display: none;
+}
+
+.workflow-claim__approval-submit {
+  min-width: 12rem;
+}
+
+.workflow-claim__approval-help {
+  max-width: 60rem;
+  margin: -0.375rem 0 0;
+  color: var(--subtle);
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  letter-spacing: 0.06em;
   line-height: 1.55;
+  text-transform: uppercase;
 }
 
 .workflow-claim__approved {
   min-width: 0;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
+  border: 1px solid oklch(0.76 0.13 155 / 0.28);
+  border-radius: var(--radius-sm);
+  background: var(--success-soft);
+  padding: 0.625rem 0.75rem;
+}
+
+.workflow-claim__approved > span {
+  margin-right: auto;
 }
 
 .workflow-claim__approved .copy-value {
@@ -6161,7 +6190,7 @@ pre {
 
   .workflow-claim__input-row,
   .workflow-claim__proof-row,
-  .workflow-claim__approval-body {
+  .workflow-claim__approval-entry {
     grid-template-columns: 1fr;
   }
 
@@ -6173,7 +6202,7 @@ pre {
   .workflow-claim__input-prefix,
   .workflow-claim__input-row .button,
   .workflow-claim__proof-row .button,
-  .workflow-claim__approval-body > .button {
+  .workflow-claim__approval-entry > .button {
     width: 100%;
   }
 
