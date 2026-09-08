@@ -73,6 +73,10 @@ export function describeRialoError(cause: unknown): string {
       return "This wallet needs at least 0.002 RLO for workflow rent and transaction fees. Request 1 RLO from the DevNet faucet, refresh the balance, then try again.";
     case "AIRDROP_FAILED":
       return "The Rialo DevNet faucet rejected this request. Wait before trying again.";
+    case "WORKFLOW_ACCOUNT_NOT_FOUND":
+      return "This bounty workflow is not available on the configured program. Return to the marketplace and open a current listing.";
+    case "WORKFLOW_PROGRAM_MISMATCH":
+      return errorText(cause);
     case "TRANSACTION_FAILED": {
       const detail = errorText(cause).trim();
       if (/InvalidInstructionData/i.test(detail)) {

@@ -82,6 +82,20 @@ export function useRequestClaim() {
       );
     }
 
+    const targetAccount = await network.client.getAccountInfo(targetWorkflow);
+    if (!targetAccount) {
+      throw new MergePayUiError(
+        "The bounty workflow could not be found on the configured Rialo program. Open the bounty again from the current marketplace listing.",
+        "WORKFLOW_ACCOUNT_NOT_FOUND",
+      );
+    }
+    if (targetAccount.owner !== network.client.programId) {
+      throw new MergePayUiError(
+        `This bounty belongs to another MergePay deployment (${targetAccount.owner}). The current marketplace uses ${network.client.programId}. Create a new bounty from the current listing; refreshing cannot migrate an existing workflow.`,
+        "WORKFLOW_PROGRAM_MISMATCH",
+      );
+    }
+
     const liveBalance = await network.client.rpc.getBalance(wallet.address);
     if (liveBalance < MINIMUM_CREATE_BALANCE_KELVIN) {
       throw new MergePayUiError(

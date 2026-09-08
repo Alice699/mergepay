@@ -345,6 +345,8 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(createHook, /buildTransaction/);
   assert.match(requestClaimHook, /buildRequestClaim/);
   assert.match(requestClaimHook, /submitTransaction/);
+  assert.match(requestClaimHook, /getAccountInfo/);
+  assert.match(requestClaimHook, /WORKFLOW_PROGRAM_MISMATCH/);
   assert.match(requestClaimAction, /Connect GitHub/);
   assert.match(requestClaimAction, /Verify PR/);
   assert.doesNotMatch(requestClaimAction, /your-github-handle|Enter the GitHub username/);
