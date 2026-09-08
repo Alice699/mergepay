@@ -78,6 +78,50 @@ function createRoundedPanelGeometry(
   return geometry;
 }
 
+function createRialoMarkGeometry(THREE: typeof import("three")) {
+  const shape = new THREE.Shape();
+  const scale = 0.00105;
+  const x = (value: number) => (value - 200) * scale;
+  const y = (value: number) => (200 - value) * scale;
+
+  shape.moveTo(x(163), y(80));
+  shape.lineTo(x(238), y(80));
+  shape.bezierCurveTo(x(254), y(80), x(263), y(90), x(263), y(105));
+  shape.bezierCurveTo(x(263), y(120), x(272), y(128), x(287), y(128));
+  shape.bezierCurveTo(x(301), y(128), x(311), y(138), x(311), y(152));
+  shape.bezierCurveTo(x(311), y(166), x(301), y(176), x(287), y(176));
+  shape.lineTo(x(239), y(176));
+  shape.bezierCurveTo(x(224), y(176), x(213), y(187), x(213), y(201));
+  shape.bezierCurveTo(x(213), y(215), x(224), y(225), x(239), y(225));
+  shape.bezierCurveTo(x(253), y(225), x(262), y(236), x(262), y(250));
+  shape.lineTo(x(262), y(294));
+  shape.bezierCurveTo(x(262), y(309), x(251), y(319), x(237), y(319));
+  shape.bezierCurveTo(x(223), y(319), x(213), y(309), x(213), y(294));
+  shape.lineTo(x(213), y(250));
+  shape.bezierCurveTo(x(213), y(236), x(202), y(225), x(187), y(225));
+  shape.lineTo(x(113), y(225));
+  shape.bezierCurveTo(x(99), y(225), x(89), y(215), x(89), y(201));
+  shape.bezierCurveTo(x(89), y(187), x(100), y(176), x(114), y(176));
+  shape.lineTo(x(187), y(176));
+  shape.bezierCurveTo(x(202), y(176), x(213), y(166), x(213), y(152));
+  shape.bezierCurveTo(x(213), y(138), x(202), y(128), x(187), y(128));
+  shape.lineTo(x(163), y(128));
+  shape.bezierCurveTo(x(149), y(128), x(138), y(117), x(138), y(104));
+  shape.bezierCurveTo(x(138), y(90), x(149), y(80), x(163), y(80));
+
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    bevelEnabled: true,
+    bevelSegments: 3,
+    bevelSize: 0.004,
+    bevelThickness: 0.004,
+    curveSegments: 18,
+    depth: 0.018,
+    steps: 1,
+  });
+  geometry.center();
+  return geometry;
+}
+
 function smoothStep(value: number) {
   const clamped = Math.min(1, Math.max(0, value));
   return clamped * clamped * (3 - 2 * clamped);
@@ -161,7 +205,8 @@ export function MergeCoreScene() {
 
       // One clear character moment: two purpose-built robots complete a handoff.
       const robotRoot = new THREE.Group();
-      robotRoot.position.y = 0.14;
+      robotRoot.position.y = 0.08;
+      robotRoot.scale.setScalar(0.9);
       scene.add(robotRoot);
 
       const slateShell = trackMaterial(
@@ -249,14 +294,13 @@ export function MergeCoreScene() {
       const legGeometry = trackGeometry(
         new THREE.CapsuleGeometry(0.102, 0.31, 6, 16),
       );
-      const chestRingGeometry = trackGeometry(
-        new THREE.TorusGeometry(0.115, 0.013, 10, 42),
-      );
+      const rialoMarkGeometry = trackGeometry(createRialoMarkGeometry(THREE));
 
       const createRobot = (
         x: number,
         shell: MeshPhysicalMaterial,
         chestBase: MeshPhysicalMaterial,
+        markMaterial: MeshPhysicalMaterial,
         inward: -1 | 1,
       ): RobotRig => {
         const robot = new THREE.Group();
@@ -297,15 +341,20 @@ export function MergeCoreScene() {
         body.receiveShadow = true;
         robot.add(body);
 
+        const chestAssembly = new THREE.Group();
+        chestAssembly.position.set(0, -0.64, 0.265);
+        robot.add(chestAssembly);
+
         const chest = trackMaterial(chestBase.clone() as MeshPhysicalMaterial);
         const chestPlate = new THREE.Mesh(chestGeometry, chest);
-        chestPlate.position.set(0, -0.64, 0.265);
-        robot.add(chestPlate);
+        chestPlate.castShadow = true;
+        chestAssembly.add(chestPlate);
 
-        const chestRing = new THREE.Mesh(chestRingGeometry, eyeMaterial);
-        chestRing.position.set(0, -0.64, 0.294);
-        chestRing.scale.z = 0.5;
-        robot.add(chestRing);
+        const rialoMark = new THREE.Mesh(rialoMarkGeometry, markMaterial);
+        rialoMark.position.z = 0.074;
+        rialoMark.castShadow = true;
+        rialoMark.renderOrder = 2;
+        chestAssembly.add(rialoMark);
 
         const pelvis = new THREE.Mesh(pelvisGeometry, jointMaterial);
         pelvis.position.set(0, -1.25, -0.015);
@@ -329,8 +378,20 @@ export function MergeCoreScene() {
         return { chest, eyes: [leftEye, rightEye], head };
       };
 
-      const leftRobot = createRobot(-1.14, slateShell, mistShell, 1);
-      const rightRobot = createRobot(1.14, mistShell, slateInset, -1);
+      const leftRobot = createRobot(
+        -1.14,
+        slateShell,
+        mistShell,
+        slateInset,
+        1,
+      );
+      const rightRobot = createRobot(
+        1.14,
+        mistShell,
+        slateInset,
+        mistShell,
+        -1,
+      );
 
       const limbGeometry = trackGeometry(
         new THREE.CylinderGeometry(1, 1, 1, 24),
@@ -719,16 +780,6 @@ export function MergeCoreScene() {
           <i className="merge-core__fallback-arm" />
         </span>
         <span className="merge-core__fallback-token" />
-      </div>
-      <div className="merge-core__topline">
-        <span>SETTLEMENT PAIR / 02</span>
-        <span>
-          <i /> LIVE / RIALO
-        </span>
-      </div>
-      <div className="merge-core__footer">
-        <span>Proof meets escrow</span>
-        <span>ONE MERGE / ONE SETTLEMENT</span>
       </div>
     </div>
   );

@@ -32,13 +32,13 @@ export default function HomePage() {
             <b>DevNet / Live workflow</b>
           </div>
           <h1>
-            <span>Code lands.</span>
-            <em>Value moves.</em>
+            <span>Onchain bounties</span>
+            <em>for pull requests.</em>
           </h1>
           <p className="home-hero__lede">
-            Commit an RLO bounty to one public pull request. MergePay binds
-            identity, escrow, and GitHub proof into one inspectable Rialo
-            workflow.
+            Fund a public GitHub pull request in RLO. MergePay verifies the
+            contributor and releases escrow when the merge is confirmed on
+            Rialo.
           </p>
           <div className="home-hero__actions">
             <Link
@@ -63,20 +63,6 @@ export default function HomePage() {
               Inspect onchain proof
             </Link>
           </div>
-          <dl className="home-hero__proof">
-            <div>
-              <dt>Proof source</dt>
-              <dd>GitHub merge</dd>
-            </div>
-            <div>
-              <dt>Custody</dt>
-              <dd>Program escrow</dd>
-            </div>
-            <div>
-              <dt>Settlement</dt>
-              <dd>Direct to wallet</dd>
-            </div>
-          </dl>
         </div>
 
         <div className="home-hero__scene">

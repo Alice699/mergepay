@@ -114,17 +114,21 @@ test("keeps the polished application shell and local typography", async () => {
   assert.match(header, /BrandMark/);
   assert.match(footer, /BrandMark/);
   assert.match(header, /Mobile navigation/);
-  assert.match(footer, /Deployment handoff/);
+  assert.match(footer, /Live deployment/);
+  assert.match(footer, /Inspect verified activity/);
 
   const favicon = await readFile(
     new URL("public/favicon.svg", webRoot),
     "utf8",
   );
   assert.match(favicon, /MergePay/);
-  assert.match(favicon, /data-mark="wordmark-fragment"/);
-  assert.match(favicon, /#A9DDD3/i);
-  assert.match(favicon, /#102A27/i);
-  assert.doesNotMatch(favicon, /<(?:rect|circle|polygon)\b/i);
+  assert.match(favicon, /data-mark="robot-head"/);
+  assert.match(favicon, /data-part="visor"/);
+  assert.match(favicon, /data-part="eyes"/);
+  assert.match(favicon, /#E4E4E4/i);
+  assert.match(favicon, /#2B4559/i);
+  assert.match(favicon, /#0B0B0B/i);
+  assert.doesNotMatch(favicon, /wordmark-fragment/);
 });
 
 test("keeps the settlement robot scene purposeful, bounded, and accessible", async () => {
@@ -137,8 +141,13 @@ test("keeps the settlement robot scene purposeful, bounded, and accessible", asy
 
   assert.match(home, /MergeCoreScene/);
   assert.match(home, /home-page/);
+  assert.match(home, /Onchain bounties/);
+  assert.match(home, /for pull requests\./);
   assert.match(scene, /const createRobot/);
-  assert.match(scene, /SETTLEMENT PAIR \/ 02/);
+  assert.match(scene, /createRialoMarkGeometry/);
+  assert.match(scene, /rialoMark\.position\.z = 0\.074/);
+  assert.match(scene, /chestAssembly\.add\(rialoMark\)/);
+  assert.match(scene, /robotRoot\.scale\.setScalar\(0\.9\)/);
   assert.match(scene, /const setBlink/);
   assert.match(scene, /THREE\.PCFSoftShadowMap/);
   assert.match(scene, /prefers-reduced-motion/);

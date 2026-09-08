@@ -1,9 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" data-mark="wordmark-fragment">
-  <title>MergePay</title>
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M7 50V20m0 13c0-8 5-13 11-13s10 5 10 13v17m0-17c0-8 5-13 11-13s10 5 10 13v17" stroke="#102A27" stroke-width="9" />
-    <path d="M7 50V20m0 13c0-8 5-13 11-13s10 5 10 13v17m0-17c0-8 5-13 11-13s10 5 10 13v17" stroke="#EEF7F5" stroke-width="5" />
-    <path d="M53 50h6" stroke="#102A27" stroke-width="9" />
-    <path d="M53 50h6" stroke="#A9DDD3" stroke-width="5" />
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" data-mark="robot-head">
+  <title>MergePay robot head</title>
+  <path
+    data-part="shell-edge"
+    fill="#2B4559"
+    d="M18 5h28c8.8 0 14.5 6.7 13.6 15.5l-2 21C56.7 51.2 50.2 57 40.5 57h-17c-9.7 0-16.2-5.8-17.1-15.5l-2-21C3.5 11.7 9.2 5 18 5Z"
+  />
+  <path
+    data-part="shell"
+    fill="#E4E4E4"
+    d="M19 8h26c7 0 11.6 5.2 10.9 12.2l-2 21C53.2 49 48.1 54 40.3 54H23.7c-7.8 0-12.9-5-13.6-12.8l-2-21C7.4 13.2 12 8 19 8Z"
+  />
+  <path
+    data-part="visor"
+    fill="#0B0B0B"
+    d="M17 15h30c5.7 0 9.2 4.1 8.5 9.8l-1.1 9.4C53.7 40 49.9 43 44 43H20c-5.9 0-9.7-3-10.4-8.8l-1.1-9.4C7.8 19.1 11.3 15 17 15Z"
+  />
+  <path
+    data-part="visor-highlight"
+    fill="none"
+    stroke="#E4E4E4"
+    stroke-linecap="round"
+    stroke-width="1.5"
+    opacity=".2"
+    d="M17 18h29"
+  />
+  <path
+    data-part="eyes"
+    fill="none"
+    stroke="#E4E4E4"
+    stroke-linecap="round"
+    stroke-width="5"
+    d="M21.5 29h4M38.5 29h4"
+  />
 </svg>

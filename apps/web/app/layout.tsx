@@ -29,8 +29,14 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: title, template: "%s | MergePay" },
     description,
     icons: {
-      icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-      shortcut: "/favicon.svg",
+      icon: [
+        {
+          url: "/favicon.svg?v=robot-head-1",
+          type: "image/svg+xml",
+          sizes: "any",
+        },
+      ],
+      shortcut: "/favicon.svg?v=robot-head-1",
     },
     openGraph: {
       title,
@@ -50,7 +56,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport: Viewport = { colorScheme: "dark", themeColor: "#090d0c" };
+export const viewport: Viewport = { colorScheme: "dark", themeColor: "#0B0B0B" };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
