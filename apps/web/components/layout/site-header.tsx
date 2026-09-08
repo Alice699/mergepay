@@ -30,7 +30,7 @@ export function SiteHeader() {
   return (
     <>
       <a className="skip-link" href="#main-content">Skip to content</a>
-      <header className="site-header">
+      <header className={pathname === routes.home ? "site-header site-header--home" : "site-header"}>
         <div className="site-header__inner">
           <Link className="brand" href={routes.home} aria-label="MergePay home">
             <BrandMark />

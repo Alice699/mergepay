@@ -2,86 +2,268 @@ import Link from "next/link";
 import {
   CircleCheck,
   GitPullRequest,
+  LockKeyhole,
   Plus,
   RadioTower,
   ReceiptText,
+  TimerReset,
   Vault,
 } from "lucide-react";
 import { WorkflowLifecycle } from "@/components/bounty/workflow-lifecycle";
+import { MergeCoreScene } from "@/components/home/merge-core-scene";
 import { ScrollReveal } from "@/components/motion/scroll-reveal";
 import { CopyValue } from "@/components/ui/copy-value";
-import { WalletStatusSummary } from "@/components/wallet/wallet-status-summary";
-import { marketplaceDeployment, marketplaceDeploymentReady } from "@/lib/deployment";
+import {
+  marketplaceDeployment,
+  marketplaceDeploymentReady,
+} from "@/lib/deployment";
 
 export default function HomePage() {
   const deployedProgramId = marketplaceDeployment.programId;
 
   return (
-    <main>
-      <section className="hero page-width">
-        <div className="hero__ambient" aria-hidden="true"><span /><span /></div>
-        <div className="hero__content">
-          <p className="eyebrow"><span>Rialo-native escrow</span><i /><b>01 / SETTLEMENT</b></p>
-          <h1>Code merged.<br /><em>Bounty settled.</em></h1>
-          <p className="hero__lede">Lock RLO against one GitHub pull request. Rialo checks the merge through REX and releases escrow without a keeper, webhook server, or payout backend.</p>
-          <div className="hero__actions">
-            <Link className="button" href="/bounties/new">Create a bounty <Plus aria-hidden="true" className="ui-icon" size={16} strokeWidth={2} /></Link>
-            <Link className="text-link" href="/activity">Inspect DevNet proof <ReceiptText aria-hidden="true" className="ui-icon" size={16} strokeWidth={1.9} /></Link>
+    <main className="home-page">
+      <section className="home-hero page-width">
+        <div className="home-hero__content">
+          <div className="home-eyebrow">
+            <span>
+              <i /> Rialo-native settlement
+            </span>
+            <b>DevNet / Live workflow</b>
           </div>
-          <div className="hero__proof">
-          <div><strong>4</strong><span>paths proven<br />on DevNet</span></div>
-            <div><strong>0</strong><span>offchain payout<br />operators</span></div>
-            <div><strong>204</strong><span>GitHub signal<br />required to pay</span></div>
+          <h1>
+            <span>Code lands.</span>
+            <em>Value moves.</em>
+          </h1>
+          <p className="home-hero__lede">
+            Commit an RLO bounty to one public pull request. MergePay binds
+            identity, escrow, and GitHub proof into one inspectable Rialo
+            workflow.
+          </p>
+          <div className="home-hero__actions">
+            <Link
+              className="home-button home-button--primary"
+              href="/bounties/new"
+            >
+              Create a bounty
+              <Plus
+                aria-hidden="true"
+                className="ui-icon"
+                size={16}
+                strokeWidth={1.9}
+              />
+            </Link>
+            <Link className="home-button home-button--glass" href="/activity">
+              <ReceiptText
+                aria-hidden="true"
+                className="ui-icon"
+                size={15}
+                strokeWidth={1.8}
+              />
+              Inspect onchain proof
+            </Link>
           </div>
+          <dl className="home-hero__proof">
+            <div>
+              <dt>Proof source</dt>
+              <dd>GitHub merge</dd>
+            </div>
+            <div>
+              <dt>Custody</dt>
+              <dd>Program escrow</dd>
+            </div>
+            <div>
+              <dt>Settlement</dt>
+              <dd>Direct to wallet</dd>
+            </div>
+          </dl>
         </div>
 
-        <aside className="execution-card" aria-label="MergePay execution model">
-          <div className="execution-card__glow" aria-hidden="true" />
-          <div className="execution-card__header"><span>EXECUTION MODEL</span><span className="status-dot">RIALO DEVNET</span></div>
-          <div className="execution-card__body">
-            <div className="trace-node"><span className="trace-node__icon"><GitPullRequest aria-hidden="true" size={17} /></span><div><small>EXTERNAL SIGNAL</small><strong>Pull request merged</strong></div><span className="trace-code">204</span></div>
-            <div className="trace-connector"><span>validator-attested HTTP</span></div>
-            <div className="trace-node trace-node--accent"><span className="trace-node__icon"><RadioTower aria-hidden="true" size={17} /></span><div><small>RIALO REX</small><strong>Unanimous report</strong></div><span className="trace-check"><CircleCheck aria-hidden="true" size={17} /></span></div>
-            <div className="trace-connector"><span>reactive callback</span></div>
-            <div className="trace-node"><span className="trace-node__icon"><Vault aria-hidden="true" size={17} /></span><div><small>WORKFLOW PDA</small><strong>Release escrow</strong></div><span className="trace-code">RLO</span></div>
+        <div className="home-hero__scene">
+          <MergeCoreScene />
+        </div>
+      </section>
+
+      <section className="home-proof-rail">
+        <ScrollReveal className="home-proof-rail__inner page-width" delay={40}>
+          <p>
+            <span>Systems, not promises.</span>
+            <strong>Every payout ends in verifiable state.</strong>
+          </p>
+          <div>
+            <GitPullRequest aria-hidden="true" size={17} strokeWidth={1.6} />
+            <span>Public PR</span>
+            <strong>Author-bound</strong>
           </div>
-          <div className="execution-card__footer"><span>Marketplace deployment</span><CopyValue value={deployedProgramId} /></div>
-        </aside>
-      </section>
-
-      <section className="status-band">
-        <ScrollReveal className="page-width status-band__inner" delay={40}>
-          <span className="status-band__label">BUILD STATUS</span>
-          <div><i className="status-indicator status-indicator--good" /><span>Core workflow</span><strong>Proven</strong></div>
-          <div><i className="status-indicator status-indicator--warn" /><span>Marketplace ABI</span><strong>{marketplaceDeploymentReady ? "Deployed · E2E pending" : "Pending"}</strong></div>
-          <WalletStatusSummary />
+          <div>
+            <RadioTower aria-hidden="true" size={17} strokeWidth={1.6} />
+            <span>Rialo REX</span>
+            <strong>Validator-attested</strong>
+          </div>
+          <div>
+            <Vault aria-hidden="true" size={17} strokeWidth={1.6} />
+            <span>Marketplace</span>
+            <strong>
+              {marketplaceDeploymentReady
+                ? "Program deployed"
+                : "Configuration pending"}
+            </strong>
+          </div>
         </ScrollReveal>
       </section>
 
-      <section className="section page-width split-section">
-        <ScrollReveal variant="left">
-          <div className="section-heading"><span className="section-number mono">02</span><p className="eyebrow">The workflow</p><h2>One condition.<br />One settlement path.</h2><p>Every state transition is explicit, inspectable, and fail-closed.</p></div>
+      <section className="home-section home-flow page-width">
+        <ScrollReveal className="home-section__intro" variant="left">
+          <span className="home-section__index">02 / CONTROLLED FLOW</span>
+          <p className="home-section__eyebrow">One source of truth</p>
+          <h2>
+            Every state is visible.
+            <br />
+            <em>Every exit is earned.</em>
+          </h2>
+          <p className="home-section__lede">
+            The workflow does not infer success. It advances only when the
+            expected wallet signs and Rialo can verify the exact account or
+            GitHub condition.
+          </p>
+          <div className="home-deployment">
+            <div>
+              <span>Active marketplace</span>
+              <strong>
+                {marketplaceDeploymentReady
+                  ? "Rialo DevNet"
+                  : "Deployment required"}
+              </strong>
+            </div>
+            <CopyValue value={deployedProgramId} />
+          </div>
         </ScrollReveal>
-        <ScrollReveal delay={100} variant="right">
+
+        <ScrollReveal className="home-flow__glass" delay={100} variant="right">
+          <div className="home-glass-heading">
+            <span>SETTLEMENT SEQUENCE</span>
+            <span>
+              <i /> ONCHAIN LIFECYCLE
+            </span>
+          </div>
           <WorkflowLifecycle />
         </ScrollReveal>
       </section>
 
-      <section className="section page-width rialo-section">
-        <ScrollReveal className="rialo-section__intro">
-          <div><span className="section-number mono">03</span><p className="eyebrow">Why Rialo</p></div><h2>The internet becomes part of execution.</h2>
-        </ScrollReveal>
-        <ScrollReveal delay={100} variant="scale">
-          <div className="rialo-grid">
-            <article><span>01 / EDGE</span><h3>Native GitHub check</h3><p>Validators call the compact merge endpoint directly. There is no trusted oracle service between GitHub and escrow.</p></article>
-            <article><span>02 / REACTIVE</span><h3>Automatic callback</h3><p>The REX report triggers a subscribed handler that evaluates consensus and settles the workflow.</p></article>
-            <article><span>03 / ONCHAIN</span><h3>Fail-closed funds</h3><p>A 404, malformed output, empty report, or validator disagreement cannot release the bounty.</p></article>
-          </div>
-        </ScrollReveal>
+      <section className="home-section home-intelligence">
+        <div className="page-width">
+          <ScrollReveal className="home-section__headline">
+            <div>
+              <span className="home-section__index">03 / EXECUTION</span>
+              <p className="home-section__eyebrow">Internet-native proof</p>
+            </div>
+            <h2>
+              The condition comes
+              <br />
+              to the contract.
+            </h2>
+          </ScrollReveal>
+
+          <ScrollReveal className="home-bento" delay={100} variant="scale">
+            <article className="home-bento__card home-bento__card--signal">
+              <header>
+                <span className="home-bento__icon">
+                  <RadioTower aria-hidden="true" size={19} strokeWidth={1.55} />
+                </span>
+                <small>REX / EXTERNAL SIGNAL</small>
+              </header>
+              <h3>The merge proof enters execution.</h3>
+              <p>
+                Rialo validators request GitHub’s compact merge endpoint. Only
+                the agreed response can advance settlement.
+              </p>
+              <div className="home-http-proof">
+                <span>GET /pulls/42/merge</span>
+                <strong>204</strong>
+                <small>UNANIMOUS</small>
+              </div>
+            </article>
+
+            <article className="home-bento__card home-bento__card--escrow">
+              <header>
+                <span className="home-bento__icon">
+                  <LockKeyhole
+                    aria-hidden="true"
+                    size={19}
+                    strokeWidth={1.55}
+                  />
+                </span>
+                <small>PROGRAM ESCROW</small>
+              </header>
+              <h3>Value stays inside the workflow.</h3>
+              <p>
+                The sponsor cannot silently redirect the beneficiary after
+                approving a verified claim.
+              </p>
+              <div className="home-escrow-meter">
+                <span>
+                  <i /> FUNDED
+                </span>
+                <strong>1.000 RLO</strong>
+              </div>
+            </article>
+
+            <article className="home-bento__card home-bento__card--outcomes">
+              <div>
+                <header>
+                  <span className="home-bento__icon">
+                    <TimerReset
+                      aria-hidden="true"
+                      size={19}
+                      strokeWidth={1.55}
+                    />
+                  </span>
+                  <small>TERMINAL STATES</small>
+                </header>
+                <h3>One escrow. Two legitimate outcomes.</h3>
+                <p>
+                  A verified merge pays the contributor. An expired, unpaid
+                  workflow returns the escrow to its sponsor.
+                </p>
+              </div>
+              <div className="home-outcomes">
+                <div>
+                  <CircleCheck aria-hidden="true" size={18} strokeWidth={1.6} />
+                  <span>Merge verified</span>
+                  <strong>Paid</strong>
+                </div>
+                <div>
+                  <TimerReset aria-hidden="true" size={18} strokeWidth={1.6} />
+                  <span>Deadline elapsed</span>
+                  <strong>Refunded</strong>
+                </div>
+              </div>
+            </article>
+          </ScrollReveal>
+        </div>
       </section>
 
-      <ScrollReveal className="page-width" variant="scale">
-        <section className="cta-section"><div><p className="eyebrow">Start with one PR</p><h2>Make contribution<br />payable by proof.</h2></div><Link className="button button--light" href="/bounties/new">Define a bounty <Plus aria-hidden="true" className="ui-icon" size={16} strokeWidth={2} /></Link></section>
+      <ScrollReveal className="home-final page-width" variant="scale">
+        <section className="home-final__glass">
+          <div>
+            <span className="home-section__index">04 / CREATE</span>
+            <p className="home-section__eyebrow">Start with one pull request</p>
+            <h2>
+              Attach value to work
+              <br />
+              that can prove itself.
+            </h2>
+          </div>
+          <Link className="home-button home-button--light" href="/bounties/new">
+            Define a bounty
+            <Plus
+              aria-hidden="true"
+              className="ui-icon"
+              size={16}
+              strokeWidth={1.9}
+            />
+          </Link>
+        </section>
       </ScrollReveal>
     </main>
   );

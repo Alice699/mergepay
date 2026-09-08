@@ -35,10 +35,10 @@ export function SiteFooter() {
 
           <div className="footer-deployment">
             <p>Deployment handoff</p>
-            <div className="footer-deployment__status"><span>Marketplace ABI deployed</span><strong className="state state--warn">E2E pending</strong></div>
+            <div className="footer-deployment__status"><span>Marketplace ABI deployed</span><strong className="state state--good">DevNet verified</strong></div>
             <div className="footer-deployment__program">
               <span className="mono">{marketplaceProgramId.slice(0, 12)}…{marketplaceProgramId.slice(-10)}</span>
-              <span>Claim-flow runtime proof is the next handoff; full address is available on Activity.</span>
+              <span>Claim-to-settlement paths are proven on DevNet; the full program address is available on Activity.</span>
             </div>
           </div>
         </div>

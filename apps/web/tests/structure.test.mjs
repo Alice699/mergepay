@@ -20,6 +20,7 @@ const requiredPaths = [
   "app/api/github/auth/session/route.ts",
   "app/api/github/auth/logout/route.ts",
   "components/ui/brand-mark.tsx",
+  "components/home/merge-core-scene.tsx",
   "components/feedback/route-placeholder.tsx",
   "components/motion/route-transition.tsx",
   "components/motion/scroll-reveal.tsx",
@@ -124,6 +125,30 @@ test("keeps the polished application shell and local typography", async () => {
   assert.match(favicon, /#A9DDD3/i);
   assert.match(favicon, /#102A27/i);
   assert.doesNotMatch(favicon, /<(?:rect|circle|polygon)\b/i);
+});
+
+test("keeps the settlement robot scene purposeful, bounded, and accessible", async () => {
+  const home = await readFile(new URL("app/page.tsx", webRoot), "utf8");
+  const scene = await readFile(
+    new URL("components/home/merge-core-scene.tsx", webRoot),
+    "utf8",
+  );
+  const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
+
+  assert.match(home, /MergeCoreScene/);
+  assert.match(home, /home-page/);
+  assert.match(scene, /const createRobot/);
+  assert.match(scene, /SETTLEMENT PAIR \/ 02/);
+  assert.match(scene, /const setBlink/);
+  assert.match(scene, /THREE\.PCFSoftShadowMap/);
+  assert.match(scene, /prefers-reduced-motion/);
+  assert.match(scene, /IntersectionObserver/);
+  assert.match(scene, /visibilitychange/);
+  assert.match(scene, /renderer\.dispose\(\)/);
+  assert.doesNotMatch(scene, /Math\.random|new THREE\.Points\(/);
+  assert.match(styles, /--home-void: #0b0b0b/);
+  assert.match(styles, /--home-slate: #2b4559/);
+  assert.match(styles, /--home-mist: #e4e4e4/);
 });
 
 test("uses semantic symbols without directional arrow UI", async () => {
