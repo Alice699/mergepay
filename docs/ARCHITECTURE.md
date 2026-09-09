@@ -128,8 +128,8 @@ expiry. This makes both settlement paths continue without a sponsor click; the m
 `check_merge` action remains an immediate fallback. Every timer and REX branch uses
 fresh subscription/REX PDAs derived from its Venus branch.
 
-The web funding route obtains a short-lived read-only GitHub App installation token,
-encrypts both the exact GitHub merge endpoint URL and `Bearer <token>` with the active
+The web funding route mints a short-lived read-only GitHub App installation token on
+demand, encrypts both the exact GitHub merge endpoint URL and `Bearer <token>` with the active
 Rialo DKG key and the sponsor public key as AAD, then serializes both payloads into the
 final `fund` argument. The program stores only those ciphertexts and inserts them as
 the encrypted REX URL and `Authorization` header. Encrypting the URL is important on
@@ -141,8 +141,9 @@ The workflow stores deadlines as Unix milliseconds to match the browser and clie
 ABI. The program normalizes Rialo's Unix-second clock to milliseconds before every
 deadline comparison. Terminal guards are deliberately fail-closed: late timers
 return after `paid` or `refunded`, and a REX response at or after the deadline cannot
-pay while the refund path is authoritative. Payout and refund still preserve the
-workflow rent reserve.
+pay while the refund path is authoritative. Payout and refund release only the
+committed escrow amount and leave any remaining workflow balance for its state/rent
+reserve when available.
 
 The generated `fund` ABI now carries the packed encrypted GitHub envelope and one
 subscription account. The generated `run_merge_check` callback carries two

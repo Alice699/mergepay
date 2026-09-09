@@ -41,7 +41,6 @@ rialo! {
                 program::invoke,
                 program_error::ProgramError,
                 pubkey::Pubkey,
-                rent::Rent,
                 system_instruction,
                 system_program,
                 sysvar::Sysvar,
@@ -476,11 +475,14 @@ rialo! {
                     return Err(ProgramError::IncorrectProgramId);
                 }
 
-                let rent_reserve = Rent::get()?.minimum_balance(workflow_account.data_len());
-                let required_balance = rent_reserve
-                    .checked_add(self.amount_kelvin)
-                    .ok_or(ProgramError::InvalidArgument)?;
-                if workflow_account.kelvins() < required_balance {
+                // The workflow PDA must retain rent when possible, but the
+                // escrow amount itself is the only balance that can be
+                // released. Requiring `amount + current rent` here makes a
+                // valid escrow fail after the state grows for the encrypted
+                // GitHub envelope: the runtime may hold exactly the escrow
+                // plus the account's original reserve, while the resized
+                // account reports a larger current rent minimum.
+                if workflow_account.kelvins() < self.amount_kelvin {
                     return Err(ProgramError::InsufficientFunds);
                 }
 
@@ -538,11 +540,13 @@ rialo! {
                 if workflow_account.owner != self.program_id {
                     return Err(ProgramError::IncorrectProgramId);
                 }
-                let rent_reserve = Rent::get()?.minimum_balance(workflow_account.data_len());
-                let required_balance = rent_reserve
-                    .checked_add(self.amount_kelvin)
-                    .ok_or(ProgramError::InvalidArgument)?;
-                if workflow_account.kelvins() < required_balance {
+                // Refund the committed escrow even when the workflow account
+                // is below the latest rent-exempt threshold after a resize.
+                // The previous `amount + rent` guard rejected valid funded
+                // workflows with `InsufficientFunds` and also blocked the
+                // native deadline callback. The remaining balance is left in
+                // the PDA for its state/rent reserve when available.
+                if workflow_account.kelvins() < self.amount_kelvin {
                     return Err(ProgramError::InsufficientFunds);
                 }
 

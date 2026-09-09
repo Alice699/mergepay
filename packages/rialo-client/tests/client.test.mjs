@@ -79,20 +79,20 @@ test("keeps generated client constants aligned with the checked-in Venus manifes
 test("derives the workflow and merge-check callback auxiliary PDAs from the ABI", () => {
   assert.deepEqual(deriveWorkflowPda(MERGEPAY_PROGRAM_ID, payer, slug), {
     address: workflowPda,
-    bump: 252,
+    bump: 254,
   });
 
   const accounts = deriveCheckMergeAccounts(MERGEPAY_PROGRAM_ID, payer, slug);
-  assert.equal(accounts.subscription.address, "81wWN5MXN99pmCx6L8ByYcW9o3mDPhDuoCWewgTU4iEE");
-  assert.equal(accounts.retrySubscription.address, "J5uKt6TAsdqZarr566W7kzDEkbp6ZmYeoAhQvxMUCu2g");
-  assert.equal(accounts.rex.address, "CPK4hDKKZZbCbHcb3wLdTgrbVnv6i2CS9J9QnaJYYesT");
+  assert.equal(accounts.subscription.address, "3WFbe8UQuXHTzt17pAPVBDU8SNAW4yNY6TrHEWhhbArZ");
+  assert.equal(accounts.retrySubscription.address, "HhbVTAZZDjvB55ByxF6Kh8TTYyJY4h6zSqQ1Cg2P6gYZ");
+  assert.equal(accounts.rex.address, "GkHnXxXSftB9GGnnT9a5w4pv1JyK3b2dBARXFE21r63V");
   assert.equal(
     Buffer.from(accounts.subscriptionSlug).toString("hex"),
-    "279f40671be4214e632b0d181ca1ff15a249162d07d2e98c717416d75b145810",
+    "105b48d6fd4a82b8cf6fb4c68d3254f6520792a2476289fd32782227d1bc7cae",
   );
   assert.equal(
     Buffer.from(accounts.rexSlug).toString("hex"),
-    "637e1bf4d5418e524effb515f0c7736d393a539f7508bc00627548bfb2fa443c",
+    "6767b36a0603a17e2dc5cf1cdf121330a8e2417855a8cd9a0449c2a161e1ce8b",
   );
   assert.equal(
     Buffer.from(deriveMultiAccountSlug(workflowPda, 0, 5)).toString("hex"),
@@ -131,9 +131,9 @@ test("builds the exact external instruction wire format", () => {
     "Qrac1eRegistry11111111111111111111111111111",
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
-    "81wWN5MXN99pmCx6L8ByYcW9o3mDPhDuoCWewgTU4iEE",
-    "J5uKt6TAsdqZarr566W7kzDEkbp6ZmYeoAhQvxMUCu2g",
-    "CPK4hDKKZZbCbHcb3wLdTgrbVnv6i2CS9J9QnaJYYesT",
+    "3WFbe8UQuXHTzt17pAPVBDU8SNAW4yNY6TrHEWhhbArZ",
+    "HhbVTAZZDjvB55ByxF6Kh8TTYyJY4h6zSqQ1Cg2P6gYZ",
+    "GkHnXxXSftB9GGnnT9a5w4pv1JyK3b2dBARXFE21r63V",
   ]);
 
   const retryCheck = buildCheckMergeInstruction({ ...base, branchNumber: 1 });
@@ -184,7 +184,7 @@ test("builds the exact external instruction wire format", () => {
     workflowPda,
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
-    "CEdE1RCHk8MKqr3ErScB55TcPSkr6RgpEHDaYSTjJ18R",
+    "7G2UJ2iDFQNTEgDFydTDpujFqoHH3w5hBruwAQHZZbcG",
   ]);
 
   const refund = buildRefundInstruction(base);

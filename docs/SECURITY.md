@@ -18,7 +18,8 @@ MergePay is a DevNet MVP, not audited production software.
 - Payout requires a non-empty, unanimous successful REX report.
 - Unanimous HTTP `404`, mixed reports, unsupported outputs, and REX errors do not pay.
 - `paid` and `refunded` terminal flags prevent a second escrow release.
-- Payout/refund preserve the workflow PDA's rent reserve.
+- Payout/refund release only the committed escrow amount; any remaining workflow
+  balance stays available for the PDA's state/rent reserve.
 - Payout and refund explicitly require the workflow account to be program-owned.
 - Arithmetic that combines rent and escrow uses checked addition.
 - Escrow debit and recipient credit use checked arithmetic.
@@ -42,11 +43,12 @@ MergePay is a DevNet MVP, not audited production software.
 - OAuth remains an off-chain identity boundary: Rialo cannot call GitHub from inside the
   program. Sponsor approval is still required and must review the exact PR, identity,
   and wallet before funding.
-- The funding route reads a short-lived, read-only GitHub App installation token from
-  a server-only `GITHUB_APP_INSTALLATION_TOKEN` environment variable, encrypts the
-  exact GitHub merge URL and `Authorization` header for REX, and returns only a packed
-  DKG envelope. The ciphertext itself is public workflow state; plaintext is available
-  only to the REX decryption path.
+- The funding route mints a short-lived, read-only GitHub App installation token on
+  demand from server-only `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, and
+  `GITHUB_APP_PRIVATE_KEY` credentials. It encrypts the exact GitHub merge URL and
+  `Authorization` header for REX, and returns only a packed DKG envelope. The
+  ciphertext itself is public workflow state; plaintext is available only to the REX
+  decryption path.
 - DevNet transaction history and deployments may be reset.
 - The embedded wallet runs in the same browser origin as the dApp. While unlocked, an
   origin compromise or malicious dependency could access signing capability; encrypted
@@ -89,10 +91,10 @@ sponsor-selected bounty locked until refund.
 - The current PR and merge proof paths target public repositories only. GitHub OAuth
   access tokens are exchanged and used server-side for identity lookup, never stored in
   the browser session or exposed to the client.
-- The GitHub App installation token expires. New funding requires a current token, and
-  an already-funded workflow cannot be retrofitted with a replacement envelope without
-  a protocol instruction. DevNet operators must rotate the server secret before funding
-  long-lived workflows.
+- Each new funding request mints a fresh GitHub App installation token automatically;
+  the server refreshes its cache before expiry and never exposes the token to the
+  browser. An already-funded workflow still contains the encrypted token snapshot from
+  its funding transaction and cannot be retrofitted without a protocol instruction.
 - Deadline values use milliseconds because that is the observed DevNet `0.18.1` clock
   unit. Revalidate this assumption when upgrading Rialo.
 - Workflow rent remains in the PDA after payout/refund; there is no close instruction.

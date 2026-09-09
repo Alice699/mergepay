@@ -99,7 +99,7 @@ Copy `.env.example` into the runtime environment when overriding the defaults:
 NEXT_PUBLIC_RIALO_NETWORK=devnet
 NEXT_PUBLIC_RIALO_RPC_URL=/api/rialo
 RIALO_RPC_UPSTREAM_URL=https://devnet.rialo.io
-NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=Gdbcab4Wn5zyUYAP8C7MZzWtfbsVpYX3k6FuhnY5Dbe3
+NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=HGHsAJEQRwWDADTkzuwsFPE3UmafdmXRap1Mjk19q5id
 ```
 
 `NEXT_PUBLIC_RIALO_RPC_URL` should remain same-origin unless a replacement endpoint

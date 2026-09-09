@@ -7,6 +7,10 @@ import {
 } from "@rialo/ts-cdk";
 import { MergePayClient } from "@mergepay/rialo-client";
 import { webConfig } from "@/lib/config";
+import {
+  getGithubAppInstallationToken,
+  GitHubAppTokenError,
+} from "@/lib/github-app-token";
 
 const MAX_REQUEST_BYTES = 2_000;
 const UPSTREAM_TIMEOUT_MS = 12_000;
@@ -110,10 +114,17 @@ export async function POST(request: Request) {
     return json({ error: "A valid workflow slug is required." }, 400);
   }
 
-  const installationToken = process.env.GITHUB_APP_INSTALLATION_TOKEN?.trim();
-  if (!installationToken || /\s/u.test(installationToken)) {
+  let installationToken: string;
+  try {
+    installationToken = await getGithubAppInstallationToken();
+  } catch (error) {
     return json(
-      { error: "The GitHub App installation token is not configured." },
+      {
+        error:
+          error instanceof GitHubAppTokenError
+            ? error.message
+            : "The GitHub App installation token could not be refreshed.",
+      },
       503,
     );
   }
