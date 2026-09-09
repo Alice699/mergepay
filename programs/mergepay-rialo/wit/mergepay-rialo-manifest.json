@@ -442,15 +442,6 @@
           "description": "Solana system program"
         },
         {
-          "name": "subscriber_interface",
-          "source": "well_known",
-          "well_known": "subscriber_interface",
-          "is_signer": false,
-          "is_writable": false,
-          "is_executable": true,
-          "description": "Rialo subscriber interface program"
-        },
-        {
           "name": "target_workflow",
           "source": "parameter",
           "parameter": "target_workflow",
@@ -522,15 +513,6 @@
           "is_writable": false,
           "is_executable": true,
           "description": "Solana system program"
-        },
-        {
-          "name": "subscriber_interface",
-          "source": "well_known",
-          "well_known": "subscriber_interface",
-          "is_signer": false,
-          "is_writable": false,
-          "is_executable": true,
-          "description": "Rialo subscriber interface program"
         },
         {
           "name": "claim_workflow",

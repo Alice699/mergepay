@@ -68,11 +68,11 @@ test("keeps generated client constants aligned with the checked-in Venus manifes
   );
   assert.deepEqual(
     manifest.instructions.request_claim.accounts.map((account) => account.name),
-    ["payer", "workflow_pda", "system_program", "subscriber_interface", "target_workflow"],
+    ["payer", "workflow_pda", "system_program", "target_workflow"],
   );
   assert.deepEqual(
     manifest.instructions.accept_claim.accounts.map((account) => account.name),
-    ["payer", "workflow_pda", "system_program", "subscriber_interface", "claim_workflow"],
+    ["payer", "workflow_pda", "system_program", "claim_workflow"],
   );
 });
 
@@ -210,7 +210,6 @@ test("builds the exact external instruction wire format", () => {
     payer,
     claimWorkflow,
     "11111111111111111111111111111111",
-    "Subscriber111111111111111111111111111111111",
     workflowPda,
   ]);
 
@@ -225,7 +224,6 @@ test("builds the exact external instruction wire format", () => {
     payer,
     workflowPda,
     "11111111111111111111111111111111",
-    "Subscriber111111111111111111111111111111111",
     claimWorkflow,
   ]);
 });

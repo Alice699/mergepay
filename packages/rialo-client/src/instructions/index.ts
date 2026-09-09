@@ -113,20 +113,16 @@ function userAccountAccounts(
   workflowPda: PublicKey,
   userAccount: PublicKey,
 ): AccountMeta[] {
-  // The Venus 0.18.1 standard instruction ABI reserves the subscriber
-  // interface after system_program, including for control calls that do not
-  // schedule new work. Keep the user-provided workflow account last so the
-  // generated dispatcher reads the correct target/claim account.
+  // request_claim and accept_claim do not schedule Venus work. The generated
+  // runtime therefore reads the user-provided account immediately after the
+  // system program. The manifest generator currently lists Subscriber111...
+  // unconditionally for these functions, but inserting it here shifts the
+  // target/claim account and makes the runtime return IncorrectProgramId.
   return [
     meta(payer, true, true),
     meta(workflowPda, false, true),
     meta(
       PublicKey.fromString(MERGEPAY_WELL_KNOWN_ADDRESSES.systemProgram),
-      false,
-      false,
-    ),
-    meta(
-      PublicKey.fromString(MERGEPAY_WELL_KNOWN_ADDRESSES.subscriberInterface),
       false,
       false,
     ),
