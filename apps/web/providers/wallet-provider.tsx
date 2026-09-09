@@ -158,6 +158,7 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
     phase: "idle",
     signature: null,
     error: null,
+    intent: null,
   });
   const [approval, setApproval] = useState<WalletTransactionApproval | null>(null);
   const [embeddedBalance, setEmbeddedBalance] = useState<
@@ -464,12 +465,22 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
       unsignedTransaction: Transaction | Uint8Array,
       intent?: WalletTransactionIntent,
     ) => {
+      const transactionIntent: WalletTransactionIntent = intent ?? {
+        action: "MergePay transaction",
+        summary: "Submit a transaction to the configured Rialo network.",
+      };
+
       if (!source || !address) {
         const error = new MergePayUiError(
           "Connect or unlock a Rialo wallet before signing.",
           "WALLET_DISCONNECTED",
         );
-        setTransaction({ phase: "failed", signature: null, error });
+        setTransaction({
+          phase: "failed",
+          signature: null,
+          error,
+          intent: transactionIntent,
+        });
         throw error;
       }
 
@@ -478,7 +489,12 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
           "The active wallet is not on the configured Rialo network.",
           "UNSUPPORTED_CHAIN",
         );
-        setTransaction({ phase: "failed", signature: null, error });
+        setTransaction({
+          phase: "failed",
+          signature: null,
+          error,
+          intent: transactionIntent,
+        });
         throw error;
       }
 
@@ -487,7 +503,12 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
           "Rialo RPC is not ready. Try again when the network is reachable.",
           "RPC_UNAVAILABLE",
         );
-        setTransaction({ phase: "failed", signature: null, error });
+        setTransaction({
+          phase: "failed",
+          signature: null,
+          error,
+          intent: transactionIntent,
+        });
         throw error;
       }
 
@@ -499,21 +520,46 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
             unsignedTransaction instanceof Uint8Array
               ? Transaction.deserialize(unsignedTransaction)
               : unsignedTransaction;
-          setTransaction({ phase: "reviewing", signature: null, error: null });
+          setTransaction({
+            phase: "reviewing",
+            signature: null,
+            error: null,
+            intent: transactionIntent,
+          });
           await requestApproval(transactionToApprove, intent);
-          setTransaction({ phase: "signing", signature: null, error: null });
+          setTransaction({
+            phase: "signing",
+            signature: null,
+            error: null,
+            intent: transactionIntent,
+          });
           signedTransaction = embeddedWallet.signTransaction(transactionToApprove);
         } else {
-          setTransaction({ phase: "signing", signature: null, error: null });
+          setTransaction({
+            phase: "signing",
+            signature: null,
+            error: null,
+            intent: transactionIntent,
+          });
           const signed = await signMutation.mutateAsync({
             transaction: unsignedTransaction,
           });
           signedTransaction = signed.signedTransaction;
         }
 
-        setTransaction({ phase: "submitting", signature: null, error: null });
+        setTransaction({
+          phase: "submitting",
+          signature: null,
+          error: null,
+          intent: transactionIntent,
+        });
         signature = await network.client.rpc.sendTransaction(signedTransaction);
-        setTransaction({ phase: "submitting", signature, error: null });
+        setTransaction({
+          phase: "submitting",
+          signature,
+          error: null,
+          intent: transactionIntent,
+        });
         const confirmation = await network.client.confirm(signature);
 
         if (!confirmation.executed) {
@@ -526,17 +572,32 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
             failureDetail ?? "Rialo rejected the transaction onchain.",
             "TRANSACTION_FAILED",
           );
-          setTransaction({ phase: "failed", signature, error });
+          setTransaction({
+            phase: "failed",
+            signature,
+            error,
+            intent: transactionIntent,
+          });
           throw error;
         }
 
-        setTransaction({ phase: "confirmed", signature, error: null });
+        setTransaction({
+          phase: "confirmed",
+          signature,
+          error: null,
+          intent: transactionIntent,
+        });
         if (source === "embedded") void refreshEmbeddedBalance();
         if (source === "extension") void refreshExtensionBalance();
         return confirmation;
       } catch (cause) {
         const error = asError(cause);
-        setTransaction({ phase: "failed", signature, error });
+        setTransaction({
+          phase: "failed",
+          signature,
+          error,
+          intent: transactionIntent,
+        });
         throw error;
       }
     },
@@ -657,7 +718,12 @@ export function WalletProvider({ children }: Readonly<{ children: ReactNode }>) 
       approveTransaction: () => settleApproval(true),
       rejectTransaction: () => settleApproval(false),
       resetTransaction: () =>
-        setTransaction({ phase: "idle", signature: null, error: null }),
+        setTransaction({
+          phase: "idle",
+          signature: null,
+          error: null,
+          intent: null,
+        }),
     }),
     [
       account,

@@ -45,6 +45,7 @@ export interface WalletTransactionSnapshot {
   phase: WalletTransactionPhase;
   signature: string | null;
   error: Error | null;
+  intent: WalletTransactionIntent | null;
 }
 
 export interface WalletTransactionIntent {

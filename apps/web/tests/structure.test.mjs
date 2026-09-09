@@ -22,6 +22,7 @@ const requiredPaths = [
   "components/ui/brand-mark.tsx",
   "components/home/merge-core-scene.tsx",
   "components/feedback/route-placeholder.tsx",
+  "components/feedback/transaction-notifications.tsx",
   "components/motion/route-transition.tsx",
   "components/motion/scroll-reveal.tsx",
   "components/wallet/transaction-approval-dialog.tsx",
@@ -62,6 +63,7 @@ const requiredPaths = [
   "lib/embedded-wallet.ts",
   "lib/constants.ts",
   "lib/errors.ts",
+  "lib/app-notifications.ts",
   "lib/format.ts",
   "lib/validation.ts",
   "public/favicon.svg",
@@ -355,6 +357,11 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
     new URL("components/bounty/open-bounty-feed.tsx", webRoot),
     "utf8",
   );
+  const marketplacePage = await readFile(
+    new URL("app/bounties/page.tsx", webRoot),
+    "utf8",
+  );
+  const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
   const format = await readFile(new URL("lib/format.ts", webRoot), "utf8");
 
   assert.match(providers, /FrostProvider/);
@@ -444,11 +451,15 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(rpcRelay, /getSignaturesForAddress/);
   assert.match(rpcRelay, /MAX_DEVNET_AIRDROP_KELVIN = 1_000_000_000/);
   assert.match(bountyFeed, /getPublicBountiesPage/);
-  assert.match(bountyFeed, /no sponsor URL required/);
+  assert.match(bountyFeed, /no sponsor URL is required/);
   assert.match(bountyFeed, /Load older listings/);
   assert.match(bountyFeed, /Shared DevNet test bounty/);
   assert.match(bountyFeed, /legacy/);
   assert.match(bountyFeed, /visibilitychange/);
+  assert.match(bountyFeed, /variant="empty"/);
+  assert.match(marketplacePage, /readiness-panel--marketplace/);
+  assert.match(styles, /\.content-grid--marketplace/);
+  assert.match(styles, /\.readiness-panel--marketplace/);
   assert.match(format, /fractionPart\.padEnd\(9, "0"\)/);
   assert.doesNotMatch(rpcRelay, /Access-Control-Allow-Origin/i);
   assert.doesNotMatch(embeddedWallet, /localStorage/);
@@ -456,4 +467,38 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.doesNotMatch(form, /Transaction unavailable|Creation unavailable/);
   assert.doesNotMatch(wallet, /integration is not connected yet|not available yet/);
   assert.doesNotMatch(wallet, /wallet-ledger|LOCAL SIGNER|Fund this key/);
+});
+
+test("keeps transaction feedback and terminal workflow state live", async () => {
+  const providers = await readFile(
+    new URL("providers/index.tsx", webRoot),
+    "utf8",
+  );
+  const notifications = await readFile(
+    new URL("components/feedback/transaction-notifications.tsx", webRoot),
+    "utf8",
+  );
+  const workflowDetail = await readFile(
+    new URL("components/bounty/workflow-detail.tsx", webRoot),
+    "utf8",
+  );
+  const workflowHook = await readFile(
+    new URL("hooks/use-workflow.ts", webRoot),
+    "utf8",
+  );
+  const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
+
+  assert.match(providers, /TransactionNotifications/);
+  assert.match(notifications, /transaction\.phase/);
+  assert.match(notifications, /embedded\.funding/);
+  assert.match(notifications, /describeRialoError/);
+  assert.match(notifications, /role=\{tone === "error" \? "alert" : "status"\}/);
+  assert.match(workflowDetail, /LIVE_WORKFLOW_POLL_INTERVAL_MS/);
+  assert.match(workflowDetail, /visibilitychange/);
+  assert.match(workflowDetail, /publishAppNotification/);
+  assert.match(workflowDetail, /Claim record address/);
+  assert.match(workflowHook, /state\.workflow/);
+  assert.match(styles, /width: min\(22rem, calc\(100vw - 2rem\)\)/);
+  assert.match(styles, /\.workflow-claim__record/);
+  assert.match(styles, /\.copy-value > span:first-child/);
 });

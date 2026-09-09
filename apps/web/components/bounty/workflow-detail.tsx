@@ -6,7 +6,7 @@ import {
 } from "@mergepay/rialo-client";
 import { Check, CircleAlert, LoaderCircle, RadioTower, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AcceptClaimAction } from "@/features/claim-bounty/components/accept-claim-action";
 import { RequestClaimAction } from "@/features/claim-bounty/components/request-claim-action";
 import type { AcceptClaimResult } from "@/features/claim-bounty/use-accept-claim";
@@ -20,6 +20,7 @@ import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
 import { useWorkflow } from "@/hooks/use-workflow";
 import { routes } from "@/lib/constants";
+import { publishAppNotification } from "@/lib/app-notifications";
 import { formatDeadline, formatRlo, shortenAddress } from "@/lib/format";
 import { CopyValue } from "@/components/ui/copy-value";
 
@@ -54,6 +55,10 @@ function workflowStatus(workflow: DecodedMergePayWorkflow) {
   }
   return { label: "Open claim", className: "state--warn" };
 }
+
+const LIVE_WORKFLOW_POLL_INTERVAL_MS = 2_500;
+const PENDING_TRANSACTION_POLL_INTERVAL_MS = 1_500;
+const MAX_PENDING_TRANSACTION_READS = 24;
 
 function WorkflowRecord({
   workflow,
@@ -163,7 +168,10 @@ function WorkflowRecord({
             <h3>Waiting for sponsor approval</h3>
             <p>Share this contributor claim record with the sponsor. The bounty cannot be funded until the sponsor approves it.</p>
           </div>
-          <CopyValue value={claimWorkflowHint} />
+          <div className="workflow-claim__record">
+            <span>Claim record address</span>
+            <CopyValue value={claimWorkflowHint} />
+          </div>
         </section>
       ) : null}
 
@@ -226,6 +234,10 @@ export function WorkflowDetail({
   const wallet = useWallet();
   const accountHint = workflowAddressHint?.trim() || null;
   const [refreshToken, setRefreshToken] = useState(0);
+  const observedWorkflowState = useRef<{
+    address: string;
+    terminal: "paid" | "refunded" | null;
+  } | null>(null);
   const [confirmedTransaction, setConfirmedTransaction] =
     useState<ConfirmedTransaction | null>(
       transactionSignature
@@ -261,30 +273,91 @@ export function WorkflowDetail({
   );
   const workflow = workflowRead.workflow;
   const displaySponsor = workflow?.state.sponsor ?? sponsor;
-  const pendingStateSignature =
-    confirmedTransaction?.kind === "check" &&
-    !confirmedTransaction.callbackSignature &&
-    !workflow?.state.paid
-      ? confirmedTransaction.signature
-      : confirmedTransaction?.kind === "refund" && !workflow?.state.refunded
-        ? confirmedTransaction.signature
-        : confirmedTransaction?.kind === "accept_claim" &&
-            workflow?.state.beneficiary === MERGEPAY_UNASSIGNED_BENEFICIARY
-          ? confirmedTransaction.signature
-          : null;
+  const confirmedStateIsPending = Boolean(
+    confirmedTransaction &&
+      ((confirmedTransaction.kind === "create" && !workflow) ||
+        (confirmedTransaction.kind === "fund" && !workflow?.state.funded) ||
+        (confirmedTransaction.kind === "check" &&
+          !confirmedTransaction.callbackSignature &&
+          !workflow?.state.paid) ||
+        (confirmedTransaction.kind === "refund" && !workflow?.state.refunded) ||
+        (confirmedTransaction.kind === "accept_claim" &&
+          workflow?.state.beneficiary === MERGEPAY_UNASSIGNED_BENEFICIARY)),
+  );
+  const pendingStateSignature = confirmedStateIsPending
+    ? confirmedTransaction?.signature ?? null
+    : null;
+  const liveSettlementActive = Boolean(
+    workflow?.state.funded && !workflow.state.paid && !workflow.state.refunded,
+  );
 
   useEffect(() => {
-    if (!pendingStateSignature) return;
+    if (!pendingStateSignature && !liveSettlementActive) return;
 
     let reads = 0;
-    const interval = window.setInterval(() => {
+    const intervalMs = pendingStateSignature
+      ? PENDING_TRANSACTION_POLL_INTERVAL_MS
+      : LIVE_WORKFLOW_POLL_INTERVAL_MS;
+    function refreshWorkflow() {
+      if (document.visibilityState !== "visible") return;
       reads += 1;
       setRefreshToken((value) => value + 1);
-      if (reads >= 24) window.clearInterval(interval);
-    }, 1_500);
+      if (
+        pendingStateSignature &&
+        !liveSettlementActive &&
+        reads >= MAX_PENDING_TRANSACTION_READS
+      ) {
+        window.clearInterval(interval);
+      }
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refreshWorkflow();
+    };
+    const interval = window.setInterval(() => {
+      refreshWorkflow();
+    }, intervalMs);
 
-    return () => window.clearInterval(interval);
-  }, [pendingStateSignature]);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [liveSettlementActive, pendingStateSignature]);
+
+  useEffect(() => {
+    if (!workflow) return;
+
+    const terminal = workflow.state.paid
+      ? "paid"
+      : workflow.state.refunded
+        ? "refunded"
+        : null;
+    const previous = observedWorkflowState.current;
+
+    if (!previous || previous.address !== workflow.address) {
+      observedWorkflowState.current = { address: workflow.address, terminal };
+      return;
+    }
+
+    if (!previous.terminal && terminal === "paid") {
+      publishAppNotification({
+        title: "Bounty payout complete",
+        message: `${formatRlo(workflow.state.amountKelvin)} RLO was released to the approved contributor.`,
+        tone: "success",
+      });
+    } else if (!previous.terminal && terminal === "refunded") {
+      publishAppNotification({
+        title: "Escrow refund complete",
+        message: `${formatRlo(workflow.state.amountKelvin)} RLO was returned to the sponsor.`,
+        tone: "success",
+      });
+    }
+
+    observedWorkflowState.current = { address: workflow.address, terminal };
+  }, [workflow]);
 
   const readLoading =
     Boolean(lookupKey) &&

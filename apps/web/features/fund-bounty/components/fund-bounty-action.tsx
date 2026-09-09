@@ -54,7 +54,7 @@ export function FundBountyAction({
   let statusTone = "idle";
   let statusTitle = "Sponsor action";
   let statusCopy =
-    "One Rialo transaction will lock the exact amount and arm authenticated GitHub checks.";
+    "One Rialo transaction prepares the workflow, locks the exact amount, and arms automatic GitHub checks.";
   let buttonLabel = "Fund bounty";
 
   if (wallet.status !== "connected" || !wallet.address) {
@@ -114,7 +114,7 @@ export function FundBountyAction({
   } else if (fundBounty.status === "success") {
     statusTone = "success";
     statusTitle = "Escrow funded";
-    statusCopy = "Rialo confirmed funding. Autonomous GitHub merge checks are now armed.";
+    statusCopy = "Rialo confirmed funding. This record will update automatically when settlement completes.";
     buttonLabel = "Funding confirmed";
   }
 

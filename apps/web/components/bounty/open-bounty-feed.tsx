@@ -195,7 +195,7 @@ export function OpenBountyFeed() {
           <h2 id="open-bounties-title">Choose a bounty. Ship the PR.</h2>
           <p>
             Browse verified GitHub bounties directly from Rialo. Choose a listing to
-            claim it - no sponsor URL required. Older pages can be loaded as needed.
+            claim it; no sponsor URL is required.
           </p>
         </div>
         <button
@@ -316,9 +316,12 @@ export function OpenBountyFeed() {
             <div className="bounty-feed__empty-actions">
               <WorkflowLookup />
               {state.hasMore ? (
-                <button className="button button--dark" onClick={() => void load(true)} type="button">
-                  Load older listings
-                </button>
+                <div className="bounty-feed__history-action">
+                  <span>Discovery history</span>
+                  <button className="button button--dark" onClick={() => void load(true)} type="button">
+                    Load older listings
+                  </button>
+                </div>
               ) : null}
             </div>
           )}
@@ -330,6 +333,7 @@ export function OpenBountyFeed() {
           icon={<GitPullRequest aria-hidden="true" size={19} strokeWidth={1.7} />}
           title={hasActiveFilters ? "Nothing matched." : "The market is quiet."}
           tone="default"
+          variant="empty"
         />
       ) : (
         <>
@@ -357,11 +361,10 @@ export function OpenBountyFeed() {
       )}
 
       <div className="bounty-feed__note">
-        <span className="state state--warn">Shared DevNet test bounty</span>
+        <span className="state state--warn">Shared DevNet</span>
         <p>
-          Listings are live on the shared Rialo DevNet. Invalid PDA links and legacy
-          ABI records are excluded; each visible card is decoded from a verified
-          workflow account.
+          Listings come directly from verified workflow accounts. Invalid PDA links
+          and legacy ABI records are excluded.
         </p>
       </div>
     </section>
@@ -415,17 +418,19 @@ function FeedMessage({
   icon,
   title,
   tone,
+  variant = "default",
 }: Readonly<{
   action?: ReactNode;
   description: string;
   icon: ReactNode;
   title: string;
   tone: "default" | "error";
+  variant?: "default" | "empty";
 }>) {
   return (
-    <div className="bounty-feed__message" data-tone={tone}>
+    <div className="bounty-feed__message" data-tone={tone} data-variant={variant}>
       <div className="bounty-feed__message-icon">{icon}</div>
-      <div>
+      <div className="bounty-feed__message-content">
         <h3>{title}</h3>
         <p>{description}</p>
         {action}

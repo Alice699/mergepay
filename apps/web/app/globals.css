@@ -1887,6 +1887,7 @@ a {
 }
 
 .copy-value {
+  min-width: 0;
   min-height: 2.25rem;
   display: inline-flex;
   align-items: center;
@@ -1905,6 +1906,13 @@ a {
     transform 150ms var(--ease-out-quart);
 }
 
+.copy-value > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .copy-value:hover {
   border-color: var(--line-strong);
   background: var(--accent-soft);
@@ -1915,6 +1923,7 @@ a {
 }
 
 .copy-value__action {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
@@ -2641,6 +2650,10 @@ a {
   margin-top: 1.25rem;
 }
 
+.content-grid--marketplace {
+  align-items: start;
+}
+
 .panel {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -2705,21 +2718,21 @@ a {
 }
 
 .bounty-feed__header h2 {
-  max-width: 38rem;
+  max-width: 32rem;
   margin: 0;
-  font-size: clamp(2.25rem, 4vw, 3.5rem);
+  font-size: clamp(2rem, 3vw, 3rem);
   font-weight: 540;
   letter-spacing: -0.055em;
-  line-height: 1.05;
+  line-height: 1.02;
   text-wrap: balance;
 }
 
 .bounty-feed__header > div > p:last-child {
-  max-width: 39rem;
-  margin: 1.25rem 0 0;
+  max-width: 37rem;
+  margin: 1rem 0 0;
   color: var(--muted);
-  font-size: 0.9375rem;
-  line-height: 1.7;
+  font-size: 0.875rem;
+  line-height: 1.65;
 }
 
 .bounty-feed__tools {
@@ -2727,7 +2740,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-top: 2.5rem;
+  margin-top: 2rem;
   padding-bottom: 0.875rem;
   border-bottom: 1px solid var(--line);
 }
@@ -2934,13 +2947,14 @@ a {
 }
 
 .bounty-feed__message {
-  min-height: 13rem;
+  min-height: 14.5rem;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-content: center;
-  gap: 1rem;
+  gap: 1.125rem;
   margin-top: 1rem;
   border-top: 1px solid var(--line);
+  padding-block: 2rem;
   color: var(--muted);
 }
 
@@ -2949,8 +2963,8 @@ a {
 }
 
 .bounty-feed__message-icon {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
   display: grid;
   place-items: center;
   border: 1px solid currentColor;
@@ -2958,14 +2972,20 @@ a {
   opacity: 0.8;
 }
 
+.bounty-feed__message-content {
+  min-width: 0;
+  width: 100%;
+}
+
 .bounty-feed__message h3 {
   margin: 0;
   color: var(--text);
-  font-size: 1rem;
+  font-size: 1.0625rem;
+  letter-spacing: -0.02em;
 }
 
 .bounty-feed__message p {
-  max-width: 34rem;
+  max-width: 38rem;
   margin: 0.5rem 0 0;
   color: var(--muted);
   font-size: 0.875rem;
@@ -2973,6 +2993,10 @@ a {
 }
 
 .bounty-feed__message .lookup {
+  margin-top: 1.25rem;
+}
+
+.bounty-feed__message-content > .button {
   margin-top: 1.25rem;
 }
 
@@ -3012,15 +3036,33 @@ a {
 }
 
 .bounty-feed__empty-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  width: min(100%, 49rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 0.75rem;
   margin-top: 1.25rem;
 }
 
 .bounty-feed__empty-actions .lookup {
+  width: 100%;
   margin-top: 0;
+}
+
+.bounty-feed__history-action {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.bounty-feed__history-action > span {
+  color: var(--text-soft);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.bounty-feed__history-action > .button {
+  min-height: 3.25rem;
+  white-space: nowrap;
 }
 
 .bounty-feed__pagination {
@@ -3054,21 +3096,26 @@ a {
 }
 
 .bounty-feed__note {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 1.25rem;
   margin-top: 1.5rem;
   padding-top: 1rem;
   border-top: 1px solid var(--line);
 }
 
+.bounty-feed__note .state {
+  white-space: nowrap;
+}
+
 .bounty-feed__note p {
+  max-width: 43rem;
   margin: 0;
   color: var(--subtle);
   font-size: 0.75rem;
   line-height: 1.6;
-  text-align: right;
+  text-align: left;
 }
 
 @keyframes feed-pulse {
@@ -3244,6 +3291,33 @@ input:user-valid {
   min-height: 29rem;
 }
 
+.readiness-panel--marketplace {
+  position: sticky;
+  top: calc(var(--header-height) + 1.25rem);
+  min-height: 0;
+  align-self: start;
+  padding: 1.75rem;
+}
+
+.readiness-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.readiness-panel__header .panel-label {
+  margin: 0;
+}
+
+.readiness-panel__header > .state {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .readiness-panel .panel-label,
 .terms-panel .panel-label {
   color: var(--subtle);
@@ -3253,6 +3327,10 @@ input:user-valid {
   margin: 2rem 0 0;
   padding: 0;
   list-style: none;
+}
+
+.readiness-panel--marketplace ul {
+  margin-top: 1.25rem;
 }
 
 .readiness-panel li {
@@ -3276,6 +3354,28 @@ input:user-valid {
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.readiness-panel--marketplace li {
+  min-height: 3.75rem;
+  gap: 1rem;
+}
+
+.readiness-panel--marketplace .copy-value {
+  width: min(10.25rem, 55%);
+  min-height: 2rem;
+  gap: 0.5rem;
+  padding-inline: 0.625rem 0.5rem;
+  font-size: 0.625rem;
+}
+
+.readiness-panel--marketplace .copy-value__action {
+  gap: 0.25rem;
+  font-size: 0.5625rem;
+}
+
+.readiness-panel--marketplace .panel-note {
+  margin-top: 1.5rem;
 }
 
 .state {
@@ -3373,6 +3473,132 @@ input:user-valid {
 
 .workflow-confirmation .copy-value {
   min-height: 2.25rem;
+}
+
+.transaction-notifications {
+  position: fixed;
+  z-index: 90;
+  top: calc(var(--header-height) + 0.75rem);
+  right: max(1.25rem, calc((100vw - var(--max)) / 2));
+  width: min(22rem, calc(100vw - 2rem));
+  display: grid;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.transaction-notice {
+  --notice-color: var(--accent);
+  --notice-surface: oklch(0.19 0.015 170 / 0.96);
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.625rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, var(--notice-color) 32%, var(--line));
+  border-radius: 0.75rem;
+  background: var(--notice-surface);
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 0.38);
+  padding: 0.75rem;
+  pointer-events: auto;
+  backdrop-filter: blur(1.25rem) saturate(135%);
+  animation: transaction-notice-enter 280ms var(--ease-out-expo) both;
+}
+
+.transaction-notice::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--notice-color);
+  content: "";
+}
+
+.transaction-notice[data-tone="success"] {
+  --notice-color: var(--success);
+  --notice-surface: oklch(0.18 0.024 155 / 0.97);
+}
+
+.transaction-notice[data-tone="error"] {
+  --notice-color: var(--danger);
+  --notice-surface: oklch(0.18 0.025 22 / 0.97);
+}
+
+.transaction-notice[data-tone="pending"] {
+  --notice-color: var(--warning);
+  --notice-surface: oklch(0.18 0.018 78 / 0.97);
+}
+
+.transaction-notice__icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in oklch, var(--notice-color) 40%, transparent);
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--notice-color) 10%, transparent);
+  color: var(--notice-color);
+}
+
+.transaction-notice__content {
+  min-width: 0;
+}
+
+.transaction-notice__content strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 680;
+  letter-spacing: -0.015em;
+}
+
+.transaction-notice__content p {
+  margin: 0.1875rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.transaction-notice__signature {
+  display: block;
+  margin-top: 0.375rem;
+  color: var(--subtle);
+  font-size: 0.5625rem;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.transaction-notice__dismiss {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.transaction-notice__dismiss:hover {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--text);
+}
+
+@keyframes transaction-notice-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0.75rem, -0.5rem, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 .workflow-read-state {
@@ -3791,8 +4017,33 @@ input:user-valid {
 .workflow-claim--shared {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
+  gap: clamp(1.5rem, 4vw, 3rem);
+}
+
+.workflow-claim--shared > .workflow-claim__copy {
+  flex: 1 1 auto;
+}
+
+.workflow-claim__record {
+  min-width: 14rem;
+  flex: 0 0 14rem;
+  display: grid;
+  gap: 0.5rem;
+  border-left: 1px solid var(--line);
+  padding-left: 1.5rem;
+}
+
+.workflow-claim__record > span {
+  color: var(--subtle);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.workflow-claim__record .copy-value {
+  width: 100%;
 }
 
 .workflow-claim__header {
@@ -5834,6 +6085,11 @@ pre {
     min-height: auto;
   }
 
+  .readiness-panel--marketplace {
+    position: static;
+    padding: 1.5rem;
+  }
+
   .workflow-confirmation {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -5928,6 +6184,18 @@ pre {
 @media (max-width: 45rem) {
   :root {
     --header-height: 4.25rem;
+  }
+
+  .transaction-notifications {
+    top: calc(var(--header-height) + 0.625rem);
+    right: 0.75rem;
+    left: auto;
+    width: min(20.5rem, calc(100vw - 1.5rem));
+  }
+
+  .transaction-notice {
+    gap: 0.625rem;
+    padding: 0.75rem;
   }
 
   .wallet-button {
@@ -6215,6 +6483,15 @@ pre {
     padding-block: 1.5rem;
   }
 
+  .bounty-feed__empty-actions {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .bounty-feed__history-action > .button {
+    width: 100%;
+  }
+
   .bounty-feed__pagination {
     align-items: stretch;
     flex-direction: column;
@@ -6226,8 +6503,8 @@ pre {
   }
 
   .bounty-feed__note {
-    align-items: flex-start;
-    flex-direction: column;
+    grid-template-columns: 1fr;
+    gap: 0.625rem;
   }
 
   .bounty-feed__note p {
@@ -6278,6 +6555,16 @@ pre {
     align-items: flex-start;
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .workflow-claim__record {
+    width: 100%;
+    min-width: 0;
+    flex-basis: auto;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    padding-top: 1rem;
+    padding-left: 0;
   }
 
   .workflow-claim__status {

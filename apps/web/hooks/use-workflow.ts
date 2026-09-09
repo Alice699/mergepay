@@ -48,7 +48,16 @@ export function useWorkflow<TWorkflow>(
       .catch((cause: unknown) => {
         if (active) {
           const error = cause instanceof Error ? cause : new Error(String(cause));
-          setState({ slug, refreshKey, status: "error", workflow: null, error });
+          setState((current) => {
+            if (
+              current.slug === slug &&
+              current.status === "success" &&
+              current.workflow !== null
+            ) {
+              return { ...current, refreshKey };
+            }
+            return { slug, refreshKey, status: "error", workflow: null, error };
+          });
         }
       });
 
@@ -61,7 +70,14 @@ export function useWorkflow<TWorkflow>(
     return { status: "idle", workflow: null, error: null };
   }
 
-  if (state.slug !== slug || state.refreshKey !== refreshKey) {
+  if (state.slug !== slug) {
+    return { status: "loading", workflow: null, error: null };
+  }
+
+  if (state.refreshKey !== refreshKey) {
+    if (state.status === "success" && state.workflow !== null) {
+      return { status: "success", workflow: state.workflow, error: null };
+    }
     return { status: "loading", workflow: null, error: null };
   }
 

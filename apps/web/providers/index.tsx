@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { FrostProvider } from "@rialo/frost";
+import { TransactionNotifications } from "@/components/feedback/transaction-notifications";
 import { TransactionApprovalDialog } from "@/components/wallet/transaction-approval-dialog";
 import { frostConfig } from "@/lib/rialo";
 import { NetworkProvider } from "@/providers/network-provider";
@@ -14,6 +15,7 @@ export function AppProviders({ children }: Readonly<{ children: ReactNode }>) {
       <NetworkProvider>
         <WalletProvider>
           <TransactionApprovalDialog />
+          <TransactionNotifications />
           <QueryProvider>{children}</QueryProvider>
         </WalletProvider>
       </NetworkProvider>
