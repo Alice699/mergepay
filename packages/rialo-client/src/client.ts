@@ -67,6 +67,17 @@ export interface MergePayActivityItem {
   feeKelvin: bigint | null;
 }
 
+export interface MergePayActivityPage {
+  items: MergePayActivityItem[];
+  nextBefore: string | null;
+  hasMore: boolean;
+}
+
+export interface MergePayActivityPageOptions {
+  limit?: number;
+  before?: string;
+}
+
 export type MergePayPublicBountyStatus =
   | "open"
   | "claimed"
@@ -216,6 +227,30 @@ export class MergePayClient {
   ): Promise<MergePayActivityItem[]> {
     const signatures = await this.rpc.getSignaturesForAddress(address, limit);
     return this.decodeWalletActivity(signatures);
+  }
+
+  async getWalletActivityPage(
+    address: string,
+    options: MergePayActivityPageOptions = {},
+  ): Promise<MergePayActivityPage> {
+    // Keep one RPC slot for look-ahead so the UI only enables Next when an
+    // additional page is known to exist. Rialo caps this request at 25 records.
+    const pageSize = Math.min(Math.max(Math.trunc(options.limit ?? 8), 1), 24);
+    const signatures = await this.rpc.getSignaturesForAddressPage(
+      address,
+      pageSize + 1,
+      options.before,
+    );
+    const hasMore = signatures.length > pageSize;
+    const pageSignatures = signatures.slice(0, pageSize);
+
+    return {
+      items: await this.decodeWalletActivity(pageSignatures),
+      nextBefore: hasMore
+        ? pageSignatures[pageSignatures.length - 1]?.signature ?? null
+        : null,
+      hasMore,
+    };
   }
 
   async getPublicBountiesPage(

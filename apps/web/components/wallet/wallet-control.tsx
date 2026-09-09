@@ -23,6 +23,7 @@ import {
 } from "@/lib/embedded-wallet";
 import { asError, describeRialoError } from "@/lib/errors";
 import { shortenAddress } from "@/lib/format";
+import { OPEN_WALLET_CONTROL_EVENT } from "@/lib/wallet-control-events";
 
 type WalletView =
   | "overview"
@@ -42,6 +43,8 @@ export function WalletControl() {
   const controlRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let focusFrame: number | null = null;
+
     function closePopover() {
       setOpen(false);
       setView("overview");
@@ -57,11 +60,26 @@ export function WalletControl() {
       if (event.key === "Escape") closePopover();
     }
 
+    function handleOpenRequest() {
+      setView("overview");
+      setActionError(null);
+      setNotice(null);
+      setOpen(true);
+      focusFrame = window.requestAnimationFrame(() => {
+        controlRef.current
+          ?.querySelector<HTMLElement>(".wallet-popover button:not(:disabled)")
+          ?.focus();
+      });
+    }
+
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener(OPEN_WALLET_CONTROL_EVENT, handleOpenRequest);
     return () => {
+      if (focusFrame !== null) window.cancelAnimationFrame(focusFrame);
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(OPEN_WALLET_CONTROL_EVENT, handleOpenRequest);
     };
   }, []);
 

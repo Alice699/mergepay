@@ -410,6 +410,39 @@ test("derives wallet activity from Rialo signature and transaction records", asy
   );
 });
 
+test("paginates wallet activity with a Rialo cursor and look-ahead", async () => {
+  const requests = [];
+  const signatures = [
+    { signature: "newest-signature", blockHeight: 15n, blockTime: 1_787_941_096n },
+    { signature: "page-boundary-signature", blockHeight: 14n, blockTime: 1_787_941_095n },
+    { signature: "look-ahead-signature", blockHeight: 13n, blockTime: 1_787_941_094n },
+  ];
+  const activityClient = new MergePayClient({
+    rpc: {
+      getSignaturesForAddressPage: async (address, limit, before) => {
+        requests.push({ address, before, limit });
+        return signatures;
+      },
+      getTransaction: async () => null,
+    },
+  });
+
+  const page = await activityClient.getWalletActivityPage(payer, {
+    before: "previous-page-cursor",
+    limit: 2,
+  });
+
+  assert.deepEqual(requests, [
+    { address: payer, before: "previous-page-cursor", limit: 3 },
+  ]);
+  assert.deepEqual(
+    page.items.map((item) => item.signature),
+    ["newest-signature", "page-boundary-signature"],
+  );
+  assert.equal(page.hasMore, true);
+  assert.equal(page.nextBefore, "page-boundary-signature");
+});
+
 test("discovers an open bounty from program history and decoded account state", async () => {
   const signature =
     "5qAb9BS7VTx39tuEjCLHQxLQp9YEDpRoRnhD8fUenfB1eyCdRPQLv5qMhYfFBfcmw7E3zuEL34omPbzTUjs7y7Se";

@@ -39,9 +39,9 @@ crimson means invalid/error. No lime/chartreuse or vermilion brand token remains
 
 The UI follows a strict no-mock rule. Deployment facts come from
 `deployments/devnet.json`; Activity queries the connected wallet's live Rialo
-signature history and transaction details; wallet discovery and connection use Frost;
-native balance and RPC health use live Rialo queries; and transaction status comes
-from wallet signing plus onchain confirmation.
+signature history and transaction details with cursor-based pagination; wallet
+discovery and connection use Frost; native balance and RPC health use live Rialo
+queries; and transaction status comes from wallet signing plus onchain confirmation.
 Rejected signatures, unsupported networks, RPC failures, and failed execution remain
 distinct visible states. No wallet, balance, bounty, or transaction success state is
 simulated.
@@ -57,17 +57,20 @@ and persisted lifecycle flags. Created workflows expose a sponsor-only Fund boun
 action. Before opening wallet approval, that action re-reads the workflow, rejects
 wrong-wallet, expired, already-funded, paid, or refunded states, and verifies that the
 live sponsor balance covers the exact bounty amount plus fee headroom. The detail view
-refreshes from Rialo only after executed confirmation. Funding atomically prepares
-workflow storage and locks escrow, then the native heartbeat polls the public GitHub
-merge-status endpoint and handles deadline refund without an expiring GitHub App token.
-Funded workflows also expose a sponsor-only immediate-check fallback, follow its
-official workflow lineage, and distinguish root scheduling from callback payout.
+re-reads Rialo after executed confirmation, polls active funded workflows, and checks
+again when the page regains focus. Funding atomically prepares workflow storage and
+locks escrow, then the native heartbeat polls the public GitHub merge-status endpoint
+and handles deadline refund without an expiring GitHub App token. Funded workflows
+also expose a sponsor-only immediate-check fallback, follow its official workflow
+lineage, and distinguish root scheduling from callback payout. Global transaction
+notifications and terminal-state alerts explain confirmed and failed actions without
+requiring a page refresh.
+
 The UI calls a bounty paid only after the decoded account contains both
 `merge_confirmed=true` and `paid=true`; failed, inconclusive, and delayed callbacks keep
-the escrow visibly locked. Once an unpaid funded workflow passes its immutable deadline,
-the merge action automatically becomes Refund escrow. That action re-reads all terminal
-flags before submitting the real `refund` instruction and reports Refunded only after
-the updated workflow account is decoded.
+the escrow visibly locked. If the native heartbeat has not already settled an expired
+workflow, the interface exposes the idempotent sponsor refund fallback. Both automatic
+and manual paths report Refunded only after the updated workflow account is decoded.
 
 ## Embedded DevNet wallet
 

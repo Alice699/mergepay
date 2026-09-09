@@ -52,7 +52,7 @@ actions remain available as idempotent fallbacks.
 | Exact escrow | The sponsor reviews the claim and funds the committed RLO amount onchain. |
 | Native automation | Rialo `AFTER` timers keep merge polling and deadline settlement alive after funding. |
 | Fail-closed proof | Empty, mixed, malformed, or failed REX reports cannot release escrow. |
-| Live interface | Workflow state is decoded from DevNet, refreshed in place, and surfaced through transaction notifications. |
+| Live interface | Workflow state refreshes in place, transactions surface through notifications, and wallet history uses cursor-based DevNet pagination. |
 | Reviewer-friendly wallet | A password-encrypted embedded signer provides DevNet onboarding without simulating funds or success states. |
 
 ## How it works

@@ -57,3 +57,19 @@ The browser integration obtains signatures from a wallet adapter. The experiment
 embedded DevNet adapter owns its encrypted key boundary inside `apps/web`; secret
 material never enters this protocol package. `MergePayClient.getWorkflow()` reads the
 PDA again from RPC, so a page reload does not depend on local UI state.
+
+## Cursor-paginated activity
+
+Wallet history follows Rialo's native signature cursor. The client fetches one
+look-ahead record so `hasMore` is true only when another page is known to exist:
+
+```ts
+const page = await mergePay.getWalletActivityPage(walletAddress, {
+  limit: 8,
+  ...(previousPage?.nextBefore ? { before: previousPage.nextBefore } : {}),
+});
+
+console.log(page.items, page.hasMore, page.nextBefore);
+```
+
+Pass `nextBefore` into the next request. Omit it to return to the newest transactions.

@@ -25,7 +25,7 @@ export default function ActivityPage() {
       <section className="activity-footnote">
         <div>
           <p className="panel-label">CURRENT PROGRAM</p>
-          <p>MergePay transactions are recognized against the deployed marketplace ABI <span className="mono">{marketplaceDeployment.programId}</span>. Open the workflow record for decoded escrow state, beneficiary, deadline, and REX outcome.</p>
+          <p>MergePay transactions are decoded against the active autonomous-settlement ABI <span className="mono">{marketplaceDeployment.programId}</span>. Open a workflow record for its escrow state, beneficiary, deadline, and REX outcome.</p>
         </div>
         <span className="state state--good">Live data only</span>
       </section>

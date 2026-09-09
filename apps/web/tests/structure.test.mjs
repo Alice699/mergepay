@@ -23,6 +23,7 @@ const requiredPaths = [
   "components/home/merge-core-scene.tsx",
   "components/feedback/route-placeholder.tsx",
   "components/feedback/transaction-notifications.tsx",
+  "components/activity/wallet-activity-feed.tsx",
   "components/motion/route-transition.tsx",
   "components/motion/scroll-reveal.tsx",
   "components/wallet/transaction-approval-dialog.tsx",
@@ -64,6 +65,7 @@ const requiredPaths = [
   "lib/constants.ts",
   "lib/errors.ts",
   "lib/app-notifications.ts",
+  "lib/wallet-control-events.ts",
   "lib/format.ts",
   "lib/validation.ts",
   "public/favicon.svg",
@@ -501,4 +503,34 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(styles, /width: min\(22rem, calc\(100vw - 2rem\)\)/);
   assert.match(styles, /\.workflow-claim__record/);
   assert.match(styles, /\.copy-value > span:first-child/);
+});
+
+test("keeps wallet activity paginated and protocol docs on the active deployment", async () => {
+  const activityFeed = await readFile(
+    new URL("components/activity/wallet-activity-feed.tsx", webRoot),
+    "utf8",
+  );
+  const walletControl = await readFile(
+    new URL("components/wallet/wallet-control.tsx", webRoot),
+    "utf8",
+  );
+  const docsPage = await readFile(
+    new URL("app/docs/page.tsx", webRoot),
+    "utf8",
+  );
+  const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
+
+  assert.match(activityFeed, /ACTIVITY_PAGE_SIZE = 8/);
+  assert.match(activityFeed, /getWalletActivityPage/);
+  assert.match(activityFeed, /showPreviousPage/);
+  assert.match(activityFeed, /showNextPage/);
+  assert.match(activityFeed, /requestWalletControlOpen/);
+  assert.match(activityFeed, /THIS FEED SHOWS/);
+  assert.match(walletControl, /OPEN_WALLET_CONTROL_EVENT/);
+  assert.match(styles, /\.wallet-activity__pagination/);
+  assert.match(styles, /\.wallet-activity__empty-visual/);
+  assert.match(docsPage, /marketplaceDeployment\.programId/);
+  assert.match(docsPage, /Autonomous payout and refund/);
+  assert.match(docsPage, /requires no GitHub App installation token/);
+  assert.doesNotMatch(docsPage, /reviewCandidate\.programId/);
 });
