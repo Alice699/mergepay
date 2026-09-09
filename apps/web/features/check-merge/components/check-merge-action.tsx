@@ -48,12 +48,12 @@ export function CheckMergeAction({
     result?.outcome === "pending";
 
   let statusTone = "idle";
-  let statusTitle = workflow.state.checks > 0n ? "Ready to check again" : "Ready for REX";
+  let statusTitle = workflow.state.checks > 0n ? "Autonomous watch active" : "Autonomous watch armed";
   let statusCopy =
     workflow.state.checks > 0n
-      ? "A previous check did not release escrow. You can request fresh proof before the deadline."
-      : "Rialo validators will check GitHub. Only a unanimous merged result releases escrow.";
-  let buttonLabel = workflow.state.checks > 0n ? "Check again" : "Check merge";
+      ? "Rialo is polling the GitHub proof until the PR merges or the deadline expires. You can request an immediate fallback check."
+      : "Rialo will check GitHub automatically after funding. Only unanimous merged proof releases escrow.";
+  let buttonLabel = "Run check now";
 
   if (wallet.status !== "connected" || !wallet.address) {
     statusTitle = "Sponsor wallet required";
@@ -79,15 +79,15 @@ export function CheckMergeAction({
     statusTone = "pending";
     if (phase === "reviewing") {
       statusTitle = "Review merge check";
-      statusCopy = "Confirm the GitHub target and workflow account before signing.";
+      statusCopy = "Confirm the GitHub target and workflow account before signing the fallback request.";
       buttonLabel = "Awaiting review";
     } else if (phase === "signing") {
       statusTitle = "Awaiting signature";
-      statusCopy = "Approve the one-shot REX request in the sponsor wallet.";
+      statusCopy = "Approve the one-shot REX fallback request in the sponsor wallet.";
       buttonLabel = "Awaiting signature";
     } else if (phase === "confirmed") {
       statusTitle = "Waiting for REX callback";
-      statusCopy = "The check transaction executed. Rialo is now collecting validator responses.";
+      statusCopy = "The fallback request executed. Rialo is collecting validator responses while the native loop remains armed.";
       buttonLabel = "Reading proof";
     } else {
       statusTitle = "Submitting merge check";
@@ -96,9 +96,9 @@ export function CheckMergeAction({
     }
   } else if (checkMerge.status === "error") {
     statusTone = "error";
-    statusTitle = "Merge check failed";
-    statusCopy = describeRialoError(checkMerge.error);
-    buttonLabel = "Try again";
+    statusTitle = "Fallback check failed";
+    statusCopy = describeRialoError(checkMerge.error) + " The native settlement loop remains the primary path after funding.";
+    buttonLabel = "Try fallback again";
   } else if (result?.outcome === "paid") {
     statusTone = "success";
     statusTitle = "Payout confirmed";
@@ -106,18 +106,17 @@ export function CheckMergeAction({
     buttonLabel = "Bounty paid";
   } else if (result?.outcome === "no-payout") {
     statusTone = "warning";
-    statusTitle = "No unanimous merge proof";
-    statusCopy = "The callback completed without payout. Escrow remains locked and can be checked again.";
-    buttonLabel = "Check again";
+    statusTitle = "Watching for merge";
+    statusCopy = "This proof did not release escrow. The native timer has scheduled another check before the deadline.";
   } else if (result?.outcome === "callback-failed") {
     statusTone = "error";
-    statusTitle = "Callback did not execute";
-    statusCopy = "The check was scheduled, but its callback failed. Funds remain safely locked.";
-    buttonLabel = "Retry check";
+    statusTitle = "Callback needs another attempt";
+    statusCopy = "The fallback callback failed, but funds remain safely locked and the native loop can retry.";
+    buttonLabel = "Run fallback again";
   } else if (result?.outcome === "pending") {
     statusTone = "warning";
     statusTitle = "Callback still pending";
-    statusCopy = "The check transaction is confirmed, but Rialo has not exposed its callback yet.";
+    statusCopy = "The fallback request is confirmed. Rialo's native settlement loop remains active while the callback is exposed.";
     buttonLabel = "Check submitted";
   }
 
@@ -144,8 +143,8 @@ export function CheckMergeAction({
   return (
     <section className={"workflow-check workflow-check--" + statusTone}>
       <div className="workflow-check__copy">
-        <p className="panel-label">NEXT ACTION / SPONSOR ONLY</p>
-        <h3>Verify merge</h3>
+        <p className="panel-label">RIALO REACTIVE / SPONSOR FALLBACK</p>
+        <h3>Autonomous settlement</h3>
         <p>{statusCopy}</p>
       </div>
       <a

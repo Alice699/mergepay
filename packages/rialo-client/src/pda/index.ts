@@ -16,8 +16,10 @@ export interface DerivedPda {
 export interface DerivedWorkflowAccounts {
   workflow: DerivedPda;
   subscription: DerivedPda;
+  retrySubscription: DerivedPda;
   rex: DerivedPda;
   subscriptionSlug: Uint8Array;
+  retrySubscriptionSlug: Uint8Array;
   rexSlug: Uint8Array;
 }
 
@@ -124,10 +126,11 @@ export function deriveEventDataPda(
 }
 
 /**
- * Derive the two auxiliary accounts inserted by the generated
- * `run_merge_check` callback ABI. Each one-shot request needs the current
- * Venus branch because the previous subscription/REX pair is consumed after
- * its callback completes.
+ * Derive the three auxiliary accounts inserted by the generated
+ * `run_merge_check` callback ABI. The callback schedules its next native timer
+ * and starts one REX request, so it needs two subscription PDAs and one REX
+ * PDA. Each one-shot branch uses the current Venus branch because the prior
+ * accounts are consumed after the callback completes.
  */
 export function deriveCheckMergeAccounts(
   programId: string,
@@ -142,6 +145,12 @@ export function deriveCheckMergeAccounts(
     MERGEPAY_ACCOUNT_INDEXES.subscriptionPda,
   );
   const subscription = deriveSubscriptionPda(payer, subscriptionSlug);
+  const retrySubscriptionSlug = deriveMultiAccountSlug(
+    workflow.address,
+    branchNumber,
+    MERGEPAY_ACCOUNT_INDEXES.retrySubscriptionPda,
+  );
+  const retrySubscription = deriveSubscriptionPda(payer, retrySubscriptionSlug);
   const rexSlug = deriveMultiAccountSlug(
     workflow.address,
     branchNumber,
@@ -149,5 +158,13 @@ export function deriveCheckMergeAccounts(
   );
   const rex = deriveRexPda(payer, rexSlug);
 
-  return { workflow, subscription, rex, subscriptionSlug, rexSlug };
+  return {
+    workflow,
+    subscription,
+    retrySubscription,
+    rex,
+    subscriptionSlug,
+    retrySubscriptionSlug,
+    rexSlug,
+  };
 }

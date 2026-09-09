@@ -392,7 +392,7 @@ export function WorkflowDetail({
   if (confirmedTransaction?.kind === "fund") {
     confirmationTitle = "Funding confirmed";
     confirmationCopy =
-      "Escrow funding executed on Rialo. The updated account is being read from DevNet.";
+      "Escrow funding executed on Rialo. The native settlement heartbeat is now armed for merge polling and deadline refund; the updated account is being read from DevNet.";
   } else if (confirmedTransaction?.kind === "refund") {
     if (workflow?.state.refunded) {
       confirmationTitle = "Refund confirmed";

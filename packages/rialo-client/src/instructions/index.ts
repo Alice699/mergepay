@@ -23,6 +23,11 @@ export interface WorkflowInstructionInput {
   workflowSlug: WorkflowSlug;
 }
 
+export interface FundInstructionInput extends WorkflowInstructionInput {
+  /** Packed DKG envelope containing the encrypted GitHub URL and Authorization header. */
+  githubAuthCiphertext: Uint8Array;
+}
+
 export interface CreateBountyInstructionInput extends WorkflowInstructionInput {
   /** Omit or use the zero pubkey to publish an unclaimed bounty. */
   beneficiary?: string;
@@ -52,6 +57,28 @@ export interface CheckMergeInstructionInput extends WorkflowInstructionInput {
 export interface MergePayInstruction extends Instruction {
   readonly name: MergePayInstructionName;
   readonly workflowPda: string;
+}
+
+function isPackedGithubRexEnvelope(bytes: Uint8Array): boolean {
+  if (bytes.length < 10 || bytes[0] !== 2) {
+    return false;
+  }
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const urlLength = view.getUint32(1, true);
+  const authLengthOffset = 5 + urlLength;
+  if (urlLength < 2 || authLengthOffset + 4 > bytes.length) {
+    return false;
+  }
+
+  const authLength = view.getUint32(authLengthOffset, true);
+  const authStart = authLengthOffset + 4;
+  return (
+    authLength >= 2 &&
+    authStart + authLength === bytes.length &&
+    bytes[5] === 2 &&
+    bytes[authStart] === 2
+  );
 }
 
 function meta(
@@ -86,16 +113,20 @@ function userAccountAccounts(
   workflowPda: PublicKey,
   userAccount: PublicKey,
 ): AccountMeta[] {
-  // request_claim and accept_claim do not schedule Venus work. Their generated
-  // ABI therefore contains the system program followed immediately by the
-  // user-provided account. Adding Subscriber111... here shifts the user
-  // account by one slot and makes the onchain program read the subscriber
-  // program as target_workflow/claim_workflow, which returns IncorrectProgramId.
+  // The Venus 0.18.1 standard instruction ABI reserves the subscriber
+  // interface after system_program, including for control calls that do not
+  // schedule new work. Keep the user-provided workflow account last so the
+  // generated dispatcher reads the correct target/claim account.
   return [
     meta(payer, true, true),
     meta(workflowPda, false, true),
     meta(
       PublicKey.fromString(MERGEPAY_WELL_KNOWN_ADDRESSES.systemProgram),
+      false,
+      false,
+    ),
+    meta(
+      PublicKey.fromString(MERGEPAY_WELL_KNOWN_ADDRESSES.subscriberInterface),
       false,
       false,
     ),
@@ -165,9 +196,36 @@ export function buildStatusInstruction(
 }
 
 export function buildFundInstruction(
-  input: WorkflowInstructionInput,
+  input: FundInstructionInput,
 ): MergePayInstruction {
-  return controlInstruction("fund", input);
+  const payer = toPublicKey(input.payer, "payer");
+  const workflow = deriveWorkflowPda(input.programId, input.payer, input.workflowSlug);
+  if (!(input.githubAuthCiphertext instanceof Uint8Array)) {
+    throw new TypeError("githubAuthCiphertext must be a Uint8Array");
+  }
+  if (
+    input.githubAuthCiphertext.length < 2 ||
+    input.githubAuthCiphertext.length > 4_096 ||
+    !isPackedGithubRexEnvelope(input.githubAuthCiphertext)
+  ) {
+    throw new RangeError(
+      "githubAuthCiphertext must be a packed DKG GitHub REX envelope",
+    );
+  }
+
+  const writer = new BincodeWriter();
+  writer
+    .writeU32(MERGEPAY_INSTRUCTION_DISCRIMINANTS.fund)
+    .writeFixedArray(workflowSlugToBytes(input.workflowSlug), 32)
+    .writeVecBytes(input.githubAuthCiphertext);
+
+  return instruction(
+    "fund",
+    input,
+    writer.toBytes(),
+    fundAccounts(payer, PublicKey.fromString(workflow.address)),
+    workflow.address,
+  );
 }
 
 export function buildRefundInstruction(
@@ -313,6 +371,7 @@ export function buildCheckMergeInstruction(
         false,
       ),
       meta(PublicKey.fromString(derived.subscription.address), false, true),
+      meta(PublicKey.fromString(derived.retrySubscription.address), false, true),
       meta(PublicKey.fromString(derived.rex.address), false, true),
     ],
     derived.workflow.address,

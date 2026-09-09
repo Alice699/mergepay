@@ -414,8 +414,8 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(checkMergeHook, /buildCheckMerge/);
   assert.match(checkMergeHook, /getWorkflowLineage/);
   assert.match(checkMergeHook, /submitTransaction/);
-  assert.match(checkMergeAction, /Verify merge/);
-  assert.match(checkMergeAction, /No unanimous merge proof/);
+  assert.match(checkMergeAction, /Autonomous settlement/);
+  assert.match(checkMergeAction, /Watching for merge/);
   assert.match(walletProvider, /MERGEPAY_CALLBACK_DISCRIMINANT/);
   assert.match(walletProvider, /run_merge_check timer-handler ABI/);
   assert.match(refundHook, /getWorkflow/);

@@ -17,6 +17,7 @@ import {
   type CheckMergeInstructionInput,
   type AcceptClaimInstructionInput,
   type CreateBountyInstructionInput,
+  type FundInstructionInput,
   type MergePayInstruction,
   type RequestClaimInstructionInput,
   type WorkflowInstructionInput,
@@ -150,7 +151,7 @@ export class MergePayClient {
     return buildAcceptClaimInstruction({ ...input, programId: this.programId });
   }
 
-  buildFund(input: Omit<WorkflowInstructionInput, "programId">): MergePayInstruction {
+  buildFund(input: Omit<FundInstructionInput, "programId">): MergePayInstruction {
     return buildFundInstruction({ ...input, programId: this.programId });
   }
 

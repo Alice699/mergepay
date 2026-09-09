@@ -5,14 +5,17 @@ An onchain GitHub bounty marketplace on Rialo.
 MergePay lets a sponsor publish a native RLO bounty for one GitHub pull request. A
 contributor proves the public PR author, signs a claim with the wallet that should be
 paid, and shares that claim with the sponsor. The sponsor approves the matching claim
-before funding. Rialo REX then checks GitHub's compact merge-status endpoint and a
-reactive callback releases escrow only when every validator result agrees that the PR
-merged. If the deadline expires first, the sponsor can recover the escrow.
+before funding. After funding, native Rialo timers poll GitHub through REX until a
+unanimous merged result pays the contributor or the deadline refund path settles the
+escrow back to the sponsor. If needed, the sponsor can still request an immediate
+manual check or refund fallback. Funding also attaches a sponsor-bound, DKG-encrypted
+GitHub App authorization envelope so REX does not depend on GitHub's shared anonymous
+API quota.
 
 Verified payout does not depend on a keeper, webhook server, cron job, or trusted payout
-backend. The latest DevNet deployment includes the native deadline-refund callback
-prototype, but that timer path still needs a complete E2E proof before it can be
-described as autonomous. Merge checks remain sponsor-triggered by design.
+backend. The current source candidate uses native `AFTER` timers for both merge polling
+and deadline refund. It still needs a fresh deployment and DevNet lineage proving the
+timer callbacks end to end before the autonomous path can be called runtime-proven.
 
 The reviewer-facing web app can use either a future Wallet Standard extension through
 Frost or a DevNet-only embedded Rialo signer. The embedded key is generated locally,
@@ -26,8 +29,9 @@ contributor-owned claim record, and gives the sponsor an approval action that re
 every immutable term before locking the beneficiary. Only then does the unfunded record
 expose a sponsor-only funding action that re-reads on-chain state and balance before
 signing the exact escrow amount.
-Funded records expose a real REX merge check, track the asynchronous callback through
-Rialo workflow lineage, and show payout only after the decoded account confirms it.
+Funded records expose the native settlement watch plus a sponsor fallback REX action,
+track asynchronous callbacks through Rialo workflow lineage, and show payout only
+after the decoded account confirms it.
 Once an unpaid workflow expires, the merge action is replaced by a sponsor-only refund
 that re-verifies eligibility before returning the exact escrow amount.
 
@@ -44,7 +48,8 @@ historical indexer remains a separate release task.
 | Item | Value |
 | --- | --- |
 | Active runtime-proven program | `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB` |
-| Marketplace ABI deployment | `5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S` — deployed, E2E pending |
+| Autonomous settlement ABI | `Gdbcab4Wn5zyUYAP8C7MZzWtfbsVpYX3k6FuhnY5Dbe3` — deployed, E2E pending |
+| Superseded marketplace ABI | `5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S` — historical |
 | Previous reset deployment | `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F` |
 | Rialo release | `stable@0.18.1` |
 | Program format | RISC-V / PolkaVM |
@@ -58,12 +63,12 @@ DevNet may be reset. The active deployment and current signatures are recorded i
 [docs/EVIDENCE.md](docs/EVIDENCE.md); the previous deployment is retained there as
 historical evidence only.
 
-The latest marketplace claim instructions are deployed at
-`5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S`, with the artifact fingerprint and
-loader metadata recorded in [docs/EVIDENCE.md](docs/EVIDENCE.md). The claim,
-settlement, and timer E2E flow still needs to be run before this ABI is called
-runtime-proven. The previous marketplace deployment `6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL`
-is retained as superseded deployment history.
+The latest autonomous-settlement ABI is deployed at
+`Gdbcab4Wn5zyUYAP8C7MZzWtfbsVpYX3k6FuhnY5Dbe3`, with the artifact fingerprint and
+loader metadata recorded in [deployments/devnet.json](deployments/devnet.json). The
+claim, autonomous payout, and autonomous refund E2E flow still needs to be run before
+this ABI is called runtime-proven. The previous marketplace deployment is retained
+as superseded deployment history.
 The earlier `6QHx…` deployment remains the legacy runtime evidence.
 
 ## Repository layout
@@ -88,9 +93,10 @@ MergePay is a small but complete example of Rialo's native reactive model:
 1. A sponsor creates an open bounty workflow PDA.
 2. A contributor verifies the PR author and creates a separate claim PDA.
 3. The sponsor approves the claim and funds the exact escrow amount.
-4. The sponsor schedules a one-shot HTTP REX request after the PR is merged.
+4. Funding arms one native settlement heartbeat for merge polling and deadline refund.
 5. Validators query GitHub's merge-status endpoint and Rialo triggers the callback.
-6. A unanimous `204` result releases escrow; unanimous `404` keeps it locked.
+6. A unanimous `204` result releases escrow; unanimous `404` keeps it locked until the
+   next native retry or deadline refund.
 
 The external fact and the financial settlement stay inside one auditable workflow.
 This follows Rialo's model of validator-driven reactive execution and hybrid onchain /
@@ -110,12 +116,13 @@ sequenceDiagram
     C->>Q: request_claim + wallet signature
     S->>M: accept_claim(Q)
     S->>M: fund
-    S->>M: check_merge
+    M->>M: AFTER 1 second -> run_merge_check
     M->>R: one-shot HTTP GET
     R->>G: GET /pulls/{number}/merge
     G-->>R: 204 merged / 404 not merged
     R-->>M: reactive callback + RexReport
     M->>B: payout only on unanimous 204
+    M->>M: AFTER 30 seconds -> next check, until terminal/deadline
 ```
 
 ## Contract behavior
@@ -132,20 +139,26 @@ contributor wallet and points back to the sponsor's bounty.
   public PR author; the claim PDA stores the canonical login and numeric GitHub user ID.
 - `accept_claim` is sponsor-only and copies a matching contributor wallet and GitHub
   identity into the main bounty before funding.
-- `fund` transfers the exact bounty amount into that PDA.
-- `check_merge` is sponsor-only. The web client submits the generated
-  `run_merge_check` handler with the workflow's next Venus branch so every
-  retry gets a fresh one-shot REX/subscription pair.
+- `fund` obtains a short-lived read-only GitHub App installation token server-side,
+  encrypts the `Authorization` header for REX, transfers the exact bounty amount into
+  that PDA, and registers the native settlement heartbeat.
+- `run_merge_check` re-arms a short native timer, checks the deadline on every pass,
+  and starts a GitHub REX request at most every 30 seconds, so merge polling and
+  deadline refund do not depend on a sponsor click.
+- `check_merge` remains sponsor-only as an immediate fallback. The web client submits
+  the generated handler with the workflow's next Venus branch so every fallback gets
+  fresh one-shot REX/subscription accounts.
 - `handle_merge_response` is callback-only and receives the beneficiary as a writable
   account plus the `RexReport` as its final parameter.
 - `refund` is sponsor-only and succeeds only after the deadline.
 - `status` logs the persisted state for review.
 
-The deployed source candidate also registers a one-shot native timer during `fund`:
-`AFTER deadline_unix_ms CALL [auto_refund]`. Its callback reuses the sponsor, deadline,
-terminal-state, rent, and balance checks from the manual refund path. The latest program
-is deployed, but the claim, settlement, and timer paths remain unproven until the DevNet
-E2E handoff is run.
+The source candidate registers `AFTER 1 second CALL [run_merge_check]` during `fund`.
+That native heartbeat re-arms itself inside Rialo, uses the normalized Unix-millisecond
+deadline to choose payout versus refund, and reuses the sponsor, terminal-state, rent,
+and balance checks from the manual paths. The source and artifact build are validated
+locally; deployment and DevNet lineage for autonomous merged payout and expired refund
+remain the next proof step.
 
 Payout and refund retain `Rent::minimum_balance(...)` in the workflow account. Paid or
 refunded workflows cannot release the escrow again.
@@ -189,7 +202,7 @@ Use a fresh 64-character hex slug. All CLI aliases below refer to local keypairs
 never commit those keypair files.
 
 ```bash
-MERGEPAY_PROGRAM_ID=5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S
+MERGEPAY_PROGRAM_ID=Gdbcab4Wn5zyUYAP8C7MZzWtfbsVpYX3k6FuhnY5Dbe3
 MERGEPAY_SLUG=0000000000000000000000000000000000000000000000000000000000000008
 # Use the zero pubkey to publish an open bounty. The sponsor approves the real
 # contributor wallet later with accept_claim.
@@ -206,9 +219,9 @@ rialo -n devnet -a default client program invoke "$MERGEPAY_PROGRAM_ID" \
   --arg amount_kelvin=1000000 \
   --arg deadline_unix_ms="$MERGEPAY_DEADLINE_MS"
 
-rialo -n devnet -a default client program invoke "$MERGEPAY_PROGRAM_ID" \
-  --program-dir programs/mergepay-rialo --function fund \
-  --arg workflow_pda_slug="$MERGEPAY_SLUG"
+# The current fund ABI also requires github_auth_ciphertext. Use the web sponsor
+# flow to obtain the packed DKG URL + Authorization envelope; never pass a plaintext
+# GitHub token to the CLI.
 
 rialo -n devnet -a default client program invoke "$MERGEPAY_PROGRAM_ID" \
   --program-dir programs/mergepay-rialo --function check_merge \

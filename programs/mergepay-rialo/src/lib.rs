@@ -27,6 +27,9 @@ rialo! {
             claim_target: Pubkey,
             claimant_github: String,
             claimant_github_id: u64,
+            github_auth_ciphertext: Vec<u8>,
+            github_url_ciphertext: Vec<u8>,
+            next_merge_check_unix_ms: u64,
         }
 
         program {
@@ -54,7 +57,7 @@ rialo! {
                 amount_kelvin: u64,
                 deadline_unix_ms: u64,
             ) -> ProgramResult {
-                let current_unix_ms = self.unix_timestamp();
+                let current_unix_ms = self.unix_timestamp_ms();
                 msg!(
                     "MergePay create input: beneficiary={}, owner={}, repo={}, pr={}, amount={}, deadline_ms={}, now_ms={}",
                     beneficiary,
@@ -103,6 +106,9 @@ rialo! {
                 self.claim_target = Pubkey::default();
                 self.claimant_github = String::new();
                 self.claimant_github_id = 0;
+                self.github_auth_ciphertext = Vec::new();
+                self.github_url_ciphertext = Vec::new();
+                self.next_merge_check_unix_ms = 0;
 
                 if self.beneficiary == Pubkey::default() {
                     msg!(
@@ -155,7 +161,7 @@ rialo! {
                     msg!("MergePay rejected claim: sponsor cannot claim its own bounty");
                     return Err(ProgramError::InvalidArgument);
                 }
-                let current_unix_ms = self.unix_timestamp();
+                let current_unix_ms = self.unix_timestamp_ms();
                 if current_unix_ms < 0 || current_unix_ms as u64 >= target_state.deadline_unix_ms {
                     msg!("MergePay rejected claim: bounty deadline has passed");
                     return Err(ProgramError::InvalidArgument);
@@ -177,6 +183,9 @@ rialo! {
                 self.claim_target = *target_account.key;
                 self.claimant_github = claimant_github;
                 self.claimant_github_id = claimant_github_id;
+                self.github_auth_ciphertext = Vec::new();
+                self.github_url_ciphertext = Vec::new();
+                self.next_merge_check_unix_ms = 0;
 
                 msg!(
                     "MergePay claim requested by {} for {}/{}#{}",
@@ -188,7 +197,7 @@ rialo! {
                 Ok(())
             }
 
-            control fn fund(&mut self) -> ProgramResult {
+            control fn fund(&mut self, github_auth_ciphertext: Vec<u8>) -> ProgramResult {
                 self.require_sponsor()?;
                 if self.claim_request
                     || self.beneficiary == Pubkey::default()
@@ -196,6 +205,26 @@ rialo! {
                     || self.paid
                     || self.refunded
                 {
+                    return Err(ProgramError::InvalidArgument);
+                }
+                // The funding envelope contains two DKG-encrypted payloads:
+                // the GitHub URL and the Authorization header. Encrypting the
+                // URL as well forces the HTTP REX through the DKG
+                // execute-partials path; Rialo 0.18.1 otherwise treats an
+                // encrypted header as an unsupported plain HTTP duty.
+                if github_auth_ciphertext.len() < 2
+                    || github_auth_ciphertext.len() > 4_096
+                    || github_auth_ciphertext.first() != Some(&2)
+                {
+                    msg!("MergePay rejected funding: invalid GitHub auth envelope");
+                    return Err(ProgramError::InvalidArgument);
+                }
+                let (github_url_ciphertext, github_auth_ciphertext) =
+                    self.decode_github_rex_envelope(&github_auth_ciphertext)?;
+
+                let current_unix_ms = self.unix_timestamp_ms();
+                if current_unix_ms < 0 || current_unix_ms as u64 >= self.deadline_unix_ms {
+                    msg!("MergePay rejected funding: bounty deadline has passed");
                     return Err(ProgramError::InvalidArgument);
                 }
 
@@ -221,10 +250,17 @@ rialo! {
                     ],
                 )?;
 
+                self.github_auth_ciphertext = github_auth_ciphertext;
+                self.github_url_ciphertext = github_url_ciphertext;
+                self.next_merge_check_unix_ms = 0;
                 self.funded = true;
-                AFTER self.deadline_unix_ms CALL [auto_refund];
+                // Start the autonomous settlement loop as soon as escrow is
+                // funded. The sponsor may still use check_merge as a manual
+                // fallback, but normal operation no longer depends on it.
+                //
+                AFTER self.timer_timestamp_after_ms(1_000) CALL [run_merge_check];
                 msg!(
-                    "MergePay escrow funded with {} kelvin; native refund timer scheduled for {}",
+                    "MergePay escrow funded with {} kelvin; native settlement heartbeat scheduled through {}",
                     self.amount_kelvin,
                     self.deadline_unix_ms
                 );
@@ -263,7 +299,7 @@ rialo! {
                     return Err(ProgramError::InvalidArgument);
                 }
 
-                let current_unix_ms = self.unix_timestamp();
+                let current_unix_ms = self.unix_timestamp_ms();
                 if current_unix_ms < 0 || current_unix_ms as u64 >= self.deadline_unix_ms {
                     return Err(ProgramError::InvalidArgument);
                 }
@@ -295,14 +331,16 @@ rialo! {
                 {
                     return Err(ProgramError::InvalidArgument);
                 }
-                let current_unix_ms = self.unix_timestamp();
-                if current_unix_ms < 0 || current_unix_ms as u64 > self.deadline_unix_ms {
+                let current_unix_ms = self.unix_timestamp_ms();
+                if current_unix_ms < 0 || current_unix_ms as u64 >= self.deadline_unix_ms {
                     return Err(ProgramError::InvalidArgument);
                 }
 
                 // A short native timer is supported by the current Venus
-                // runtime and gives the handler a fresh branch number.
-                AFTER 1 second CALL [run_merge_check];
+                // runtime and gives the handler a fresh branch number. Force
+                // the next callback to perform an immediate REX check.
+                self.next_merge_check_unix_ms = 0;
+                AFTER self.timer_timestamp_after_ms(1_000) CALL [run_merge_check];
 
                 Ok(())
             }
@@ -316,20 +354,38 @@ rialo! {
                 {
                     return Ok(());
                 }
-                let current_unix_ms = self.unix_timestamp();
-                if current_unix_ms < 0 || current_unix_ms as u64 > self.deadline_unix_ms {
+                let current_unix_ms = self.unix_timestamp_ms();
+                if current_unix_ms < 0 {
                     return Ok(());
                 }
 
+                let current_unix_ms_u64 = current_unix_ms as u64;
+                if current_unix_ms_u64 >= self.deadline_unix_ms {
+                    // The same native heartbeat that polls GitHub also owns
+                    // the deadline branch. This avoids a long-lived absolute
+                    // timer whose bounded subscription window could expire.
+                    return self.execute_refund(false);
+                }
+
+                // Venus timestamp subscriptions are valid only for a bounded
+                // slot window. Re-arm frequently enough to keep the workflow
+                // alive, but perform the external GitHub request at a slower
+                // cadence so each bounty does not consume the API rate limit.
+                AFTER self.timer_timestamp_after_ms(2_000) CALL [run_merge_check];
+
+                if self.next_merge_check_unix_ms != 0
+                    && current_unix_ms_u64 < self.next_merge_check_unix_ms
+                {
+                    return Ok(());
+                }
+
+                self.next_merge_check_unix_ms = current_unix_ms_u64
+                    .checked_add(30_000)
+                    .unwrap_or(self.deadline_unix_ms);
                 self.checks += 1;
                 msg!("MergePay merge check #{} scheduled", self.checks);
 
-                let url = format!(
-                    "https://api.github.com/repos/{}/{}/pulls/{}/merge",
-                    self.github_owner,
-                    self.github_repo,
-                    self.pull_number
-                );
+                let url = self.github_url();
                 let headers = self.github_headers();
                 let beneficiary = self.beneficiary;
 
@@ -356,6 +412,15 @@ rialo! {
                     return Err(ProgramError::InvalidArgument);
                 }
                 if !self.funded || self.paid || self.refunded {
+                    return Ok(());
+                }
+
+                // A merge response that was already in flight when the
+                // deadline timer fired must not win the race against refund.
+                // Only an active, pre-deadline workflow can be paid.
+                let current_unix_ms = self.unix_timestamp_ms();
+                if current_unix_ms < 0 || current_unix_ms as u64 >= self.deadline_unix_ms {
+                    msg!("MergePay merge response arrived after deadline; refund remains authoritative");
                     return Ok(());
                 }
 
@@ -447,7 +512,7 @@ rialo! {
             }
 
             fn execute_refund(&mut self, enforce_deadline: bool) -> ProgramResult {
-                let current_unix_ms = self.unix_timestamp();
+                let current_unix_ms = self.unix_timestamp_ms();
                 if !self.funded || self.paid || self.refunded {
                     if enforce_deadline {
                         return Err(ProgramError::InvalidArgument);
@@ -512,16 +577,97 @@ rialo! {
                 Ok(())
             }
 
-            handler fn auto_refund(&mut self) -> ProgramResult {
-                self.require_sponsor()?;
-                self.execute_refund(false)
-            }
-
             fn require_sponsor(&self) -> ProgramResult {
                 if self.payer_account().key != &self.sponsor {
                     return Err(ProgramError::MissingRequiredSignature);
                 }
                 Ok(())
+            }
+
+            // The public workflow ABI stores JavaScript-compatible Unix
+            // milliseconds. DevNet 0.18.1 has exposed both millisecond RPC
+            // timestamps and second-based program clock values across runtime
+            // surfaces, so normalize defensively at the program boundary.
+            fn unix_timestamp_ms(&self) -> i64 {
+                let raw = self.unix_timestamp();
+                if raw < 0 {
+                    raw
+                } else if raw < 100_000_000_000 {
+                    raw.saturating_mul(1_000)
+                } else {
+                    raw
+                }
+            }
+
+            fn timer_timestamp_after_ms(&self, delay_ms: u64) -> u64 {
+                let raw = self.unix_timestamp();
+                if raw < 0 {
+                    return 0;
+                }
+                if raw < 100_000_000_000 {
+                    (raw as u64).saturating_add(delay_ms.saturating_add(999) / 1_000)
+                } else {
+                    (raw as u64).saturating_add(delay_ms)
+                }
+            }
+
+            fn decode_github_rex_envelope(
+                &self,
+                payload: &[u8],
+            ) -> Result<(Vec<u8>, Vec<u8>), ProgramError> {
+                if payload.len() < 10 || payload.first() != Some(&2) {
+                    msg!("MergePay rejected funding: malformed GitHub REX envelope");
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                let url_length = u32::from_le_bytes([
+                    payload[1],
+                    payload[2],
+                    payload[3],
+                    payload[4],
+                ]) as usize;
+                let url_start = 5usize;
+                let url_end = url_start
+                    .checked_add(url_length)
+                    .ok_or(ProgramError::InvalidArgument)?;
+                let auth_length_start = url_end;
+                let auth_length_end = auth_length_start
+                    .checked_add(4)
+                    .ok_or(ProgramError::InvalidArgument)?;
+                if auth_length_end > payload.len() {
+                    msg!("MergePay rejected funding: truncated GitHub URL ciphertext");
+                    return Err(ProgramError::InvalidArgument);
+                }
+                let auth_length = u32::from_le_bytes([
+                    payload[auth_length_start],
+                    payload[auth_length_start + 1],
+                    payload[auth_length_start + 2],
+                    payload[auth_length_start + 3],
+                ]) as usize;
+                let auth_start = auth_length_end;
+                let auth_end = auth_start
+                    .checked_add(auth_length)
+                    .ok_or(ProgramError::InvalidArgument)?;
+                if auth_end != payload.len()
+                    || url_length < 2
+                    || auth_length < 2
+                    || payload[url_start] != 2
+                    || payload[auth_start] != 2
+                {
+                    msg!("MergePay rejected funding: invalid GitHub DKG payloads");
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                Ok((
+                    payload[url_start..url_end].to_vec(),
+                    payload[auth_start..auth_end].to_vec(),
+                ))
+            }
+
+            fn github_url(&self) -> rialo_types::RexUrl {
+                rialo_types::RexUrl::from(rialo_types::RexValue::Encrypted(
+                    self.github_url_ciphertext.clone(),
+                ))
             }
 
             fn valid_github_slug(&self, value: &str) -> bool {
@@ -550,6 +696,10 @@ rialo! {
                 headers.insert(
                     "User-Agent".to_string(),
                     rialo_types::RexValue::plain_string("MergePay-Rialo/0.1")
+                );
+                headers.insert(
+                    "Authorization".to_string(),
+                    rialo_types::RexValue::Encrypted(self.github_auth_ciphertext.clone())
                 );
                 rialo_types::Headers::new(headers)
             }

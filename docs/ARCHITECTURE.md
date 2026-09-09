@@ -4,12 +4,12 @@
 
 | Component | Responsibility |
 | --- | --- |
-| Sponsor | Publishes, approves, funds, checks, queries status, and refunds its workflow |
+| Sponsor | Publishes, approves, funds, uses the manual fallback, queries status, and refunds its workflow |
 | Workflow PDA | Persists bounty state and holds rent plus escrow |
 | Contributor claim PDA | Records the contributor wallet and GitHub author claim, derived from the contributor payer |
 | Rialo REX | Performs validator-attested GitHub HTTP requests |
 | Subscriber | Triggers the one-shot callback when the REX report is ready |
-| Rialo timer subscription | Candidate path that invokes the refund callback at the immutable deadline |
+| Rialo timer subscription | Starts native merge polling after funding, re-arms retries, and invokes refund at the immutable deadline |
 | Approved contributor | Writable callback account that receives a successful payout |
 | GitHub API | Supplies the compact merged/not-merged HTTP status |
 
@@ -58,6 +58,9 @@ claim_request: bool
 claim_target: Pubkey
 claimant_github: String
 claimant_github_id: u64
+github_auth_ciphertext: Vec<u8>
+github_url_ciphertext: Vec<u8>
+next_merge_check_unix_ms: u64
 ```
 
 ## State transitions
@@ -67,13 +70,14 @@ claimant_github_id: u64
 | Missing | `create_bounty` | Valid inputs, future deadline, zero beneficiary sentinel | Open bounty PDA initialized |
 | Open bounty | `request_claim` | Contributor payer; OAuth identity matches the target PR; target open; before deadline | Contributor-owned claim PDA records wallet, GitHub login, and numeric user ID |
 | Open bounty + claim record | `accept_claim` | Sponsor; exact target terms and GitHub identity match; before deadline | Beneficiary and claimant GitHub identity locked on main PDA |
-| Claimed | `fund` | Sponsor; beneficiary approved; not terminal | Exact escrow transferred |
-| Funded | Merge-check handler (UI action: `check_merge`) | Sponsor; current Venus branch; before deadline | Fresh one-shot REX + subscription |
+| Claimed | `fund` | Sponsor; beneficiary approved; not terminal; valid DKG GitHub App envelope | Exact escrow transferred and authenticated REX checks armed |
+| Funded | Native merge timer | Funded; active beneficiary; before deadline | Fresh `run_merge_check` branch without sponsor click |
+| Funded | Merge-check handler (manual fallback: `check_merge`) | Sponsor; current Venus branch; before deadline | Immediate fresh one-shot REX + subscription |
 | Funded | Callback: all `204` | Beneficiary/account match; sufficient PDA balance | Paid; escrow released |
 | Funded | Callback: all `404` | Non-empty unanimous report | No state payout; escrow locked |
 | Funded | Callback: mixed/error | Any non-unanimous result | Inconclusive; escrow locked |
 | Funded | `refund` | Sponsor; after deadline | Refunded; escrow returned |
-| Funded | Native timer callback (candidate) | Deadline reached; sponsor signer; not terminal | Refunded; escrow returned |
+| Funded | Native refund timer | Deadline reached; sponsor signer; not terminal | Refunded; escrow returned |
 | Paid/refunded | Any payout path | Terminal flag set | No second release |
 
 ## Marketplace claim flow
@@ -108,26 +112,48 @@ records. The UI exposes scope, lifecycle status, repository, deadline, and text 
 and labels the shared DevNet source. The RPC relay exposes only the bounded read methods
 needed for this path. A persistent server-side historical indexer remains a release task.
 
-## Native deadline refund prototype
+## Native autonomous settlement candidate
 
-The current source candidate registers a one-shot `AFTER self.deadline_unix_ms CALL
-[auto_refund]` subscription while `fund` executes. The generated `fund` ABI therefore
-requires `subscription_pda_0`, and the callback reuses the same sponsor, deadline,
-terminal-state, rent, and checked-balance validation as manual refund. Equality at the
-deadline boundary is treated as expired so the timer cannot consume its one-shot trigger
-without a valid settlement attempt.
+The current source candidate registers one native settlement heartbeat while `fund`
+executes:
 
-The latest marketplace deployment at
-`5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S` includes the retry-safe merge-check ABI
-and the native timer callback from this working tree. The claim, settlement, and timer
-paths remain unproven until the DevNet E2E handoff is run. The superseded deployment
-`6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL` is retained only as historical evidence.
-Rialo's generated timestamp
-predicate also uses an active window of roughly 100 commits, so long deadlines need a
-heartbeat or rescheduling design before this becomes a production liveness guarantee.
-Do not describe refund as autonomous until the deployed program's lineage contains the
-timer callback and the workflow account decodes as `refunded=true` without a manual
-refund click.
+```text
+AFTER 1 second CALL [run_merge_check]
+```
+
+`run_merge_check` re-arms a short `AFTER 2 seconds CALL [run_merge_check]` heartbeat
+before checking the deadline. It performs a GitHub REX request at most every 30
+seconds, pays on unanimous merge proof, and refunds from the same heartbeat after
+expiry. This makes both settlement paths continue without a sponsor click; the manual
+`check_merge` action remains an immediate fallback. Every timer and REX branch uses
+fresh subscription/REX PDAs derived from its Venus branch.
+
+The web funding route obtains a short-lived read-only GitHub App installation token,
+encrypts both the exact GitHub merge endpoint URL and `Bearer <token>` with the active
+Rialo DKG key and the sponsor public key as AAD, then serializes both payloads into the
+final `fund` argument. The program stores only those ciphertexts and inserts them as
+the encrypted REX URL and `Authorization` header. Encrypting the URL is important on
+DevNet 0.18.1: it forces the HTTP request through the DKG execute-partials path rather
+than treating an encrypted header as an unsupported plain HTTP duty. The token never
+reaches the browser or the workflow decoder.
+
+The workflow stores deadlines as Unix milliseconds to match the browser and client
+ABI. The program normalizes Rialo's Unix-second clock to milliseconds before every
+deadline comparison. Terminal guards are deliberately fail-closed: late timers
+return after `paid` or `refunded`, and a REX response at or after the deadline cannot
+pay while the refund path is authoritative. Payout and refund still preserve the
+workflow rent reserve.
+
+The generated `fund` ABI now carries the packed encrypted GitHub envelope and one
+subscription account. The generated `run_merge_check` callback carries two
+subscription accounts plus one REX account: one subscription re-arms the heartbeat
+and the other waits for the REX response. The source, artifact, and DevNet deployment
+are validated; fresh DevNet lineage is still required to prove that a merged PR pays
+and an unmerged PR refunds without a manual button click.
+
+Rialo's generated timestamp predicate uses an active window of roughly 100 commits;
+the explicit 30-second re-arm is therefore part of the liveness design, not an
+assumption that one subscription survives until an arbitrary long deadline.
 
 ## Why one payer owns the workflow
 
@@ -142,12 +168,13 @@ The handler independently rechecks that callback account 0 is the committed spon
 ## Retry-safe merge checks
 
 Venus assigns async branches from the first workflow state field. A completed REX
-callback consumes its one-shot subscription and REX accounts, so the browser reads the
-workflow's next branch and derives a new pair for every sponsor retry. The generated
-`run_merge_check` timer-handler ABI carries that branch explicitly; its account layout is
-`payer`, `workflow`, `rex_registry`, `system_program`, `subscriber_interface`,
-`subscription_pda`, and `rex_pda`. The UI keeps the friendly action name `check_merge`
-while serializing this handler instruction under the hood.
+callback consumes its one-shot subscription and REX accounts, so every autonomous
+retry and sponsor fallback gets fresh accounts. The generated `run_merge_check`
+timer-handler ABI carries that branch explicitly; its account layout is `payer`,
+`workflow`, `rex_registry`, `system_program`, `subscriber_interface`,
+`subscription_pda_0`, `subscription_pda_1`, and `rex_pda_0`. The first subscription
+re-arms polling and the second waits for the REX response. The UI keeps the friendly
+action name `check_merge` while serializing this handler instruction under the hood.
 
 ## Callback ABI rule
 

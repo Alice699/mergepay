@@ -19,7 +19,7 @@ signals across transactions.
 ## What is live
 
 - Runtime-proven review candidate: `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB`
-- Marketplace ABI deployment: `5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S` (E2E pending)
+- Autonomous settlement ABI deployment: `Gdbcab4Wn5zyUYAP8C7MZzWtfbsVpYX3k6FuhnY5Dbe3` (E2E pending)
 - Previous reset deployment: `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
 - Hardened metadata: RISC-V executable, slot `7138100`, fresh runtime proof verified
 - RISC-V / PolkaVM Venus program built against `0.18.1`
@@ -72,18 +72,23 @@ Full signatures and balances are in [EVIDENCE.md](EVIDENCE.md).
 - Terminal flags prevent replayed settlement.
 - Rent reserve is preserved on both payout and refund.
 - PDA ownership and all settlement balance arithmetic are checked explicitly.
-- No API token or private key is stored in source or workflow state.
+- No plaintext API token or private key is stored in source, browser storage, logs, or
+  workflow responses. Funding stores only a sponsor-bound DKG ciphertext for the REX
+  `Authorization` header.
 
 See [SECURITY.md](SECURITY.md) for the full threat model and limitations.
 
 ## Honest scope
 
 This is a DevNet MVP, not an audited production payment protocol. It currently supports
-public GitHub repositories, native RLO, one beneficiary, and sponsor-triggered checks.
+public GitHub repositories, native RLO, one beneficiary, and native post-funding checks
+with a sponsor fallback. Authenticated REX checks require a server-only, read-only
+GitHub App installation token during funding.
 The reactive external verification and settlement path is real and fully demonstrated.
 The dApp includes an experimental DevNet-only embedded signer because a public Rialo
-extension is not required for review. Token support, retries, authenticated GitHub
-access, production wallet hardening, and audit work remain out of scope.
+extension is not required for review. Token rotation for already-funded workflows,
+private-repository policy, production wallet hardening, and audit work remain out of
+scope.
 
 ## Review checklist
 

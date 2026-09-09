@@ -1,6 +1,6 @@
 {
   "network": "devnet",
-  "updatedAt": "2026-09-07",
+  "updatedAt": "2026-09-09",
   "reviewCandidate": {
     "programId": "6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB",
     "status": "fully-tested-hardened",
@@ -11,6 +11,22 @@
     "status": "deployed-awaiting-e2e",
     "abi": "marketplace-claims-v1",
     "evidence": "docs/EVIDENCE.md"
+  },
+  "autonomousSettlementCandidate": {
+    "programId": "Gdbcab4Wn5zyUYAP8C7MZzWtfbsVpYX3k6FuhnY5Dbe3",
+    "status": "deployed-awaiting-e2e",
+    "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v2",
+    "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
+    "bytes": 229878,
+    "sha256": "986EEB2399C1BED77EF6C4036096590E8CB56CA477A6435A6E52D419FC8DD13C",
+    "deployedSlot": 11357622,
+    "dataLength": 229926,
+    "executableDataLength": 229878,
+    "authority": "Adeu7sxJBNCz5rSMSfZEFYdYVPdRTcjhEBGzaPtRkEfs",
+    "balanceRlo": 1.60117584,
+    "rexComponents": null,
+    "deploymentWarning": "No rex_components.bin found; deployment contains no REX components.",
+    "supersedes": "CXAzqNH5DtZso2wXtWFF9mF4VW769C7WTWjBZnFLYjCm"
   },
   "previousRuntimeCandidate": {
     "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",

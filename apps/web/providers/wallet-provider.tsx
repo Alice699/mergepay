@@ -121,12 +121,12 @@ async function readTransactionFailureDetail(
     const logs = details?.meta.logMessages ?? [];
     const programLog = [...logs]
       .reverse()
-      .find((message) => /^MergePay\s/i.test(message));
+      .find((message) => /^(?:Program log:\s*)?MergePay\s/i.test(message));
     const diagnosticLog = [...logs]
       .filter(
         (message) =>
           !/^Program .* (invoke|success)/i.test(message) &&
-          /^(?:Program log:|Error:)|IncorrectProgramId|InvalidAccountData|InvalidInstructionData/i.test(
+          /^(?:Error:)|IncorrectProgramId|InvalidAccountData|InvalidInstructionData|^Program log:\s*(?:MergePay|Error:)/i.test(
             message,
           ),
       )

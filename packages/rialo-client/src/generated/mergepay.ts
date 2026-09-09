@@ -3,8 +3,8 @@
  *
  * The values mirror programs/mergepay-rialo/wit/mergepay-rialo-manifest.json
  * and the current marketplace deployment recorded in deployments/devnet.json.
- * The source candidate now routes merge checks through a fresh generated
- * handler branch so one-shot REX accounts can be retried safely.
+ * The source candidate uses one native settlement heartbeat: it polls GitHub
+ * on a bounded cadence and refunds from the same heartbeat after the deadline.
  * Keep protocol values here so UI code never has to duplicate ABI details.
  */
 
@@ -12,7 +12,7 @@ export const MERGEPAY_MANIFEST_VERSION = "1.1" as const;
 
 /** Current DevNet marketplace program; full claim and settlement E2E is still pending. */
 export const MERGEPAY_PROGRAM_ID =
-  "5uaASo6AePkzUTFf7vBqRpU8XwxRZK5QzcLQ96CyAj3S" as const;
+  "Gdbcab4Wn5zyUYAP8C7MZzWtfbsVpYX3k6FuhnY5Dbe3" as const;
 
 export const MERGEPAY_WELL_KNOWN_ADDRESSES = {
   systemProgram: "11111111111111111111111111111111",
@@ -31,28 +31,34 @@ export const MERGEPAY_INSTRUCTION_DISCRIMINANTS = {
   status: 0,
   fund: 1,
   check_merge: 2,
-  refund: 5,
-  create_bounty: 7,
-  request_claim: 8,
-  accept_claim: 9,
+  create_bounty: 4,
+  request_claim: 5,
+  accept_claim: 6,
+  refund: 8,
 } as const;
 
 /** `run_merge_check` callback discriminant. */
-export const MERGEPAY_CALLBACK_DISCRIMINANT = 3;
-export const MERGEPAY_TIMER_CALLBACK_DISCRIMINANT = 6;
+export const MERGEPAY_CALLBACK_DISCRIMINANT = 7;
+export const MERGEPAY_TIMER_CALLBACK_DISCRIMINANT = 7;
 
-/** Account indexes used by the generated merge-check callback constructor. */
+/**
+ * Account indexes used by the generated Venus constructors.
+ *
+ * `fund` installs the initial settlement heartbeat, while `run_merge_check`
+ * owns a second timer subscription in addition to its REX response subscription.
+ */
 export const MERGEPAY_ACCOUNT_INDEXES = {
   payer: 0,
   workflowPda: 1,
   fundSubscriptionPda: 4,
-  requestClaimTarget: 3,
-  acceptClaimWorkflow: 3,
+  requestClaimTarget: 4,
+  acceptClaimWorkflow: 4,
   rexRegistry: 2,
   systemProgram: 3,
   subscriberInterface: 4,
   subscriptionPda: 5,
-  rexPda: 6,
+  retrySubscriptionPda: 6,
+  rexPda: 7,
 } as const;
 
 export const MERGEPAY_SEEDS = {

@@ -123,6 +123,13 @@ export class MergePayRpcClient {
     return this.client.getHealth();
   }
 
+  getMinimumBalanceForRentExemption(dataSize: number): Promise<bigint> {
+    if (!Number.isSafeInteger(dataSize) || dataSize < 0) {
+      throw new RangeError("account data size must be a non-negative safe integer");
+    }
+    return this.client.getMinimumBalanceForRentExemption(BigInt(dataSize));
+  }
+
   async getSignaturesForAddress(
     address: string,
     limit = 12,

@@ -66,6 +66,10 @@ export function describeRialoError(cause: unknown): string {
     case "EMBEDDED_WALLET_SIGNER_MISMATCH":
     case "TRANSACTION_INSTRUCTION_REJECTED":
       return "The local wallet refused a transaction outside its approved MergePay boundary.";
+    case "GITHUB_APP_AUTH_UNAVAILABLE":
+      return errorText(cause);
+    case "GITHUB_APP_AUTH_INVALID":
+      return "The encrypted GitHub App authorization was invalid. Refresh the page and try funding again.";
     case "TRANSACTION_PROGRAM_REJECTED":
       return errorText(cause);
     case "BALANCE_UNAVAILABLE":
@@ -77,6 +81,10 @@ export function describeRialoError(cause: unknown): string {
     case "WORKFLOW_ACCOUNT_NOT_FOUND":
       return "This bounty workflow is not available on the configured program. Return to the marketplace and open a current listing.";
     case "WORKFLOW_PROGRAM_MISMATCH":
+      return errorText(cause);
+    case "WORKFLOW_STORAGE_RENT_UNAVAILABLE":
+      return "Rialo could not estimate the workflow storage rent. Refresh the workflow and try again.";
+    case "WORKFLOW_STORAGE_TOO_LARGE":
       return errorText(cause);
     case "CLAIM_RECORD_OWNER_MISMATCH":
     case "CLAIM_RECORD_INVALID":

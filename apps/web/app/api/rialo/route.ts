@@ -7,6 +7,7 @@ const allowedMethods = new Set([
   "getAccountInfo",
   "getBalance",
   "getHealth",
+  "getMinimumBalanceForRentExemption",
   "getRecentValidatorConfigHash",
   "getSignaturesForAddress",
   "getSignatureStatuses",
@@ -63,6 +64,22 @@ function isAllowedAirdrop(params: unknown): boolean {
     Number.isSafeInteger(kelvins) &&
     kelvins > 0 &&
     kelvins <= MAX_DEVNET_AIRDROP_KELVIN
+  );
+}
+
+function isAllowedRentLookup(params: unknown): boolean {
+  if (!Array.isArray(params) || params.length !== 1) return false;
+  const request = params[0];
+  if (typeof request !== "object" || request === null || Array.isArray(request)) {
+    return false;
+  }
+
+  const dataLength = (request as Record<string, unknown>).data_length;
+  return (
+    typeof dataLength === "number" &&
+    Number.isSafeInteger(dataLength) &&
+    dataLength >= 0 &&
+    dataLength <= 1_000_000
   );
 }
 
@@ -157,6 +174,17 @@ export async function POST(request: Request) {
       rpcRequest.id,
       -32602,
       "DevNet faucet requests are limited to 1 RLO.",
+      400,
+    );
+  }
+  if (
+    rpcRequest.method === "getMinimumBalanceForRentExemption" &&
+    !isAllowedRentLookup(rpcRequest.params)
+  ) {
+    return jsonRpcError(
+      rpcRequest.id,
+      -32602,
+      "Rent lookups require one bounded account data length.",
       400,
     );
   }

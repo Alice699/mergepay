@@ -24,6 +24,9 @@ MergePay is a DevNet MVP, not audited production software.
 - Escrow debit and recipient credit use checked arithmetic.
 - GitHub owner/repository fields accept only bounded ASCII slug characters.
 - Deadlines reject negative chain time before conversion to `u64`.
+- `fund` accepts only a DKG-encrypted GitHub App authorization envelope. The
+  envelope is bound to the sponsor public key and the plaintext token is never
+  written to source, browser storage, logs, or a workflow response.
 
 ## Trust assumptions
 
@@ -39,6 +42,11 @@ MergePay is a DevNet MVP, not audited production software.
 - OAuth remains an off-chain identity boundary: Rialo cannot call GitHub from inside the
   program. Sponsor approval is still required and must review the exact PR, identity,
   and wallet before funding.
+- The funding route reads a short-lived, read-only GitHub App installation token from
+  a server-only `GITHUB_APP_INSTALLATION_TOKEN` environment variable, encrypts the
+  exact GitHub merge URL and `Authorization` header for REX, and returns only a packed
+  DKG envelope. The ciphertext itself is public workflow state; plaintext is available
+  only to the REX decryption path.
 - DevNet transaction history and deployments may be reset.
 - The embedded wallet runs in the same browser origin as the dApp. While unlocked, an
   origin compromise or malicious dependency could access signing capability; encrypted
@@ -71,17 +79,20 @@ sponsor-selected bounty locked until refund.
 - One sponsor, one approved beneficiary, one PR, and one fixed amount per workflow.
 - One claim record can be approved for a bounty in the current MVP; replacing or
   rejecting a submitted claim needs an explicit protocol instruction before funding.
-- The latest DevNet deployment includes a native deadline-timer refund callback, but the
-  timer path is not yet DevNet-proven. Until its E2E lineage is recorded, users should
-  treat sponsor-triggered refund as the reliable recovery path. The merge path still
-  needs an explicit REX trigger.
+- The current source candidate arms native merge polling and deadline refund through
+  `AFTER`, but this candidate is not yet DevNet-proven. Until its E2E lineage is
+  recorded, users should treat sponsor-triggered actions as the reliable fallback path.
 - The native timestamp subscription currently receives an active window of roughly 100
-  commits. A long-deadline deployment needs a heartbeat or rescheduling strategy; do not
-  treat the local prototype as a 100% autonomous liveness guarantee.
+  commits. The candidate re-arms merge polling every 30 seconds, but do not treat the
+  local build as a 100% autonomous liveness guarantee until the deployed lineage proves
+  both terminal paths.
 - The current PR and merge proof paths target public repositories only. GitHub OAuth
   access tokens are exchanged and used server-side for identity lookup, never stored in
   the browser session or exposed to the client.
-- GitHub unauthenticated rate limits can make a check inconclusive.
+- The GitHub App installation token expires. New funding requires a current token, and
+  an already-funded workflow cannot be retrofitted with a replacement envelope without
+  a protocol instruction. DevNet operators must rotate the server secret before funding
+  long-lived workflows.
 - Deadline values use milliseconds because that is the observed DevNet `0.18.1` clock
   unit. Revalidate this assumption when upgrading Rialo.
 - Workflow rent remains in the PDA after payout/refund; there is no close instruction.
@@ -112,7 +123,8 @@ sponsor-selected bounty locked until refund.
 - Independent audit and adversarial test suite.
 - Explicit workflow close/rent recovery policy.
 - Token support and decimal-safe UI amounts.
-- Rate-limit strategy, retries, and optional authenticated/private-repository design.
+- GitHub App token rotation for already-funded workflows, private-repository policy,
+  and production secret-operations design.
 - Version-gated clock semantics.
 - Production-grade wallet integration, independent wallet audit, phishing resistance,
   hardware-backed key custody, and recovery UX.
