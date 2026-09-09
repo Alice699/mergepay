@@ -52,7 +52,7 @@ actions remain available as idempotent fallbacks.
 | Exact escrow | The sponsor reviews the claim and funds the committed RLO amount onchain. |
 | Native automation | Rialo `AFTER` timers keep merge polling and deadline settlement alive after funding. |
 | Fail-closed proof | Empty, mixed, malformed, or failed REX reports cannot release escrow. |
-| Live interface | Workflow state refreshes in place, transactions surface through notifications, and wallet history uses cursor-based DevNet pagination. |
+| Live interface | Workflow state refreshes in place, transactions surface through notifications, wallet history is paginated, and terminal workflows expose shareable paid/refunded receipts. |
 | Reviewer-friendly wallet | A password-encrypted embedded signer provides DevNet onboarding without simulating funds or success states. |
 
 ## How it works
@@ -66,7 +66,7 @@ actions remain available as idempotent fallbacks.
 3. **Approve** — the sponsor checks the exact identity, wallet, and bounty terms before accepting the claim.
 4. **Fund** — MergePay prepares the workflow account, transfers the exact RLO escrow, and arms native settlement.
 5. **Verify** — Rialo REX validators query GitHub's compact merged-status endpoint.
-6. **Settle** — unanimous HTTP `204` pays the contributor; reaching the deadline first refunds the sponsor.
+6. **Settle** — unanimous HTTP `204` pays the contributor; reaching the deadline first refunds the sponsor. The decoded terminal state becomes a receipt with the exact amount and destination.
 
 ### Why Rialo
 

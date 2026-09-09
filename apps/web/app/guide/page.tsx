@@ -8,8 +8,8 @@ import {
   GitPullRequest,
   Network,
   Plus,
-  RefreshCw,
   KeyRound,
+  ReceiptText,
   WalletCards,
 } from "lucide-react";
 import { ScrollReveal } from "@/components/motion/scroll-reveal";
@@ -32,7 +32,7 @@ export default function GuidePage() {
           <div className="guide-hero__signal-mark"><Network aria-hidden="true" size={21} strokeWidth={1.6} /></div>
           <p className="panel-label">THE SHORT VERSION</p>
           <strong>A programmable escrow<br />for shipped code.</strong>
-          <span>Rialo DevNet MVP</span>
+          <span>Autonomous settlement · onchain receipts</span>
         </div>
       </div>
 
@@ -42,6 +42,7 @@ export default function GuidePage() {
           <a href="#what">What MergePay is</a>
           <a href="#use">How to use it</a>
           <a href="#rialo">Why Rialo</a>
+          <a href="#receipt">Settlement receipt</a>
           <a href="#limits">Known limits</a>
           <a href="#review">For reviewers</a>
         </aside>
@@ -54,7 +55,7 @@ export default function GuidePage() {
                 <p className="eyebrow">The product</p>
                 <h2>A bounty that can prove why it paid.</h2>
                 <p>Most GitHub bounties rely on a person or a private backend to coordinate the work, identify the contributor, and decide where payment goes. MergePay moves the terms into a Rialo workflow account: repository, pull request, amount, deadline, and an open claim state are committed before funding.</p>
-                <p>The contributor verifies the public PR author, signs a claim with the receiving wallet, and shares the claim record. The sponsor approves that exact claim before funding. After that, a merged pull request can release the committed RLO, while an unmerged pull request keeps escrow locked until refund becomes available.</p>
+                <p>The contributor verifies the public PR author, signs a claim with the receiving wallet, and shares the claim record. The sponsor approves that exact claim before funding. Funding arms Rialo&apos;s native heartbeat: a merged pull request pays the approved wallet automatically, while reaching the deadline first refunds the sponsor automatically.</p>
               </div>
             </section>
           </ScrollReveal>
@@ -70,7 +71,7 @@ export default function GuidePage() {
                   <GuideStep number="02" icon={<Plus aria-hidden="true" size={18} strokeWidth={1.9} />} title="Post the bounty" copy="Enter a public GitHub owner, repository, pull request number, amount, deadline, and generated workflow ID. The beneficiary is intentionally left open for a contributor claim." />
                   <GuideStep number="03" icon={<GitPullRequest aria-hidden="true" size={18} strokeWidth={1.7} />} title="Claim the PR" copy="The PR author connects GitHub. MergePay compares the authenticated GitHub user ID with the exact public pull request, then the contributor signs a claim record with the wallet that should be paid." />
                   <GuideStep number="04" icon={<KeyRound aria-hidden="true" size={18} strokeWidth={1.7} />} title="Approve and fund" copy="The sponsor reviews the claim record, approves the matching contributor wallet, and funds the escrow in a separate transaction. The beneficiary cannot change after approval." />
-                  <GuideStep number="05" icon={<RefreshCw aria-hidden="true" size={18} strokeWidth={1.7} />} title="Verify or recover" copy="Rialo REX reports the GitHub merge result to the program. A unanimous merge pays the approved contributor; an expired, unmerged workflow lets the sponsor recover the escrow." />
+                  <GuideStep number="05" icon={<ReceiptText aria-hidden="true" size={18} strokeWidth={1.7} />} title="Watch and verify" copy="Rialo keeps checking after funding. A unanimous merged proof pays the contributor; reaching the deadline first refunds the sponsor. The live workflow updates without a page reload and exposes a shareable terminal receipt." />
                 </div>
                 <div className="guide-cta-row">
                   <Link className="button" href="/bounties/new">Create a bounty <Plus aria-hidden="true" className="ui-icon" size={15} strokeWidth={2} /></Link>
@@ -87,7 +88,7 @@ export default function GuidePage() {
                 <p className="eyebrow">Why Rialo</p>
                 <h2>The chain is part of the verification loop.</h2>
                 <div className="guide-reasons">
-                  <GuideReason title="REX can attest an external signal" copy="Rialo REX is the bridge between a public GitHub merge response and an onchain callback. MergePay consumes that report inside the program instead of trusting a private server." />
+                  <GuideReason title="REX can attest an external signal" copy="Rialo REX is the bridge between GitHub's public merged endpoint and an onchain callback. MergePay consumes the validator report inside the program instead of trusting a private payout server." />
                   <GuideReason title="Escrow is a program state" copy="The sponsor, approved contributor, amount, deadline, claim proof, and settlement flags live in Rialo workflow accounts. Anyone with the account address can inspect the same state." />
                   <GuideReason title="Failure stays visible" copy="A missing account, unavailable decoder, mixed report, or non-merged pull request does not become a payout. The program and UI keep uncertain funds locked." />
                 </div>
@@ -96,16 +97,43 @@ export default function GuidePage() {
           </ScrollReveal>
 
           <ScrollReveal delay={120}>
-            <section className="guide-section" id="limits">
+            <section className="guide-section" id="receipt">
               <div className="guide-section__index">04</div>
+              <div>
+                <p className="eyebrow">Reading a settlement</p>
+                <h2>A receipt for the state that matters.</h2>
+                <p>A submitted transaction is not treated as proof of payment. MergePay issues its success view only after the decoded workflow reports a terminal flag. This makes a small payout or refund easy to verify without estimating a wallet balance change.</p>
+                <div className="guide-receipt-preview">
+                  <div className="guide-receipt-preview__lead">
+                    <span><ReceiptText aria-hidden="true" size={19} strokeWidth={1.7} /></span>
+                    <div>
+                      <small>SHAREABLE ONCHAIN RECEIPT</small>
+                      <strong>Paid or refunded, with exact proof.</strong>
+                    </div>
+                  </div>
+                  <dl>
+                    <div><dt>Amount</dt><dd>Exact RLO released</dd></div>
+                    <div><dt>Destination</dt><dd>Contributor or sponsor address</dd></div>
+                    <div><dt>Terminal flag</dt><dd><code>paid</code> or <code>refunded</code></dd></div>
+                    <div><dt>Reserve</dt><dd>Rent left in the workflow account</dd></div>
+                  </dl>
+                  <p><Check aria-hidden="true" size={14} strokeWidth={2} /> Verified from the current Rialo workflow account—not from a toast or cached balance.</p>
+                </div>
+              </div>
+            </section>
+          </ScrollReveal>
+
+          <ScrollReveal delay={135}>
+            <section className="guide-section" id="limits">
+              <div className="guide-section__index">05</div>
               <div>
                 <p className="eyebrow">Be precise about the MVP</p>
                 <h2>Useful today, intentionally bounded.</h2>
                 <p>MergePay is a working DevNet builder submission, not production financial infrastructure. These constraints are part of the design and should remain visible to every user and reviewer.</p>
                 <div className="guide-limits">
                   <GuideLimit title="DevNet only" copy="The active deployment is unaudited and uses test RLO. Do not send production funds." />
-                  <GuideLimit title="Public GitHub only" copy="The current REX path reads a public pull-request merge endpoint. Private repositories and authenticated GitHub access are outside this MVP." />
-                  <GuideLimit title="Sponsor starts the check" copy="Merge verification is manual and one-shot. There is no webhook, scheduler, or automatic retry in the active product surface." />
+                  <GuideLimit title="Public GitHub only" copy="The current REX settlement path reads a public pull-request merge endpoint. Authenticated private-repository settlement is outside this MVP." />
+                  <GuideLimit title="Settlement is asynchronous" copy="The native heartbeat and REX callback run automatically after funding, but DevNet and GitHub response time mean a terminal receipt may not appear instantly. Manual check and refund controls remain idempotent fallbacks." />
                   <GuideLimit title="GitHub identity scope" copy="Contributor claims require read-only GitHub OAuth and an exact author-ID match for a public PR. MergePay does not request repository write access or support private repositories yet." />
                   <GuideLimit title="Rialo and GitHub are dependencies" copy="A slow RPC, unavailable REX path, changed GitHub response, or missing account can delay or prevent a decision." />
                   <GuideLimit title="Rent remains in the account" copy="Settlement returns or pays the bounty amount, while the workflow account retains the reserve required by Rialo." />
@@ -115,16 +143,16 @@ export default function GuidePage() {
             </section>
           </ScrollReveal>
 
-          <ScrollReveal delay={140}>
+          <ScrollReveal delay={150}>
             <section className="guide-section guide-review" id="review">
-              <div className="guide-section__index">05</div>
+              <div className="guide-section__index">06</div>
               <div>
                 <p className="eyebrow">For Rialo reviewers</p>
                 <h2>Everything important is inspectable.</h2>
                 <p>Use the app as a live walkthrough, then inspect the same facts from the chain. The current program, real transaction activity, workflow decoder, and terminal states are all exposed without a simulated success layer.</p>
                 <div className="guide-review__grid">
                   <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Live wallet-scoped activity</span></div>
-                  <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Claimed, funded, paid, and refunded states</span></div>
+                  <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Shareable paid and refunded receipts</span></div>
                   <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Fail-closed merge and refund branches</span></div>
                   <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Autonomous payout and refund E2E proven</span></div>
                 </div>

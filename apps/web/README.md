@@ -48,8 +48,8 @@ simulated.
 
 The `/guide` route is the product-facing introduction for users and reviewers. It
 explains what MergePay is, walks through the five-step bounty journey, describes the
-Rialo REX fit, and keeps the DevNet and GitHub limitations explicit. `/docs` remains
-the lower-level protocol reference.
+Rialo REX fit, teaches users how to read terminal receipts, and keeps the DevNet and
+GitHub limitations explicit. `/docs` remains the lower-level protocol reference.
 
 The workflow detail route decodes the exact sponsor-derived PDA through the live RPC
 relay. It shows the confirmed transaction signature, immutable terms, account balance,
@@ -64,7 +64,9 @@ and handles deadline refund without an expiring GitHub App token. Funded workflo
 also expose a sponsor-only immediate-check fallback, follow its official workflow
 lineage, and distinguish root scheduling from callback payout. Global transaction
 notifications and terminal-state alerts explain confirmed and failed actions without
-requiring a page refresh.
+requiring a page refresh. Paid and refunded workflows expose a shareable
+`/bounties/[slug]/receipt` view that re-reads the exact workflow account and shows the
+released amount, destination address, terminal flag, deadline, and retained rent.
 
 The UI calls a bounty paid only after the decoded account contains both
 `merge_confirmed=true` and `paid=true`; failed, inconclusive, and delayed callbacks keep

@@ -4,7 +4,15 @@ import {
   MERGEPAY_UNASSIGNED_BENEFICIARY,
   type DecodedMergePayWorkflow,
 } from "@mergepay/rialo-client";
-import { Check, CircleAlert, LoaderCircle, RadioTower, RefreshCw } from "lucide-react";
+import {
+  Check,
+  CircleAlert,
+  LoaderCircle,
+  RadioTower,
+  ReceiptText,
+  RefreshCw,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AcceptClaimAction } from "@/features/claim-bounty/components/accept-claim-action";
@@ -56,6 +64,17 @@ function workflowStatus(workflow: DecodedMergePayWorkflow) {
   return { label: "Open claim", className: "state--warn" };
 }
 
+function settlementReceiptHref(
+  slug: string,
+  workflow: DecodedMergePayWorkflow,
+): string {
+  const query = new URLSearchParams({
+    account: workflow.address,
+    sponsor: workflow.state.sponsor,
+  });
+  return `${routes.settlementReceipt(slug)}?${query.toString()}`;
+}
+
 const LIVE_WORKFLOW_POLL_INTERVAL_MS = 2_500;
 const PENDING_TRANSACTION_POLL_INTERVAL_MS = 1_500;
 const MAX_PENDING_TRANSACTION_READS = 24;
@@ -84,6 +103,7 @@ function WorkflowRecord({
   const deadlinePassed = useDeadlinePassed(state.deadlineUnixMs);
   const isUnclaimed = state.beneficiary === MERGEPAY_UNASSIGNED_BENEFICIARY;
   const isSponsor = useWallet().address === state.sponsor;
+  const terminalState = state.paid ? "paid" : state.refunded ? "refunded" : null;
   const checks = [
     ["Created", state.initialized],
     ["Claim approved", !isUnclaimed],
@@ -197,6 +217,27 @@ function WorkflowRecord({
           workflow={workflow}
           workflowSlug={workflowSlug}
         />
+      ) : null}
+
+      {terminalState ? (
+        <section className="workflow-settlement" data-outcome={terminalState}>
+          <span className="workflow-settlement__icon" aria-hidden="true">
+            <ReceiptText size={19} strokeWidth={1.7} />
+          </span>
+          <div>
+            <p className="panel-label">SETTLEMENT RECEIPT READY</p>
+            <h3>{terminalState === "paid" ? "Bounty paid in full" : "Escrow returned in full"}</h3>
+            <p>
+              {formatRlo(state.amountKelvin)} RLO was {terminalState === "paid" ? "released to the approved contributor" : "returned to the sponsor"}. View the onchain receipt for the exact destination and terminal proof.
+            </p>
+          </div>
+          <Link
+            className="button workflow-settlement__action"
+            href={settlementReceiptHref(workflowSlug, workflow)}
+          >
+            View receipt
+          </Link>
+        </section>
       ) : null}
 
       <div className="workflow-record__footer">

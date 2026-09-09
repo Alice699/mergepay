@@ -10,6 +10,7 @@ const requiredPaths = [
   "app/bounties/page.tsx",
   "app/bounties/new/page.tsx",
   "app/bounties/[slug]/page.tsx",
+  "app/bounties/[slug]/receipt/page.tsx",
   "app/activity/page.tsx",
   "app/guide/page.tsx",
   "app/docs/page.tsx",
@@ -28,6 +29,7 @@ const requiredPaths = [
   "components/motion/scroll-reveal.tsx",
   "components/wallet/transaction-approval-dialog.tsx",
   "components/bounty/workflow-detail.tsx",
+  "components/bounty/settlement-receipt.tsx",
   "components/bounty/open-bounty-feed.tsx",
   "features/create-bounty/components/create-bounty-form.tsx",
   "features/create-bounty/schema.ts",
@@ -86,6 +88,7 @@ test("ships product routes instead of route placeholders", async () => {
     "app/bounties/page.tsx",
     "app/bounties/new/page.tsx",
     "app/bounties/[slug]/page.tsx",
+    "app/bounties/[slug]/receipt/page.tsx",
     "app/docs/page.tsx",
   ];
 
@@ -173,6 +176,7 @@ test("uses semantic symbols without directional arrow UI", async () => {
     "app/docs/page.tsx",
     "components/bounty/workflow-lifecycle.tsx",
     "components/bounty/workflow-detail.tsx",
+    "components/bounty/settlement-receipt.tsx",
     "components/bounty/workflow-lookup.tsx",
     "features/fund-bounty/components/fund-bounty-action.tsx",
     "features/check-merge/components/check-merge-action.tsx",
@@ -488,6 +492,15 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
     new URL("hooks/use-workflow.ts", webRoot),
     "utf8",
   );
+  const settlementReceipt = await readFile(
+    new URL("components/bounty/settlement-receipt.tsx", webRoot),
+    "utf8",
+  );
+  const receiptPage = await readFile(
+    new URL("app/bounties/[slug]/receipt/page.tsx", webRoot),
+    "utf8",
+  );
+  const routes = await readFile(new URL("lib/constants.ts", webRoot), "utf8");
   const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
 
   assert.match(providers, /TransactionNotifications/);
@@ -499,9 +512,25 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(workflowDetail, /visibilitychange/);
   assert.match(workflowDetail, /publishAppNotification/);
   assert.match(workflowDetail, /Claim record address/);
+  assert.match(workflowDetail, /settlementReceiptHref/);
+  assert.match(workflowDetail, /View receipt/);
   assert.match(workflowHook, /state\.workflow/);
+  assert.match(receiptPage, /SettlementReceipt/);
+  assert.match(settlementReceipt, /getWorkflowByAddress/);
+  assert.match(settlementReceipt, /deriveWorkflowPda/);
+  assert.match(settlementReceipt, /state\.paid/);
+  assert.match(settlementReceipt, /state\.refunded/);
+  assert.match(settlementReceipt, /state\.amountKelvin/);
+  assert.match(settlementReceipt, /state\.beneficiary/);
+  assert.match(settlementReceipt, /state\.sponsor/);
+  assert.match(settlementReceipt, /account\.kelvin/);
+  assert.match(settlementReceipt, /No success is claimed until/);
+  assert.match(settlementReceipt, /PROOF MISMATCH/);
+  assert.match(routes, /settlementReceipt/);
   assert.match(styles, /width: min\(22rem, calc\(100vw - 2rem\)\)/);
   assert.match(styles, /\.workflow-claim__record/);
+  assert.match(styles, /\.workflow-settlement/);
+  assert.match(styles, /\.settlement-receipt__terminal-proof/);
   assert.match(styles, /\.copy-value > span:first-child/);
 });
 
@@ -518,6 +547,10 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
     new URL("app/docs/page.tsx", webRoot),
     "utf8",
   );
+  const guidePage = await readFile(
+    new URL("app/guide/page.tsx", webRoot),
+    "utf8",
+  );
   const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
 
   assert.match(activityFeed, /ACTIVITY_PAGE_SIZE = 8/);
@@ -532,5 +565,14 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.match(docsPage, /marketplaceDeployment\.programId/);
   assert.match(docsPage, /Autonomous payout and refund/);
   assert.match(docsPage, /requires no GitHub App installation token/);
+  assert.match(docsPage, /protocol-flow/);
+  assert.match(docsPage, /paid = true/);
+  assert.match(docsPage, /refunded = true/);
   assert.doesNotMatch(docsPage, /reviewCandidate\.programId/);
+  assert.match(guidePage, /native heartbeat/);
+  assert.match(guidePage, /shareable terminal receipt/);
+  assert.match(guidePage, /Settlement is asynchronous/);
+  assert.doesNotMatch(guidePage, /Sponsor starts the check|manual and one-shot/);
+  assert.match(styles, /\.protocol-flow/);
+  assert.doesNotMatch(styles, /\.code-flow/);
 });

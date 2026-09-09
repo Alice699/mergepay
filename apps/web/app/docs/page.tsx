@@ -39,21 +39,57 @@ export default function DocsPage() {
               <h2>Execution flow</h2>
               <p>A sponsor publishes an open workflow PDA. The contributor authenticates with GitHub, the server matches the numeric user ID to the exact public PR author, and the contributor signs a separate claim PDA. The sponsor approves that immutable claim before atomic preparation and funding lock the exact RLO escrow.</p>
               <p>Funding arms a native Rialo heartbeat. It rechecks the deadline, polls GitHub through REX, and completes payout or refund without another sponsor click. The workflow page keeps reading the decoded account while settlement is active and announces the confirmed terminal state without requiring a manual refresh.</p>
-              <div aria-label="MergePay instruction sequence" className="code-flow mono">
-                <span>create_bounty</span>
-                <i aria-hidden="true" className="code-flow__connector" />
-                <span>verify_identity</span>
-                <i aria-hidden="true" className="code-flow__connector" />
-                <span>request_claim</span>
-                <i aria-hidden="true" className="code-flow__connector" />
-                <span>accept_claim</span>
-                <i aria-hidden="true" className="code-flow__connector" />
-                <span>prepare + fund</span>
-                <i aria-hidden="true" className="code-flow__connector" />
-                <span>native heartbeat</span>
-                <i aria-hidden="true" className="code-flow__connector" />
-                <span>settlement callback</span>
-              </div>
+              <ol aria-label="MergePay execution phases" className="protocol-flow">
+                <li>
+                  <header>
+                    <span>01</span>
+                    <div><strong>Publish</strong><small>Sponsor</small></div>
+                  </header>
+                  <div className="protocol-flow__commands mono">
+                    <code>create_bounty</code>
+                  </div>
+                  <p>Commit the public PR, exact RLO amount, deadline, and open beneficiary state.</p>
+                </li>
+                <li>
+                  <header>
+                    <span>02</span>
+                    <div><strong>Authorize</strong><small>Contributor + sponsor</small></div>
+                  </header>
+                  <div className="protocol-flow__commands mono">
+                    <code>verify_identity</code>
+                    <i aria-hidden="true" />
+                    <code>request_claim</code>
+                    <i aria-hidden="true" />
+                    <code>accept_claim</code>
+                  </div>
+                  <p>Match the GitHub author, record the payout wallet, and lock sponsor approval.</p>
+                </li>
+                <li>
+                  <header>
+                    <span>03</span>
+                    <div><strong>Lock escrow</strong><small>Sponsor</small></div>
+                  </header>
+                  <div className="protocol-flow__commands mono">
+                    <code>prepare_funding</code>
+                    <i aria-hidden="true" />
+                    <code>fund</code>
+                  </div>
+                  <p>Stabilize workflow storage, transfer the exact bounty, and arm settlement.</p>
+                </li>
+                <li className="protocol-flow__terminal">
+                  <header>
+                    <span>04</span>
+                    <div><strong>Settle</strong><small>Rialo runtime</small></div>
+                  </header>
+                  <div className="protocol-flow__commands mono">
+                    <code>native_heartbeat</code>
+                  </div>
+                  <div className="protocol-flow__outcomes">
+                    <span data-outcome="paid"><b>PR MERGED</b><code>paid = true</code></span>
+                    <span data-outcome="refunded"><b>DEADLINE</b><code>refunded = true</code></span>
+                  </div>
+                </li>
+              </ol>
             </div>
           </section>
 
@@ -89,7 +125,7 @@ export default function DocsPage() {
             <span className="docs-index">04</span>
             <div>
               <h2>Settlement &amp; limits</h2>
-              <p>The native heartbeat owns both terminal paths. A unanimous merged proof pays the contributor; reaching the immutable deadline first refunds the sponsor. Terminal flags and exact-amount accounting prevent a second release when a manual fallback races an automatic callback.</p>
+              <p>The native heartbeat owns both terminal paths. A unanimous merged proof pays the contributor; reaching the immutable deadline first refunds the sponsor. Terminal flags and exact-amount accounting prevent a second release when a manual fallback races an automatic callback. Each terminal workflow exposes a shareable receipt containing the exact amount, destination, reserve, and decoded success flag.</p>
 
               <div className="docs-proof-grid">
                 <div><span>MERGED PR</span><strong>Automatic payout</strong><small>Runtime-proven on DevNet</small></div>
