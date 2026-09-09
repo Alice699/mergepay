@@ -196,7 +196,7 @@ rialo! {
                 Ok(())
             }
 
-            control fn fund(&mut self, github_auth_ciphertext: Vec<u8>) -> ProgramResult {
+            control fn fund(&mut self) -> ProgramResult {
                 self.require_sponsor()?;
                 if self.claim_request
                     || self.beneficiary == Pubkey::default()
@@ -206,20 +206,12 @@ rialo! {
                 {
                     return Err(ProgramError::InvalidArgument);
                 }
-                // The funding envelope contains two DKG-encrypted payloads:
-                // the GitHub URL and the Authorization header. Encrypting the
-                // URL as well forces the HTTP REX through the DKG
-                // execute-partials path; Rialo 0.18.1 otherwise treats an
-                // encrypted header as an unsupported plain HTTP duty.
-                if github_auth_ciphertext.len() < 2
-                    || github_auth_ciphertext.len() > 4_096
-                    || github_auth_ciphertext.first() != Some(&2)
+                if self.github_auth_ciphertext.len() < 2
+                    || self.github_url_ciphertext.len() < 2
                 {
-                    msg!("MergePay rejected funding: invalid GitHub auth envelope");
+                    msg!("MergePay rejected funding: settlement storage is not prepared");
                     return Err(ProgramError::InvalidArgument);
                 }
-                let (github_url_ciphertext, github_auth_ciphertext) =
-                    self.decode_github_rex_envelope(&github_auth_ciphertext)?;
 
                 let current_unix_ms = self.unix_timestamp_ms();
                 if current_unix_ms < 0 || current_unix_ms as u64 >= self.deadline_unix_ms {
@@ -249,8 +241,6 @@ rialo! {
                     ],
                 )?;
 
-                self.github_auth_ciphertext = github_auth_ciphertext;
-                self.github_url_ciphertext = github_url_ciphertext;
                 self.next_merge_check_unix_ms = 0;
                 self.funded = true;
                 // Start the autonomous settlement loop as soon as escrow is
@@ -515,7 +505,14 @@ rialo! {
 
             fn execute_refund(&mut self, enforce_deadline: bool) -> ProgramResult {
                 let current_unix_ms = self.unix_timestamp_ms();
-                if !self.funded || self.paid || self.refunded {
+                // A manual fallback can race the native deadline heartbeat.
+                // Treat an already-refunded workflow as success so a stale UI
+                // click refreshes cleanly instead of surfacing a false failure.
+                if self.refunded {
+                    msg!("MergePay refund was already settled");
+                    return Ok(());
+                }
+                if !self.funded || self.paid {
                     if enforce_deadline {
                         return Err(ProgramError::InvalidArgument);
                     }
@@ -578,6 +575,66 @@ rialo! {
                     self.claimant_github,
                     self.claimant_github_id
                 );
+                Ok(())
+            }
+
+            // Funding is deliberately split into two instructions in one atomic
+            // transaction. Venus resizes workflow storage after an instruction
+            // returns and normalizes its balance to rent while doing so. If the
+            // escrow transfer happens in the same instruction that grows the
+            // settlement fields, that normalization returns the bounty to
+            // the sponsor. Preparing first lets the account resize; `fund` then
+            // transfers into an already stable account and the escrow remains
+            // locked until payout or refund.
+            control fn prepare_funding(
+                &mut self,
+                github_auth_ciphertext: Vec<u8>,
+            ) -> ProgramResult {
+                self.require_sponsor()?;
+                if self.claim_request
+                    || self.beneficiary == Pubkey::default()
+                    || self.funded
+                    || self.paid
+                    || self.refunded
+                {
+                    return Err(ProgramError::InvalidArgument);
+                }
+                // Keep a small, versioned preparation envelope in workflow
+                // storage before escrow is transferred. This deliberately
+                // forces any account resize into the first instruction of the
+                // atomic prepare+fund transaction, before funds are locked.
+                if github_auth_ciphertext.len() < 2
+                    || github_auth_ciphertext.len() > 4_096
+                    || github_auth_ciphertext.first() != Some(&2)
+                {
+                    msg!("MergePay rejected funding preparation: invalid settlement envelope");
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                let (github_url_ciphertext, github_auth_ciphertext) =
+                    self.decode_github_rex_envelope(&github_auth_ciphertext)?;
+                let current_unix_ms = self.unix_timestamp_ms();
+                if current_unix_ms < 0 || current_unix_ms as u64 >= self.deadline_unix_ms {
+                    msg!("MergePay rejected funding preparation: bounty deadline has passed");
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                if !self.github_auth_ciphertext.is_empty()
+                    || !self.github_url_ciphertext.is_empty()
+                {
+                    if self.github_auth_ciphertext == github_auth_ciphertext
+                        && self.github_url_ciphertext == github_url_ciphertext
+                    {
+                        msg!("MergePay settlement storage was already prepared");
+                        return Ok(());
+                    }
+                    msg!("MergePay rejected funding preparation: proof already locked");
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                self.github_auth_ciphertext = github_auth_ciphertext;
+                self.github_url_ciphertext = github_url_ciphertext;
+                msg!("MergePay settlement storage prepared for atomic funding");
                 Ok(())
             }
 
@@ -669,9 +726,19 @@ rialo! {
             }
 
             fn github_url(&self) -> rialo_types::RexUrl {
-                rialo_types::RexUrl::from(rialo_types::RexValue::Encrypted(
-                    self.github_url_ciphertext.clone(),
-                ))
+                // MergePay supports public repositories. GitHub documents the
+                // merge-status endpoint as callable without authentication for
+                // public resources, so construct the fixed-domain URL from
+                // committed workflow state. This avoids expiring token
+                // snapshots and the encrypted HTTP input path while preserving
+                // validator-consensus REX verification.
+                format!(
+                    "https://api.github.com/repos/{}/{}/pulls/{}/merge",
+                    self.github_owner,
+                    self.github_repo,
+                    self.pull_number
+                )
+                .into()
             }
 
             fn valid_github_slug(&self, value: &str) -> bool {
@@ -700,10 +767,6 @@ rialo! {
                 headers.insert(
                     "User-Agent".to_string(),
                     rialo_types::RexValue::plain_string("MergePay-Rialo/0.1")
-                );
-                headers.insert(
-                    "Authorization".to_string(),
-                    rialo_types::RexValue::Encrypted(self.github_auth_ciphertext.clone())
                 );
                 rialo_types::Headers::new(headers)
             }

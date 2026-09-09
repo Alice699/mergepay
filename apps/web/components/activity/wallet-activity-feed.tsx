@@ -25,6 +25,7 @@ type ActivityState =
 
 const actionLabels: Record<MergePayInstructionName | "network", string> = {
   create_bounty: "Created bounty",
+  prepare_funding: "Prepared escrow storage",
   fund: "Funded escrow",
   check_merge: "Checked merge",
   refund: "Refunded escrow",
@@ -36,6 +37,7 @@ const actionLabels: Record<MergePayInstructionName | "network", string> = {
 
 const actionDetails: Record<MergePayInstructionName | "network", string> = {
   create_bounty: "Workflow terms committed on Rialo",
+  prepare_funding: "Workflow storage stabilized before escrow funding",
   fund: "Committed RLO moved into the workflow account",
   check_merge: "GitHub merge verification requested through REX",
   refund: "Expired escrow returned to the sponsor",

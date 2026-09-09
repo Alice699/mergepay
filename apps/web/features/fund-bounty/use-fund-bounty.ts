@@ -26,67 +26,14 @@ export type FundBountyExecutor = TransactionExecutor<
   FundBountyResult
 >;
 
-async function getGithubAppAuthCiphertext(
-  sponsor: string,
-  workflowSlug: string,
-): Promise<Uint8Array> {
-  let response: Response;
-  try {
-    response = await fetch("/api/github/rex-auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sponsor, workflowSlug }),
-      cache: "no-store",
-    });
-  } catch (cause) {
-    throw new MergePayUiError(
-      "The encrypted GitHub App authorization service could not be reached.",
-      "GITHUB_APP_AUTH_UNAVAILABLE",
-      { cause: cause instanceof Error ? cause : undefined },
-    );
-  }
-
-  let payload: unknown = null;
-  try {
-    payload = await response.json();
-  } catch {
-    // Keep the user-facing error below stable even if the server returned HTML.
-  }
-
-  const responsePayload =
-    typeof payload === "object" && payload !== null && !Array.isArray(payload)
-      ? (payload as Record<string, unknown>)
-      : null;
-  if (
-    !response.ok ||
-    responsePayload === null ||
-    typeof responsePayload.ciphertext !== "string"
-  ) {
-    const serverMessage =
-      responsePayload !== null && typeof responsePayload.error === "string"
-        ? responsePayload.error
-        : "The GitHub App authorization could not be prepared.";
-    throw new MergePayUiError(serverMessage, "GITHUB_APP_AUTH_UNAVAILABLE");
-  }
-
-  const encoded = responsePayload.ciphertext;
-  try {
-    const binary = atob(encoded);
-    const ciphertext = Uint8Array.from(binary, (character) =>
-      character.charCodeAt(0),
-    );
-    if (ciphertext.length < 2 || ciphertext[0] !== 2) {
-      throw new Error("invalid DKG envelope");
-    }
-    return ciphertext;
-  } catch (cause) {
-    throw new MergePayUiError(
-      "The encrypted GitHub App authorization was malformed.",
-      "GITHUB_APP_AUTH_INVALID",
-      { cause: cause instanceof Error ? cause : undefined },
-    );
-  }
-}
+// This versioned compatibility envelope makes Venus resize workflow storage
+// before escrow enters the PDA. Public GitHub merge status is then read through
+// a plain, fixed-domain REX request and needs no expiring installation token.
+const FUNDING_PREPARATION_ENVELOPE = Uint8Array.from([
+  2,
+  2, 0, 0, 0, 2, 0,
+  2, 0, 0, 0, 2, 0,
+]);
 
 export function useFundBounty() {
   const wallet = useWallet();
@@ -162,16 +109,13 @@ export function useFundBounty() {
       );
     }
 
-    const githubAuthCiphertext = await getGithubAppAuthCiphertext(
-      wallet.address,
-      workflowSlug,
-    );
+    const githubAuthCiphertext = new Uint8Array(FUNDING_PREPARATION_ENVELOPE);
     const currentSpace = workflow.account.space;
     const ciphertextLength = BigInt(githubAuthCiphertext.length);
     const targetSpace = currentSpace + ciphertextLength;
     if (targetSpace > BigInt(Number.MAX_SAFE_INTEGER)) {
       throw new MergePayUiError(
-        "The workflow account is too large to resize safely for authenticated REX.",
+        "The workflow account is too large to resize safely before funding.",
         "WORKFLOW_STORAGE_TOO_LARGE",
       );
     }
@@ -202,13 +146,18 @@ export function useFundBounty() {
       );
     }
 
-    const instruction = network.client.buildFund({
+    const prepareInstruction = network.client.buildPrepareFunding({
       payer: wallet.address,
       workflowSlug,
       githubAuthCiphertext,
     });
+    const fundInstruction = network.client.buildFund({
+      payer: wallet.address,
+      workflowSlug,
+    });
     const transaction = await network.client.buildTransaction(wallet.address, [
-      instruction,
+      prepareInstruction,
+      fundInstruction,
     ]);
     const confirmation = await wallet.submitTransaction(transaction, {
       action: "Fund bounty",
@@ -223,12 +172,12 @@ export function useFundBounty() {
         workflow.state.pullNumber.toString() +
         ".",
       amountKelvin: workflow.state.amountKelvin.toString(),
-      workflowAddress: instruction.workflowPda,
+      workflowAddress: fundInstruction.workflowPda,
     });
 
     return {
       signature: confirmation.signature,
-      workflowAddress: instruction.workflowPda,
+      workflowAddress: fundInstruction.workflowPda,
       amountKelvin: workflow.state.amountKelvin,
     };
   };

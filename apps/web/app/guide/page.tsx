@@ -126,7 +126,7 @@ export default function GuidePage() {
                   <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Live wallet-scoped activity</span></div>
                   <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Claimed, funded, paid, and refunded states</span></div>
                   <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Fail-closed merge and refund branches</span></div>
-                  <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Marketplace ABI deployed; E2E pending</span></div>
+                  <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Autonomous payout and refund E2E proven</span></div>
                 </div>
                 <div className="guide-program">
                   <span className="panel-label">ACTIVE MARKETPLACE PROGRAM</span>

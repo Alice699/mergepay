@@ -18,10 +18,10 @@ signals across transactions.
 
 ## What is live
 
-- Runtime-proven review candidate: `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB`
-- Autonomous settlement ABI deployment: `HGHsAJEQRwWDADTkzuwsFPE3UmafdmXRap1Mjk19q5id` (refund guard fix deployed; E2E pending)
+- Runtime-proven autonomous settlement: `6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5`
+- Previous runtime-proven review deployment: `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB` (historical)
 - Previous reset deployment: `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
-- Hardened metadata: RISC-V executable, slot `7138100`, fresh runtime proof verified
+- Hardened metadata: `231269`-byte RISC-V executable, slot `11428520`, fresh runtime proof verified
 - RISC-V / PolkaVM Venus program built against `0.18.1`
 - Sponsor-created and funded workflow PDA
 - GitHub merge check through built-in HTTP REX
@@ -38,14 +38,14 @@ signals across transactions.
 
 ## Three-minute demo
 
-1. Show `programs/mergepay-rialo/src/lib.rs` and the six workflow functions.
-2. Show the hardened deployment with `rialo client program show` and the fresh
-   runtime-proven evidence in `docs/EVIDENCE.md`.
-3. Inspect merged check transaction `5njvCt6E...`.
-4. Follow its lineage to callback `5Rd8NV93...`.
-5. Show the callback release log and exact beneficiary/PDA balance deltas.
-6. Contrast open-PR callback `bsZiH8vP...`, where escrow remains locked.
-7. Show early refund rejection `4Y9ovp4F...` and valid refund `3Y5U5H5F...`.
+1. Show `programs/mergepay-rialo/src/lib.rs` and the atomic
+   `prepare_funding` + `fund` path.
+2. Show program `6LwYm...` with `rialo client program show` and the final evidence in
+   `docs/EVIDENCE.md`.
+3. Inspect merged-PR callback `D8gSMi1e...` and its `50,000,000`-kelvin payout log.
+4. Inspect automatic refund callback `3df8q5SM...` and its exact refund log.
+5. Show manual refund transaction `NViDopSB...` succeeding idempotently after the
+   automatic timer won the settlement race.
 
 Full signatures and balances are in [EVIDENCE.md](EVIDENCE.md).
 
@@ -72,9 +72,8 @@ Full signatures and balances are in [EVIDENCE.md](EVIDENCE.md).
 - Terminal flags prevent replayed settlement.
 - Rent reserve is preserved on both payout and refund.
 - PDA ownership and all settlement balance arithmetic are checked explicitly.
-- No plaintext API token or private key is stored in source, browser storage, logs, or
-  workflow responses. Funding stores only a sponsor-bound DKG ciphertext for the REX
-  `Authorization` header.
+- The active public-repository settlement path uses no GitHub API token or private key.
+  Funding stores only a small versioned preparation envelope before locking escrow.
 
 See [SECURITY.md](SECURITY.md) for the full threat model and limitations.
 
@@ -82,12 +81,12 @@ See [SECURITY.md](SECURITY.md) for the full threat model and limitations.
 
 This is a DevNet MVP, not an audited production payment protocol. It currently supports
 public GitHub repositories, native RLO, one beneficiary, and native post-funding checks
-with a sponsor fallback. Authenticated REX checks require a server-only, read-only
-GitHub App installation token during funding.
+with a sponsor fallback. Public merge proof uses GitHub's fixed merge-status endpoint
+without an installation token; private repositories remain out of scope.
 The reactive external verification and settlement path is real and fully demonstrated.
 The dApp includes an experimental DevNet-only embedded signer because a public Rialo
-extension is not required for review. Token rotation for already-funded workflows,
-private-repository policy, production wallet hardening, and audit work remain out of
+extension is not required for review. Private-repository authentication, production
+wallet hardening, and audit work remain out of
 scope.
 
 ## Review checklist

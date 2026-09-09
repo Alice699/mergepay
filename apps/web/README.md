@@ -57,9 +57,11 @@ and persisted lifecycle flags. Created workflows expose a sponsor-only Fund boun
 action. Before opening wallet approval, that action re-reads the workflow, rejects
 wrong-wallet, expired, already-funded, paid, or refunded states, and verifies that the
 live sponsor balance covers the exact bounty amount plus fee headroom. The detail view
-refreshes from Rialo only after executed confirmation. Funded workflows expose a
-sponsor-only merge check that submits the generated one-shot REX instruction, follows
-its official workflow lineage, and distinguishes root scheduling from callback payout.
+refreshes from Rialo only after executed confirmation. Funding atomically prepares
+workflow storage and locks escrow, then the native heartbeat polls the public GitHub
+merge-status endpoint and handles deadline refund without an expiring GitHub App token.
+Funded workflows also expose a sponsor-only immediate-check fallback, follow its
+official workflow lineage, and distinguish root scheduling from callback payout.
 The UI calls a bounty paid only after the decoded account contains both
 `merge_confirmed=true` and `paid=true`; failed, inconclusive, and delayed callbacks keep
 the escrow visibly locked. Once an unpaid funded workflow passes its immutable deadline,
@@ -99,7 +101,7 @@ Copy `.env.example` into the runtime environment when overriding the defaults:
 NEXT_PUBLIC_RIALO_NETWORK=devnet
 NEXT_PUBLIC_RIALO_RPC_URL=/api/rialo
 RIALO_RPC_UPSTREAM_URL=https://devnet.rialo.io
-NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=HGHsAJEQRwWDADTkzuwsFPE3UmafdmXRap1Mjk19q5id
+NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5
 ```
 
 `NEXT_PUBLIC_RIALO_RPC_URL` should remain same-origin unless a replacement endpoint
@@ -108,3 +110,7 @@ to the official DevNet RPC. The program ID is optional for the active DevNet dep
 but keeping it explicit is recommended for a reviewer. No extension is required for the
 embedded DevNet wallet. If a compatible Wallet Standard extension is installed, Frost
 exposes it as a separate signing method.
+
+The active public-repository settlement flow does not require `GITHUB_APP_ID`,
+`GITHUB_APP_INSTALLATION_ID`, or `GITHUB_APP_PRIVATE_KEY`. GitHub OAuth credentials
+remain required only for contributor identity verification.

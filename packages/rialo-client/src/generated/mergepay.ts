@@ -3,16 +3,16 @@
  *
  * The values mirror programs/mergepay-rialo/wit/mergepay-rialo-manifest.json
  * and the current marketplace deployment recorded in deployments/devnet.json.
- * The source candidate uses one native settlement heartbeat: it polls GitHub
+ * The active deployment uses one native settlement heartbeat: it polls GitHub
  * on a bounded cadence and refunds from the same heartbeat after the deadline.
  * Keep protocol values here so UI code never has to duplicate ABI details.
  */
 
 export const MERGEPAY_MANIFEST_VERSION = "1.1" as const;
 
-/** Current DevNet marketplace program; full claim and settlement E2E is still pending. */
+/** Current DevNet marketplace program; automatic payout/refund E2E is runtime-proven. */
 export const MERGEPAY_PROGRAM_ID =
-  "HGHsAJEQRwWDADTkzuwsFPE3UmafdmXRap1Mjk19q5id" as const;
+  "6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5" as const;
 
 export const MERGEPAY_WELL_KNOWN_ADDRESSES = {
   systemProgram: "11111111111111111111111111111111",
@@ -31,21 +31,23 @@ export const MERGEPAY_INSTRUCTION_DISCRIMINANTS = {
   status: 0,
   fund: 1,
   check_merge: 2,
-  create_bounty: 4,
-  request_claim: 5,
-  accept_claim: 6,
-  refund: 8,
+  prepare_funding: 4,
+  create_bounty: 5,
+  request_claim: 6,
+  accept_claim: 7,
+  refund: 9,
 } as const;
 
 /** `run_merge_check` callback discriminant. */
-export const MERGEPAY_CALLBACK_DISCRIMINANT = 7;
-export const MERGEPAY_TIMER_CALLBACK_DISCRIMINANT = 7;
+export const MERGEPAY_CALLBACK_DISCRIMINANT = 8;
+export const MERGEPAY_TIMER_CALLBACK_DISCRIMINANT = 8;
 
 /**
  * Account indexes used by the generated Venus constructors.
  *
- * `fund` installs the initial settlement heartbeat, while `run_merge_check`
- * owns a second timer subscription in addition to its REX response subscription.
+ * `prepare_funding` grows storage before `fund` locks the escrow. `fund`
+ * installs the initial settlement heartbeat, while `run_merge_check` owns a
+ * second timer subscription in addition to its REX response subscription.
  */
 export const MERGEPAY_ACCOUNT_INDEXES = {
   payer: 0,

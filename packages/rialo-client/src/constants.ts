@@ -1,5 +1,6 @@
 export const MERGEPAY_INSTRUCTION_NAMES = [
   "create_bounty",
+  "prepare_funding",
   "fund",
   "check_merge",
   "refund",

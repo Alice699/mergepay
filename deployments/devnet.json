@@ -13,20 +13,42 @@
     "evidence": "docs/EVIDENCE.md"
   },
   "autonomousSettlementCandidate": {
-    "programId": "HGHsAJEQRwWDADTkzuwsFPE3UmafdmXRap1Mjk19q5id",
-    "status": "deployed-refund-fix-awaiting-e2e",
-    "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v2",
+    "programId": "6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5",
+    "status": "runtime-proven-autonomous-settlement",
+    "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v4",
     "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
-    "bytes": 229550,
-    "sha256": "C7958A47C7BD9115E3B5FFBC5E95B6192A7A42C91E8CC72A2162FA862AC5AD61",
-    "deployedSlot": 11392367,
-    "dataLength": 229598,
-    "executableDataLength": 229550,
+    "bytes": 231269,
+    "sha256": "5B197F5D0E0A9E538DCFD0C9D2E2D168B0FB008CA7940E5DF58CF4CE9D4FE8CA",
+    "deployedSlot": 11428520,
+    "dataLength": 231317,
+    "executableDataLength": 231269,
     "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
-    "balanceRlo": 1.59889296,
+    "balanceRlo": 1.6108572,
     "rexComponents": null,
     "deploymentWarning": "No rex_components.bin found; deployment contains no REX components.",
-    "supersedes": "Gdbcab4Wn5zyUYAP8C7MZzWtfbsVpYX3k6FuhnY5Dbe3"
+    "supersedes": "HUiJVvpmW1GL1mGUoFAz4Pi1PYQJ7HE2Mgi9UtgtC6v8",
+    "runtimeProof": {
+      "recordedAt": "2026-09-09",
+      "mergedPayout": {
+        "workflowPda": "6Wpd3Qq24Bbrnx3Xcz3yRciKTSsYX5mTMUUmxfU3GyU",
+        "create": "2fgWcrHTZLdvZ7RCfgDYAtGhqyGMF6Ff8qjiopft2rj2wv2KrGWRzyTvsSKUH8zu6ETdiETes3CfcWheoKzfYUJH",
+        "prepareFund": "EuUw21vH97bAtZC1MJYgABJqpn19xifcfEporPsit2GptFgkPYsx5QaRcTvia7YWpZSRdJ1we3kh72pmeKRB9ZT",
+        "callback": "D8gSMi1e3jy5PUNmDPxVoeojQkQJG4QQ6gJfWcBkE5Ca7VVJgQD2gSQX7cxbXPRYmEY4sfgrbAJrqGHvSYBwDU3",
+        "status": "paid"
+      },
+      "automaticRefund": {
+        "workflowPda": "8FSEuCtJ17YytzZwRQuRHMLtGvENenKpG8UYbcbNrkMv",
+        "create": "4hoS8XtvMpTwozooLXSf2D1Fd4RiDgiBWMnwTiRR4TKC7H6AvB9Bo1zvtQGJVb6beTp3NjU8bsW7TLonXmi6y7j3",
+        "prepareFund": "3AzsMsbJJxcva2PiKfz3k6piTezRt5NJhCE6tUGd9AuQfWhotCnqnrqTEohbRwuCVkizo6GTwWXy6rSZFUzYuUWv",
+        "callback": "3df8q5SMWdjgjesMbojTGZnKKf6BmwY7U92rvLPegzUTo5gD2RiVwn9xGaAgnLhAssiQ5qSsDAidTkxtMqZgya6B",
+        "status": "refunded"
+      },
+      "manualRefundRace": {
+        "workflowPda": "HYy79RSUHiDNcP57DK9tupCrFWCBxjPHyNeCeJfVqAyB",
+        "refund": "NViDopSBzo59uDX4FnYCHVWLoY3vX3DAiKbULswogAAjfiW3TYmpyfNp6bzd25c5JDFLztL7Uy6ioybGtf1raWh",
+        "status": "idempotent-success-after-automatic-refund"
+      }
+    }
   },
   "previousRuntimeCandidate": {
     "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",

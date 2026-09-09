@@ -70,7 +70,7 @@ next_merge_check_unix_ms: u64
 | Missing | `create_bounty` | Valid inputs, future deadline, zero beneficiary sentinel | Open bounty PDA initialized |
 | Open bounty | `request_claim` | Contributor payer; OAuth identity matches the target PR; target open; before deadline | Contributor-owned claim PDA records wallet, GitHub login, and numeric user ID |
 | Open bounty + claim record | `accept_claim` | Sponsor; exact target terms and GitHub identity match; before deadline | Beneficiary and claimant GitHub identity locked on main PDA |
-| Claimed | `fund` | Sponsor; beneficiary approved; not terminal; valid DKG GitHub App envelope | Exact escrow transferred and authenticated REX checks armed |
+| Claimed | atomic `prepare_funding` + `fund` | Sponsor; beneficiary approved; not terminal; valid preparation envelope | Storage resized, exact escrow transferred, and public merge-status REX checks armed |
 | Funded | Native merge timer | Funded; active beneficiary; before deadline | Fresh `run_merge_check` branch without sponsor click |
 | Funded | Merge-check handler (manual fallback: `check_merge`) | Sponsor; current Venus branch; before deadline | Immediate fresh one-shot REX + subscription |
 | Funded | Callback: all `204` | Beneficiary/account match; sufficient PDA balance | Paid; escrow released |
@@ -112,9 +112,9 @@ records. The UI exposes scope, lifecycle status, repository, deadline, and text 
 and labels the shared DevNet source. The RPC relay exposes only the bounded read methods
 needed for this path. A persistent server-side historical indexer remains a release task.
 
-## Native autonomous settlement candidate
+## Native autonomous settlement
 
-The current source candidate registers one native settlement heartbeat while `fund`
+The active deployment registers one native settlement heartbeat while `fund`
 executes:
 
 ```text
@@ -128,14 +128,13 @@ expiry. This makes both settlement paths continue without a sponsor click; the m
 `check_merge` action remains an immediate fallback. Every timer and REX branch uses
 fresh subscription/REX PDAs derived from its Venus branch.
 
-The web funding route mints a short-lived read-only GitHub App installation token on
-demand, encrypts both the exact GitHub merge endpoint URL and `Bearer <token>` with the active
-Rialo DKG key and the sponsor public key as AAD, then serializes both payloads into the
-final `fund` argument. The program stores only those ciphertexts and inserts them as
-the encrypted REX URL and `Authorization` header. Encrypting the URL is important on
-DevNet 0.18.1: it forces the HTTP request through the DKG execute-partials path rather
-than treating an encrypted header as an unsupported plain HTTP duty. The token never
-reaches the browser or the workflow decoder.
+The browser submits `prepare_funding` and `fund` in one transaction. The first
+instruction stores a small versioned compatibility envelope so Venus performs the
+workflow resize and rent normalization before escrow is transferred; the second locks
+the exact bounty amount. MergePay then constructs the fixed-domain public GitHub
+merge-status URL from committed repository fields and sends only plain `Accept`, API
+version, and `User-Agent` headers. The active public-repository path therefore needs no
+GitHub App installation token, private key, or expiring authorization snapshot.
 
 The workflow stores deadlines as Unix milliseconds to match the browser and client
 ABI. The program normalizes Rialo's Unix-second clock to milliseconds before every
@@ -145,12 +144,12 @@ pay while the refund path is authoritative. Payout and refund release only the
 committed escrow amount and leave any remaining workflow balance for its state/rent
 reserve when available.
 
-The generated `fund` ABI now carries the packed encrypted GitHub envelope and one
-subscription account. The generated `run_merge_check` callback carries two
+The generated `prepare_funding` ABI carries the compatibility envelope, while `fund`
+carries one subscription account. The generated `run_merge_check` callback carries two
 subscription accounts plus one REX account: one subscription re-arms the heartbeat
 and the other waits for the REX response. The source, artifact, and DevNet deployment
-are validated; fresh DevNet lineage is still required to prove that a merged PR pays
-and an unmerged PR refunds without a manual button click.
+are validated, and recorded lineage proves both merged-PR payout and deadline refund
+without a manual button click.
 
 Rialo's generated timestamp predicate uses an active window of roughly 100 commits;
 the explicit 30-second re-arm is therefore part of the liveness design, not an

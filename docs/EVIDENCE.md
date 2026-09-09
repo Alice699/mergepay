@@ -1,5 +1,60 @@
 # DevNet Evidence
 
+Current runtime-proven autonomous settlement:
+`6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5`
+
+## Final autonomous-settlement proof (2026-09-09)
+
+The active program was deployed at slot `11428520` as a `231269`-byte PolkaVM
+executable with SHA-256
+`5B197F5D0E0A9E538DCFD0C9D2E2D168B0FB008CA7940E5DF58CF4CE9D4FE8CA`.
+Every workflow below used this exact program and locked `50,000,000` kelvin. The
+terminal workflow balance was `2,436,000` kelvin, preserving state/rent instead of
+releasing it with escrow.
+
+### Automatic merged-PR payout
+
+Fixture: `Alice699/mergepay-demo#3` (merged).
+
+| Step | Signature | Result |
+| --- | --- | --- |
+| Create | `2fgWcrHTZLdvZ7RCfgDYAtGhqyGMF6Ff8qjiopft2rj2wv2KrGWRzyTvsSKUH8zu6ETdiETes3CfcWheoKzfYUJH` | Success |
+| Atomic prepare + fund | `EuUw21vH97bAtZC1MJYgABJqpn19xifcfEporPsit2GptFgkPYsx5QaRcTvia7YWpZSRdJ1we3kh72pmeKRB9ZT` | Escrow locked; heartbeat armed |
+| Reactive payout | `D8gSMi1e3jy5PUNmDPxVoeojQkQJG4QQ6gJfWcBkE5Ca7VVJgQD2gSQX7cxbXPRYmEY4sfgrbAJrqGHvSYBwDU3` | `50,000,000` kelvin released automatically |
+
+Workflow PDA: `6Wpd3Qq24Bbrnx3Xcz3yRciKTSsYX5mTMUUmxfU3GyU`.
+
+- Callback log: `MergePay released 50000000 kelvin to 5wk6cLsYjhYSpr7brqtJ7xnvzbh1zvUpoSxeivbjyEkd`.
+- Final state: paid; no sponsor check button was used.
+
+### Automatic deadline refund
+
+Fixture: `Alice699/mergepay-demo#5` (not merged before deadline).
+
+| Step | Signature | Result |
+| --- | --- | --- |
+| Create | `4hoS8XtvMpTwozooLXSf2D1Fd4RiDgiBWMnwTiRR4TKC7H6AvB9Bo1zvtQGJVb6beTp3NjU8bsW7TLonXmi6y7j3` | Success |
+| Atomic prepare + fund | `3AzsMsbJJxcva2PiKfz3k6piTezRt5NJhCE6tUGd9AuQfWhotCnqnrqTEohbRwuCVkizo6GTwWXy6rSZFUzYuUWv` | Escrow locked; heartbeat armed |
+| Reactive refund | `3df8q5SMWdjgjesMbojTGZnKKf6BmwY7U92rvLPegzUTo5gD2RiVwn9xGaAgnLhAssiQ5qSsDAidTkxtMqZgya6B` | `50,000,000` kelvin returned automatically |
+
+Workflow PDA: `8FSEuCtJ17YytzZwRQuRHMLtGvENenKpG8UYbcbNrkMv`.
+
+- Callback log: `MergePay refunded 50000000 kelvin to sponsor`.
+- Final state: refunded; no refund button was used.
+
+### Manual-refund race safety
+
+Workflow PDA: `HYy79RSUHiDNcP57DK9tupCrFWCBxjPHyNeCeJfVqAyB`.
+
+The manual fallback transaction
+`NViDopSBzo59uDX4FnYCHVWLoY3vX3DAiKbULswogAAjfiW3TYmpyfNp6bzd25c5JDFLztL7Uy6ioybGtf1raWh`
+landed after the native timer had already refunded. It still completed successfully
+with `MergePay refund was already settled`, proving the fallback is idempotent and
+cannot release escrow twice.
+
+The repeatable harness is [scripts/devnet-refund-smoke.mjs](../scripts/devnet-refund-smoke.mjs).
+The older records below are retained as historical protocol evidence.
+
 Runtime-proven review candidate: `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB`
 
 Previous runtime candidate reset by DevNet: `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
@@ -16,14 +71,12 @@ Latest marketplace ABI deployment (2026-09-07):
 Superseded marketplace ABI deployment:
 `6PWtFXUA21nTjALCFwsbmpQyzn4ifEHnbPy56MmF1etL`
 
-The marketplace ABI is deployed and selected by the current client, but its claim
-and settlement E2E flow is intentionally not marked runtime-proven yet. The E2E
-handoff is: create open bounty → OAuth claim → sponsor approval → fund → merge or
-refund.
+The marketplace ABI below is superseded historical deployment evidence. The current
+client selects the autonomous settlement program recorded above.
 
-Latest marketplace deployment metadata:
+Historical marketplace deployment metadata:
 
-- Status: `deployed-awaiting-e2e`
+- Status: `superseded-awaiting-e2e`
 - Artifact: `programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm`
 - Size: `218878` bytes
 - SHA-256: `FC64888E6D3136F4B6AED5DF5E8C0B5444FD472138D9F4B5C011D1124597AA47`

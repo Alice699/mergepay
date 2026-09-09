@@ -25,9 +25,9 @@ MergePay is a DevNet MVP, not audited production software.
 - Escrow debit and recipient credit use checked arithmetic.
 - GitHub owner/repository fields accept only bounded ASCII slug characters.
 - Deadlines reject negative chain time before conversion to `u64`.
-- `fund` accepts only a DKG-encrypted GitHub App authorization envelope. The
-  envelope is bound to the sponsor public key and the plaintext token is never
-  written to source, browser storage, logs, or a workflow response.
+- `prepare_funding` accepts only a bounded, versioned two-part preparation envelope.
+  It is submitted atomically before `fund` so workflow storage and rent stabilize
+  before the escrow transfer. The active settlement path contains no GitHub token.
 
 ## Trust assumptions
 
@@ -43,12 +43,11 @@ MergePay is a DevNet MVP, not audited production software.
 - OAuth remains an off-chain identity boundary: Rialo cannot call GitHub from inside the
   program. Sponsor approval is still required and must review the exact PR, identity,
   and wallet before funding.
-- The funding route mints a short-lived, read-only GitHub App installation token on
-  demand from server-only `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, and
-  `GITHUB_APP_PRIVATE_KEY` credentials. It encrypts the exact GitHub merge URL and
-  `Authorization` header for REX, and returns only a packed DKG envelope. The
-  ciphertext itself is public workflow state; plaintext is available only to the REX
-  decryption path.
+- The active public-repository settlement path constructs only
+  `https://api.github.com/repos/{owner}/{repo}/pulls/{number}/merge` from committed,
+  slug-validated fields. It uses fixed non-secret headers and requires no GitHub App
+  installation token or private key. GitHub OAuth remains separate and is used only
+  for contributor identity binding.
 - DevNet transaction history and deployments may be reset.
 - The embedded wallet runs in the same browser origin as the dApp. While unlocked, an
   origin compromise or malicious dependency could access signing capability; encrypted
@@ -75,26 +74,26 @@ sponsor-selected bounty locked until refund.
 ## Known limitations
 
 - DevNet only; no security audit.
-- The marketplace claim instructions are deployed at the recorded marketplace program,
-  but the claim, funding, payout, and refund E2E flow is not runtime-proven yet.
+- The active marketplace and autonomous settlement ABI is deployed at the recorded
+  program, with funding plus automatic payout and refund lineages preserved in
+  `docs/EVIDENCE.md`.
 - Native RLO escrow only; no token interface yet.
 - One sponsor, one approved beneficiary, one PR, and one fixed amount per workflow.
 - One claim record can be approved for a bounty in the current MVP; replacing or
   rejecting a submitted claim needs an explicit protocol instruction before funding.
-- The current source candidate arms native merge polling and deadline refund through
-  `AFTER`, but this candidate is not yet DevNet-proven. Until its E2E lineage is
-  recorded, users should treat sponsor-triggered actions as the reliable fallback path.
+- The active program arms native merge polling and deadline refund through `AFTER`.
+  Both terminal branches are DevNet-proven; sponsor-triggered check/refund actions
+  remain explicit fallbacks and are idempotent when an automatic branch wins the race.
 - The native timestamp subscription currently receives an active window of roughly 100
-  commits. The candidate re-arms merge polling every 30 seconds, but do not treat the
-  local build as a 100% autonomous liveness guarantee until the deployed lineage proves
-  both terminal paths.
+  commits. MergePay re-arms merge polling every 30 seconds; DevNet proof demonstrates
+  the current behavior but does not guarantee production liveness under future runtime
+  versions or network outages.
 - The current PR and merge proof paths target public repositories only. GitHub OAuth
   access tokens are exchanged and used server-side for identity lookup, never stored in
   the browser session or exposed to the client.
-- Each new funding request mints a fresh GitHub App installation token automatically;
-  the server refreshes its cache before expiry and never exposes the token to the
-  browser. An already-funded workflow still contains the encrypted token snapshot from
-  its funding transaction and cannot be retrofitted without a protocol instruction.
+- The current settlement path supports public repositories only. Private repository
+  merge proof would require a separately designed authenticated REX flow and credential
+  lifecycle; the legacy GitHub App route is not part of active funding.
 - Deadline values use milliseconds because that is the observed DevNet `0.18.1` clock
   unit. Revalidate this assumption when upgrading Rialo.
 - Workflow rent remains in the PDA after payout/refund; there is no close instruction.
@@ -125,8 +124,7 @@ sponsor-selected bounty locked until refund.
 - Independent audit and adversarial test suite.
 - Explicit workflow close/rent recovery policy.
 - Token support and decimal-safe UI amounts.
-- GitHub App token rotation for already-funded workflows, private-repository policy,
-  and production secret-operations design.
+- Private-repository authentication policy and production secret-operations design.
 - Version-gated clock semantics.
 - Production-grade wallet integration, independent wallet audit, phishing resistance,
   hardware-backed key custody, and recovery UX.

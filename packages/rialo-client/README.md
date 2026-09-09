@@ -9,6 +9,10 @@ The source of truth for the interface is
 generated `run_merge_check` callback ABI and the workflow's persisted next branch; the
 friendly SDK method remains `buildCheckMerge()`.
 
+Funding uses `buildPrepareFunding()` and `buildFund()` in one transaction. The first
+instruction stabilizes workflow storage/rent before the second transfers escrow and
+arms the native public GitHub settlement heartbeat.
+
 ## Boundaries
 
 - `generated/` mirrors the generated Venus interface;
@@ -34,7 +38,7 @@ import {
 
 const mergePay = createMergePayClient({
   network: "devnet",
-  programId: "HGHsAJEQRwWDADTkzuwsFPE3UmafdmXRap1Mjk19q5id",
+  programId: "6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5",
 });
 
 const instruction = mergePay.buildStatus({

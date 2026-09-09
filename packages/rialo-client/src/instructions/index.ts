@@ -23,10 +23,12 @@ export interface WorkflowInstructionInput {
   workflowSlug: WorkflowSlug;
 }
 
-export interface FundInstructionInput extends WorkflowInstructionInput {
-  /** Packed DKG envelope containing the encrypted GitHub URL and Authorization header. */
+export interface PrepareFundingInstructionInput extends WorkflowInstructionInput {
+  /** Versioned preparation envelope used to resize workflow storage before funding. */
   githubAuthCiphertext: Uint8Array;
 }
+
+export type FundInstructionInput = WorkflowInstructionInput;
 
 export interface CreateBountyInstructionInput extends WorkflowInstructionInput {
   /** Omit or use the zero pubkey to publish an unclaimed bounty. */
@@ -194,6 +196,12 @@ export function buildStatusInstruction(
 export function buildFundInstruction(
   input: FundInstructionInput,
 ): MergePayInstruction {
+  return controlInstruction("fund", input);
+}
+
+export function buildPrepareFundingInstruction(
+  input: PrepareFundingInstructionInput,
+): MergePayInstruction {
   const payer = toPublicKey(input.payer, "payer");
   const workflow = deriveWorkflowPda(input.programId, input.payer, input.workflowSlug);
   if (!(input.githubAuthCiphertext instanceof Uint8Array)) {
@@ -205,21 +213,21 @@ export function buildFundInstruction(
     !isPackedGithubRexEnvelope(input.githubAuthCiphertext)
   ) {
     throw new RangeError(
-      "githubAuthCiphertext must be a packed DKG GitHub REX envelope",
+      "githubAuthCiphertext must be a packed settlement preparation envelope",
     );
   }
 
   const writer = new BincodeWriter();
   writer
-    .writeU32(MERGEPAY_INSTRUCTION_DISCRIMINANTS.fund)
+    .writeU32(MERGEPAY_INSTRUCTION_DISCRIMINANTS.prepare_funding)
     .writeFixedArray(workflowSlugToBytes(input.workflowSlug), 32)
     .writeVecBytes(input.githubAuthCiphertext);
 
   return instruction(
-    "fund",
+    "prepare_funding",
     input,
     writer.toBytes(),
-    fundAccounts(payer, PublicKey.fromString(workflow.address)),
+    simpleAccounts(payer, PublicKey.fromString(workflow.address)),
     workflow.address,
   );
 }

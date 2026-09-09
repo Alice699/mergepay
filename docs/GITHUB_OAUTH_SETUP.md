@@ -64,6 +64,6 @@ After restarting the web app:
 The claim record stores the canonical GitHub login and numeric user ID. A typed
 username cannot be used as proof.
 
-The marketplace ABI is deployed at the program recorded in `deployments/devnet.json`.
-Run and record the full claim E2E before treating the GitHub ID field and settlement
-path as runtime-proven on DevNet.
+The active marketplace ABI is recorded in `deployments/devnet.json`. Re-run this
+identity flow whenever OAuth configuration changes. Autonomous payout and refund use
+the public merge-status REX path and have separate runtime proof in `docs/EVIDENCE.md`.

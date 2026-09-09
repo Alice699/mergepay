@@ -11,6 +11,7 @@ import {
   buildAcceptClaimInstruction,
   buildCreateBountyInstruction,
   buildFundInstruction,
+  buildPrepareFundingInstruction,
   buildRequestClaimInstruction,
   buildRefundInstruction,
   buildStatusInstruction,
@@ -18,6 +19,7 @@ import {
   type AcceptClaimInstructionInput,
   type CreateBountyInstructionInput,
   type FundInstructionInput,
+  type PrepareFundingInstructionInput,
   type MergePayInstruction,
   type RequestClaimInstructionInput,
   type WorkflowInstructionInput,
@@ -153,6 +155,12 @@ export class MergePayClient {
 
   buildFund(input: Omit<FundInstructionInput, "programId">): MergePayInstruction {
     return buildFundInstruction({ ...input, programId: this.programId });
+  }
+
+  buildPrepareFunding(
+    input: Omit<PrepareFundingInstructionInput, "programId">,
+  ): MergePayInstruction {
+    return buildPrepareFundingInstruction({ ...input, programId: this.programId });
   }
 
   buildCheckMerge(
@@ -421,12 +429,6 @@ function decodeInstructionName(
       bytes.byteOffset,
       bytes.byteLength,
     ).getUint32(0, true);
-    // The currently deployed hardened program predates the marketplace ABI
-    // and used discriminant 5 for create_bounty. Keep reads backward
-    // compatible while new transactions use the generated discriminant 7.
-    if (discriminant === 5 && bytes.byteLength > 36) {
-      return { action: "create_bounty", legacy: true };
-    }
     // The retry-safe ABI invokes the generated run_merge_check timer handler
     // directly so it can carry the current Venus branch number. It is still a
     // user-facing merge-check action, not an internal callback report.
