@@ -12,6 +12,7 @@ const requiredPaths = [
   "app/bounties/[slug]/page.tsx",
   "app/bounties/[slug]/receipt/page.tsx",
   "app/activity/page.tsx",
+  "app/settlements/page.tsx",
   "app/guide/page.tsx",
   "app/docs/page.tsx",
   "app/api/rialo/route.ts",
@@ -25,6 +26,7 @@ const requiredPaths = [
   "components/feedback/route-placeholder.tsx",
   "components/feedback/transaction-notifications.tsx",
   "components/activity/wallet-activity-feed.tsx",
+  "components/settlement/settlement-activity-feed.tsx",
   "components/motion/route-transition.tsx",
   "components/motion/scroll-reveal.tsx",
   "components/wallet/transaction-approval-dialog.tsx",
@@ -84,6 +86,7 @@ test("ships product routes instead of route placeholders", async () => {
   const productRoutes = [
     "app/page.tsx",
     "app/activity/page.tsx",
+    "app/settlements/page.tsx",
     "app/guide/page.tsx",
     "app/bounties/page.tsx",
     "app/bounties/new/page.tsx",
@@ -121,6 +124,7 @@ test("keeps the polished application shell and local typography", async () => {
   assert.match(header, /BrandMark/);
   assert.match(footer, /BrandMark/);
   assert.match(header, /Mobile navigation/);
+  assert.match(header, /routes\.settlements/);
   assert.match(footer, /Live deployment/);
   assert.match(footer, /Inspect verified activity/);
 
@@ -534,6 +538,40 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(styles, /\.copy-value > span:first-child/);
 });
 
+test("keeps paid and refunded history wallet-scoped and terminal-only", async () => {
+  const settlementsPage = await readFile(
+    new URL("app/settlements/page.tsx", webRoot),
+    "utf8",
+  );
+  const settlementFeed = await readFile(
+    new URL("components/settlement/settlement-activity-feed.tsx", webRoot),
+    "utf8",
+  );
+  const client = await readFile(
+    new URL("../../packages/rialo-client/src/client.ts", webRoot),
+    "utf8",
+  );
+  const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
+
+  assert.match(settlementsPage, /SettlementActivityFeed/);
+  assert.match(settlementsPage, /paid = true/);
+  assert.match(settlementsPage, /refunded = true/);
+  assert.match(settlementFeed, /getWalletSettlementPage/);
+  assert.match(settlementFeed, /Paid and refunded bounties/);
+  assert.match(settlementFeed, /SETTLEMENT_PAGE_SIZE = 6/);
+  assert.match(settlementFeed, /SETTLEMENT_REFRESH_INTERVAL_MS = 10_000/);
+  assert.match(settlementFeed, /Verify receipt/);
+  assert.match(settlementFeed, /No page\s+reload is required/);
+  assert.match(client, /getWalletSettlementPage/);
+  assert.match(client, /workflow\.state\.paid/);
+  assert.match(client, /workflow\.state\.refunded/);
+  assert.match(client, /relatedWorkflowAddress/);
+  assert.match(client, /address === workflow\.state\.beneficiary/);
+  assert.match(styles, /\.settlement-activity__row/);
+  assert.match(styles, /\.settlement-activity__pagination/);
+  assert.match(styles, /\.settlement-activity__empty/);
+});
+
 test("keeps wallet activity paginated and protocol docs on the active deployment", async () => {
   const activityFeed = await readFile(
     new URL("components/activity/wallet-activity-feed.tsx", webRoot),
@@ -570,8 +608,9 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.match(docsPage, /refunded = true/);
   assert.doesNotMatch(docsPage, /reviewCandidate\.programId/);
   assert.match(guidePage, /native heartbeat/);
-  assert.match(guidePage, /shareable terminal receipt/);
+  assert.match(guidePage, /separate Settlements page/);
   assert.match(guidePage, /Settlement is asynchronous/);
+  assert.doesNotMatch(guidePage, /id="receipt"|guide-receipt-preview|Settlement receipt/);
   assert.doesNotMatch(guidePage, /Sponsor starts the check|manual and one-shot/);
   assert.match(styles, /\.protocol-flow/);
   assert.doesNotMatch(styles, /\.code-flow/);

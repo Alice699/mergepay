@@ -34,6 +34,7 @@ export function SiteFooter() {
               <Link href="/bounties">Bounties</Link>
               <Link href="/bounties/new">Create bounty</Link>
               <Link href="/activity">Verified activity</Link>
+              <Link href="/settlements">Paid &amp; refunded</Link>
             </nav>
 
             <nav className="footer-nav" aria-label="Protocol links">

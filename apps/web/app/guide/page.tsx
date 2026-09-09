@@ -42,7 +42,6 @@ export default function GuidePage() {
           <a href="#what">What MergePay is</a>
           <a href="#use">How to use it</a>
           <a href="#rialo">Why Rialo</a>
-          <a href="#receipt">Settlement receipt</a>
           <a href="#limits">Known limits</a>
           <a href="#review">For reviewers</a>
         </aside>
@@ -71,10 +70,11 @@ export default function GuidePage() {
                   <GuideStep number="02" icon={<Plus aria-hidden="true" size={18} strokeWidth={1.9} />} title="Post the bounty" copy="Enter a public GitHub owner, repository, pull request number, amount, deadline, and generated workflow ID. The beneficiary is intentionally left open for a contributor claim." />
                   <GuideStep number="03" icon={<GitPullRequest aria-hidden="true" size={18} strokeWidth={1.7} />} title="Claim the PR" copy="The PR author connects GitHub. MergePay compares the authenticated GitHub user ID with the exact public pull request, then the contributor signs a claim record with the wallet that should be paid." />
                   <GuideStep number="04" icon={<KeyRound aria-hidden="true" size={18} strokeWidth={1.7} />} title="Approve and fund" copy="The sponsor reviews the claim record, approves the matching contributor wallet, and funds the escrow in a separate transaction. The beneficiary cannot change after approval." />
-                  <GuideStep number="05" icon={<ReceiptText aria-hidden="true" size={18} strokeWidth={1.7} />} title="Watch and verify" copy="Rialo keeps checking after funding. A unanimous merged proof pays the contributor; reaching the deadline first refunds the sponsor. The live workflow updates without a page reload and exposes a shareable terminal receipt." />
+                  <GuideStep number="05" icon={<ReceiptText aria-hidden="true" size={18} strokeWidth={1.7} />} title="Watch and verify" copy="Rialo keeps checking after funding. A unanimous merged proof pays the contributor; reaching the deadline first refunds the sponsor. The live workflow updates without a page reload, and the separate Settlements page shows only confirmed paid or refunded outcomes." />
                 </div>
                 <div className="guide-cta-row">
                   <Link className="button" href="/bounties/new">Create a bounty <Plus aria-hidden="true" className="ui-icon" size={15} strokeWidth={2} /></Link>
+                  <Link className="text-link" href="/settlements">View settlements <ReceiptText aria-hidden="true" className="ui-icon" size={15} strokeWidth={1.8} /></Link>
                   <Link className="text-link" href="/docs">Read the protocol reference <BookOpen aria-hidden="true" className="ui-icon" size={15} strokeWidth={1.8} /></Link>
                 </div>
               </div>
@@ -97,35 +97,8 @@ export default function GuidePage() {
           </ScrollReveal>
 
           <ScrollReveal delay={120}>
-            <section className="guide-section" id="receipt">
-              <div className="guide-section__index">04</div>
-              <div>
-                <p className="eyebrow">Reading a settlement</p>
-                <h2>A receipt for the state that matters.</h2>
-                <p>A submitted transaction is not treated as proof of payment. MergePay issues its success view only after the decoded workflow reports a terminal flag. This makes a small payout or refund easy to verify without estimating a wallet balance change.</p>
-                <div className="guide-receipt-preview">
-                  <div className="guide-receipt-preview__lead">
-                    <span><ReceiptText aria-hidden="true" size={19} strokeWidth={1.7} /></span>
-                    <div>
-                      <small>SHAREABLE ONCHAIN RECEIPT</small>
-                      <strong>Paid or refunded, with exact proof.</strong>
-                    </div>
-                  </div>
-                  <dl>
-                    <div><dt>Amount</dt><dd>Exact RLO released</dd></div>
-                    <div><dt>Destination</dt><dd>Contributor or sponsor address</dd></div>
-                    <div><dt>Terminal flag</dt><dd><code>paid</code> or <code>refunded</code></dd></div>
-                    <div><dt>Reserve</dt><dd>Rent left in the workflow account</dd></div>
-                  </dl>
-                  <p><Check aria-hidden="true" size={14} strokeWidth={2} /> Verified from the current Rialo workflow account—not from a toast or cached balance.</p>
-                </div>
-              </div>
-            </section>
-          </ScrollReveal>
-
-          <ScrollReveal delay={135}>
             <section className="guide-section" id="limits">
-              <div className="guide-section__index">05</div>
+              <div className="guide-section__index">04</div>
               <div>
                 <p className="eyebrow">Be precise about the MVP</p>
                 <h2>Useful today, intentionally bounded.</h2>
@@ -143,16 +116,16 @@ export default function GuidePage() {
             </section>
           </ScrollReveal>
 
-          <ScrollReveal delay={150}>
+          <ScrollReveal delay={140}>
             <section className="guide-section guide-review" id="review">
-              <div className="guide-section__index">06</div>
+              <div className="guide-section__index">05</div>
               <div>
                 <p className="eyebrow">For Rialo reviewers</p>
                 <h2>Everything important is inspectable.</h2>
                 <p>Use the app as a live walkthrough, then inspect the same facts from the chain. The current program, real transaction activity, workflow decoder, and terminal states are all exposed without a simulated success layer.</p>
                 <div className="guide-review__grid">
                   <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Live wallet-scoped activity</span></div>
-                  <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Shareable paid and refunded receipts</span></div>
+                  <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Wallet-scoped paid/refunded history</span></div>
                   <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Fail-closed merge and refund branches</span></div>
                   <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Autonomous payout and refund E2E proven</span></div>
                 </div>
@@ -161,6 +134,7 @@ export default function GuidePage() {
                   <CopyValue value={marketplaceDeployment.programId} />
                 </div>
                 <div className="guide-cta-row">
+                  <Link className="button" href="/settlements">Open settlements <ReceiptText aria-hidden="true" className="ui-icon" size={15} strokeWidth={1.8} /></Link>
                   <Link className="button" href="/activity">Inspect wallet activity <ActivityIcon /></Link>
                   <Link className="text-link" href="/docs#trust">Read trust limits <CircleAlert aria-hidden="true" className="ui-icon" size={15} strokeWidth={1.8} /></Link>
                 </div>

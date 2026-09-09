@@ -443,6 +443,107 @@ test("paginates wallet activity with a Rialo cursor and look-ahead", async () =>
   assert.equal(page.nextBefore, "page-boundary-signature");
 });
 
+test("projects terminal workflow state into paid and refunded wallet settlements", async () => {
+  const terminalWorkflow = {
+    address: workflowPda,
+    state: {
+      sponsor: payer,
+      beneficiary,
+      claimRequest: false,
+      funded: true,
+      mergeConfirmed: true,
+      paid: true,
+      refunded: false,
+      githubOwner: "microsoft",
+      githubRepo: "vscode",
+      pullNumber: 332677n,
+      amountKelvin: 1_000_000n,
+    },
+  };
+  const fundInstruction = buildFundInstruction({
+    programId: MERGEPAY_PROGRAM_ID,
+    payer,
+    workflowSlug: slug,
+  });
+  const paidClient = new MergePayClient({
+    rpc: {
+      getSignaturesForAddressPage: async () => [
+        { signature: "paid-signature", blockHeight: 20n, blockTime: 1_787_941_100n },
+      ],
+      getTransaction: async () => ({
+        blockHeight: 20n,
+        blockTime: 1_787_941_100n,
+        transaction: {
+          signatures: ["paid-signature"],
+          validFrom: 1_787_941_000_000n,
+          message: {
+            accountKeys: [payer, workflowPda, MERGEPAY_PROGRAM_ID],
+            instructions: [
+              {
+                programIdIndex: 2,
+                accounts: [0, 1],
+                data: Buffer.from(fundInstruction.data).toString("base64"),
+              },
+            ],
+          },
+        },
+        meta: { fee: 100n },
+      }),
+    },
+  });
+  paidClient.getWorkflowByAddress = async () => terminalWorkflow;
+
+  const paidPage = await paidClient.getWalletSettlementPage(payer, { limit: 1 });
+  assert.equal(paidPage.items[0]?.outcome, "paid");
+  assert.equal(paidPage.items[0]?.role, "sponsor");
+  assert.equal(paidPage.items[0]?.workflowSlug, slug);
+
+  const claimInstruction = buildRequestClaimInstruction({
+    programId: MERGEPAY_PROGRAM_ID,
+    payer: beneficiary,
+    workflowSlug: claimSlug,
+    targetWorkflow: workflowPda,
+    claimantGithub: "biawaklahat",
+    claimantGithubId: 136351960n,
+  });
+  const refundedClient = new MergePayClient({
+    rpc: {
+      getSignaturesForAddressPage: async () => [
+        { signature: "refunded-claim-signature", blockHeight: 21n, blockTime: 1_787_941_101n },
+      ],
+      getTransaction: async () => ({
+        blockHeight: 21n,
+        blockTime: 1_787_941_101n,
+        transaction: {
+          signatures: ["refunded-claim-signature"],
+          validFrom: 1_787_941_000_000n,
+          message: {
+            accountKeys: [beneficiary, deriveWorkflowPda(MERGEPAY_PROGRAM_ID, beneficiary, claimSlug).address, workflowPda, MERGEPAY_PROGRAM_ID],
+            instructions: [
+              {
+                programIdIndex: 3,
+                accounts: [0, 1, 2],
+                data: Buffer.from(claimInstruction.data).toString("base64"),
+              },
+            ],
+          },
+        },
+        meta: { fee: 100n },
+      }),
+    },
+  });
+  refundedClient.getWorkflowByAddress = async () => ({
+    ...terminalWorkflow,
+    state: { ...terminalWorkflow.state, mergeConfirmed: false, paid: false, refunded: true },
+  });
+
+  const refundedPage = await refundedClient.getWalletSettlementPage(beneficiary, { limit: 1 });
+  assert.equal(refundedPage.items[0]?.outcome, "refunded");
+  assert.equal(refundedPage.items[0]?.role, "beneficiary");
+  assert.equal(refundedPage.items[0]?.workflowAddress, workflowPda);
+  assert.equal(refundedPage.items[0]?.workflowSlug, null);
+});
+
 test("discovers an open bounty from program history and decoded account state", async () => {
   const signature =
     "5qAb9BS7VTx39tuEjCLHQxLQp9YEDpRoRnhD8fUenfB1eyCdRPQLv5qMhYfFBfcmw7E3zuEL34omPbzTUjs7y7Se";

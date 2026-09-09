@@ -61,6 +61,7 @@ export interface MergePayActivityItem {
   error: string | null;
   action: MergePayInstructionName | "network";
   workflowAddress: string | null;
+  relatedWorkflowAddress: string | null;
   workflowSlug: string | null;
   workflowPayer: string | null;
   legacyInstruction: boolean;
@@ -74,6 +75,33 @@ export interface MergePayActivityPage {
 }
 
 export interface MergePayActivityPageOptions {
+  limit?: number;
+  before?: string;
+}
+
+export type MergePaySettlementOutcome = "paid" | "refunded";
+export type MergePaySettlementRole = "beneficiary" | "sponsor";
+
+export interface MergePaySettlementItem {
+  signature: string;
+  blockHeight: bigint;
+  blockTime: bigint | null;
+  outcome: MergePaySettlementOutcome;
+  role: MergePaySettlementRole;
+  action: MergePayInstructionName;
+  workflowAddress: string;
+  workflowSlug: string | null;
+  workflow: DecodedMergePayWorkflow;
+}
+
+export interface MergePaySettlementPage {
+  items: MergePaySettlementItem[];
+  nextBefore: string | null;
+  hasMore: boolean;
+  scannedTransactions: number;
+}
+
+export interface MergePaySettlementPageOptions {
   limit?: number;
   before?: string;
 }
@@ -253,6 +281,72 @@ export class MergePayClient {
     };
   }
 
+  async getWalletSettlementPage(
+    address: string,
+    options: MergePaySettlementPageOptions = {},
+  ): Promise<MergePaySettlementPage> {
+    const pageSize = Math.min(Math.max(Math.trunc(options.limit ?? 8), 1), 12);
+    const sourcePageSize = 24;
+    const maxScanPages = 8;
+    const items: MergePaySettlementItem[] = [];
+    const seenWorkflows = new Set<string>();
+    let before = options.before;
+    let nextBefore: string | null = null;
+    let hasMore = false;
+    let scannedTransactions = 0;
+
+    for (let pageNumber = 0; pageNumber < maxScanPages; pageNumber += 1) {
+      const signatures = await this.rpc.getSignaturesForAddressPage(
+        address,
+        sourcePageSize + 1,
+        before,
+      );
+      if (signatures.length === 0) {
+        nextBefore = null;
+        hasMore = false;
+        break;
+      }
+
+      const pageSignatures = signatures.slice(0, sourcePageSize);
+      const activity = await this.decodeWalletActivity(pageSignatures);
+      scannedTransactions += pageSignatures.length;
+      const candidates = await Promise.all(
+        activity.map((item) => this.decodeWalletSettlement(address, item)),
+      );
+
+      let pageComplete = true;
+      for (const [index, candidate] of candidates.entries()) {
+        if (!candidate || seenWorkflows.has(candidate.workflowAddress)) continue;
+        seenWorkflows.add(candidate.workflowAddress);
+        items.push(candidate);
+
+        if (items.length >= pageSize) {
+          const cursor = pageSignatures[index]?.signature ?? null;
+          nextBefore = cursor;
+          hasMore = Boolean(
+            cursor && (index < pageSignatures.length - 1 || signatures.length > sourcePageSize),
+          );
+          pageComplete = false;
+          break;
+        }
+      }
+
+      if (!pageComplete) break;
+
+      nextBefore = pageSignatures[pageSignatures.length - 1]?.signature ?? null;
+      hasMore = signatures.length > sourcePageSize;
+      if (!hasMore || !nextBefore) break;
+      before = nextBefore;
+    }
+
+    return {
+      items,
+      nextBefore: hasMore ? nextBefore : null,
+      hasMore: Boolean(hasMore && nextBefore),
+      scannedTransactions,
+    };
+  }
+
   async getPublicBountiesPage(
     options: MergePayPublicBountyPageOptions = {},
   ): Promise<MergePayPublicBountyPage> {
@@ -375,12 +469,78 @@ export class MergePayClient {
         error,
         action: mergePayInstruction?.action ?? "network",
         workflowAddress: mergePayInstruction?.workflowAddress ?? null,
+        relatedWorkflowAddress:
+          mergePayInstruction?.relatedWorkflowAddress ?? null,
         workflowSlug: mergePayInstruction?.workflowSlug ?? null,
         workflowPayer: mergePayInstruction?.workflowPayer ?? null,
         legacyInstruction: mergePayInstruction?.legacyInstruction ?? false,
         feeKelvin: transaction?.meta.fee ?? null,
       };
     });
+  }
+
+  private async decodeWalletSettlement(
+    address: string,
+    item: MergePayActivityItem,
+  ): Promise<MergePaySettlementItem | null> {
+    if (item.status !== "confirmed" || item.legacyInstruction || item.action === "network") {
+      return null;
+    }
+
+    const workflowAddress = item.action === "request_claim"
+      ? item.relatedWorkflowAddress
+      : item.workflowAddress;
+    if (workflowAddress === null) return null;
+
+    const workflowSlug = item.action === "request_claim" ? null : item.workflowSlug;
+    if (workflowSlug !== null && !isWorkflowSlugHex(workflowSlug)) return null;
+
+    const workflow = await this.getWorkflowByAddress(workflowAddress);
+    if (
+      !workflow ||
+      workflow.state.claimRequest ||
+      workflow.state.paid && workflow.state.refunded ||
+      workflow.state.paid && !workflow.state.mergeConfirmed ||
+      workflow.state.refunded && !workflow.state.funded
+    ) {
+      return null;
+    }
+
+    if (workflowSlug !== null) {
+      const expectedWorkflow = deriveWorkflowPda(
+        this.programId,
+        workflow.state.sponsor,
+        workflowSlug,
+      );
+      if (expectedWorkflow.address !== workflow.address) return null;
+    }
+
+    const role = address === workflow.state.beneficiary
+      ? "beneficiary"
+      : address === workflow.state.sponsor
+        ? "sponsor"
+        : null;
+    if (!role) return null;
+
+    const outcome: MergePaySettlementOutcome | null =
+      workflow.state.paid && workflow.state.mergeConfirmed
+        ? "paid"
+        : workflow.state.refunded
+          ? "refunded"
+          : null;
+    if (!outcome) return null;
+
+    return {
+      signature: item.signature,
+      blockHeight: item.blockHeight,
+      blockTime: item.blockTime,
+      outcome,
+      role,
+      action: item.action,
+      workflowAddress: workflow.address,
+      workflowSlug,
+      workflow,
+    };
   }
 
   getWorkflowLineage(signature: string) {
@@ -408,6 +568,7 @@ function findMergePayInstruction(
 ): {
   action: MergePayInstructionName;
   workflowAddress: string | null;
+  relatedWorkflowAddress: string | null;
   workflowSlug: string | null;
   workflowPayer: string | null;
   legacyInstruction: boolean;
@@ -417,7 +578,7 @@ function findMergePayInstruction(
       transaction.transaction.message.accountKeys[instruction.programIdIndex];
     if (invokedProgram !== programId) continue;
 
-    const decodedInstruction = decodeInstructionName(instruction.data);
+    const decodedInstruction = decodeInstructionPayload(instruction.data);
     if (!decodedInstruction) continue;
     const payerIndex = instruction.accounts[0];
     const workflowPayer =
@@ -432,7 +593,13 @@ function findMergePayInstruction(
         workflowAccountIndex === undefined
           ? null
           : transaction.transaction.message.accountKeys[workflowAccountIndex] ?? null,
-      workflowSlug: decodeWorkflowSlug(instruction.data),
+      relatedWorkflowAddress:
+        decodedInstruction.action === "request_claim"
+          ? instruction.accounts[2] === undefined
+            ? null
+            : transaction.transaction.message.accountKeys[instruction.accounts[2]] ?? null
+          : null,
+      workflowSlug: decodeWorkflowSlug(decodedInstruction.bytes),
       workflowPayer,
       legacyInstruction: decodedInstruction.legacy,
     };
@@ -441,47 +608,47 @@ function findMergePayInstruction(
   return null;
 }
 
-function decodeWorkflowSlug(data: string): string | null {
-  try {
-    const bytes = decodeInstructionData(data);
-    if (bytes.byteLength < 36) return null;
-    return Array.from(bytes.slice(4, 36), (byte) =>
-      byte.toString(16).padStart(2, "0"),
-    ).join("");
-  } catch {
-    return null;
-  }
+function decodeWorkflowSlug(bytes: Uint8Array): string | null {
+  if (bytes.byteLength < 36) return null;
+  return Array.from(bytes.slice(4, 36), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
 }
 
-function decodeInstructionName(
+function decodeInstructionPayload(
   data: string,
-): { action: MergePayInstructionName; legacy: boolean } | null {
-  try {
-    const bytes = decodeInstructionData(data);
-    if (bytes.byteLength < 4) return null;
-    const discriminant = new DataView(
-      bytes.buffer,
-      bytes.byteOffset,
-      bytes.byteLength,
-    ).getUint32(0, true);
-    // The retry-safe ABI invokes the generated run_merge_check timer handler
-    // directly so it can carry the current Venus branch number. It is still a
-    // user-facing merge-check action, not an internal callback report.
-    if (
-      discriminant === MERGEPAY_CALLBACK_DISCRIMINANT &&
-      bytes.byteLength === 44
-    ) {
-      return { action: "check_merge", legacy: false };
-    }
-    const entry = Object.entries(MERGEPAY_INSTRUCTION_DISCRIMINANTS).find(
-      ([, value]) => value === discriminant,
-    );
-    return entry
-      ? { action: entry[0] as MergePayInstructionName, legacy: false }
-      : null;
-  } catch {
-    return null;
+): { action: MergePayInstructionName; legacy: boolean; bytes: Uint8Array } | null {
+  for (const bytes of decodeInstructionDataCandidates(data)) {
+    const decoded = decodeInstructionNameBytes(bytes);
+    if (decoded) return { ...decoded, bytes };
   }
+  return null;
+}
+
+function decodeInstructionNameBytes(
+  bytes: Uint8Array,
+): { action: MergePayInstructionName; legacy: boolean } | null {
+  if (bytes.byteLength < 4) return null;
+  const discriminant = new DataView(
+    bytes.buffer,
+    bytes.byteOffset,
+    bytes.byteLength,
+  ).getUint32(0, true);
+  // The retry-safe ABI invokes the generated run_merge_check timer handler
+  // directly so it can carry the current Venus branch number. It is still a
+  // user-facing merge-check action, not an internal callback report.
+  if (
+    discriminant === MERGEPAY_CALLBACK_DISCRIMINANT &&
+    bytes.byteLength === 44
+  ) {
+    return { action: "check_merge", legacy: false };
+  }
+  const entry = Object.entries(MERGEPAY_INSTRUCTION_DISCRIMINANTS).find(
+    ([, value]) => value === discriminant,
+  );
+  return entry
+    ? { action: entry[0] as MergePayInstructionName, legacy: false }
+    : null;
 }
 
 function publicBountyStatus(
@@ -506,12 +673,23 @@ function publicBountyStatus(
   return "open";
 }
 
-function decodeInstructionData(data: string): Uint8Array {
+function decodeInstructionDataCandidates(data: string): Uint8Array[] {
+  const candidates: Uint8Array[] = [];
   try {
-    return decodeBase58(data, "transaction instruction");
+    candidates.push(decodeBase58(data, "transaction instruction"));
   } catch {
-    return decodeBase64(data, "transaction instruction");
+    // Try the RPC's base64 representation below.
   }
+  try {
+    candidates.push(decodeBase64(data, "transaction instruction"));
+  } catch {
+    // The transaction payload is invalid or uses an unsupported encoding.
+  }
+  return candidates;
+}
+
+function isWorkflowSlugHex(value: string): boolean {
+  return /^[a-f0-9]{64}$/i.test(value);
 }
 
 export function createMergePayClient(
