@@ -473,8 +473,13 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(bountyFeed, /visibilitychange/);
   assert.match(bountyFeed, /variant="empty"/);
   assert.match(marketplacePage, /readiness-panel--marketplace/);
+  assert.match(marketplacePage, /liquid-slate-page ledger-page marketplace-page/);
+  assert.match(marketplacePage, /marketplace-hero__action/);
+  assert.match(marketplacePage, /marketplace-eyebrow/);
+  assert.doesNotMatch(marketplacePage, /ScrollReveal/);
   assert.match(styles, /\.content-grid--marketplace/);
   assert.match(styles, /\.readiness-panel--marketplace/);
+  assert.match(styles, /Marketplace \/ Liquid Slate/);
   assert.match(format, /fractionPart\.padEnd\(9, "0"\)/);
   assert.doesNotMatch(rpcRelay, /Access-Control-Allow-Origin/i);
   assert.doesNotMatch(embeddedWallet, /localStorage/);
@@ -541,6 +546,48 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(styles, /\.workflow-settlement/);
   assert.match(styles, /\.settlement-receipt__terminal-proof/);
   assert.match(styles, /\.copy-value > span:first-child/);
+});
+
+test("keeps the complete bounty workflow inside the Liquid Slate system", async () => {
+  const createPage = await readFile(
+    new URL("app/bounties/new/page.tsx", webRoot),
+    "utf8",
+  );
+  const detailPage = await readFile(
+    new URL("app/bounties/[slug]/page.tsx", webRoot),
+    "utf8",
+  );
+  const receiptPage = await readFile(
+    new URL("app/bounties/[slug]/receipt/page.tsx", webRoot),
+    "utf8",
+  );
+  const workflowDetail = await readFile(
+    new URL("components/bounty/workflow-detail.tsx", webRoot),
+    "utf8",
+  );
+  const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
+
+  for (const page of [createPage, detailPage, receiptPage]) {
+    assert.match(page, /liquid-slate-page ledger-page bounty-flow-page/);
+    assert.match(page, /bounty-flow-hero/);
+    assert.doesNotMatch(page, /ScrollReveal/);
+  }
+
+  assert.match(createPage, /bounty-create__layout/);
+  assert.match(createPage, /bounty-create__terms/);
+  assert.match(detailPage, /bounty-detail-hero__identity/);
+  assert.match(receiptPage, /bounty-receipt-page/);
+  assert.match(workflowDetail, /RequestClaimAction/);
+  assert.match(workflowDetail, /AcceptClaimAction/);
+  assert.match(workflowDetail, /FundBountyAction/);
+  assert.match(workflowDetail, /CheckMergeAction/);
+  assert.match(workflowDetail, /RefundBountyAction/);
+  assert.match(workflowDetail, /workflow-settlement/);
+  assert.match(styles, /Bounty workflow \/ Liquid Slate/);
+  assert.match(styles, /Bounty detail states \/ Liquid Slate/);
+  assert.match(styles, /Settlement receipt \/ Liquid Slate/);
+  assert.match(styles, /\.bounty-detail-page \.workflow-check/);
+  assert.match(styles, /workflow-refund--error/);
 });
 
 test("keeps paid and refunded history wallet-scoped and terminal-only", async () => {
@@ -637,6 +684,9 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.doesNotMatch(guidePage, /Sponsor starts the check|manual and one-shot/);
   assert.match(styles, /\.protocol-flow/);
   assert.match(styles, /Documentation \/ Liquid Slate/);
+  assert.match(styles, /Docs shell alignment \/ Liquid Slate/);
+  assert.match(styles, /body:has\(\.docs-page\) \.site-header__inner/);
+  assert.match(styles, /body:has\(\.docs-page\) \.site-footer__inner/);
   assert.match(styles, /Guide \/ Liquid Slate/);
   assert.match(styles, /body:has\(\.liquid-slate-page\)/);
   assert.doesNotMatch(styles, /\.code-flow/);

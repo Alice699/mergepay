@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ReceiptText } from "lucide-react";
 import { SettlementReceipt } from "@/components/bounty/settlement-receipt";
 import { CopyValue } from "@/components/ui/copy-value";
 import { routes } from "@/lib/constants";
@@ -25,14 +26,16 @@ export default async function SettlementReceiptPage({
   const account = typeof query.account === "string" ? query.account : null;
 
   return (
-    <main className="page-main page-width settlement-page">
-      <div className="page-hero page-hero--receipt">
-        <div>
-          <p className="eyebrow">Onchain settlement proof</p>
+    <main className="page-main page-width liquid-slate-page ledger-page bounty-flow-page bounty-receipt-page settlement-page">
+      <div className="page-hero ledger-hero bounty-flow-hero bounty-receipt-hero page-hero--receipt">
+        <div className="ledger-hero__copy bounty-flow-hero__copy">
+          <div className="ledger-eyebrow bounty-flow-eyebrow">
+            <span><i aria-hidden="true" /> Onchain settlement proof</span>
+            <b>Paid / Refunded</b>
+          </div>
           <h1>
-            Know where
-            <br />
-            the bounty went.
+            <span>Know where</span>
+            <em>the bounty went.</em>
           </h1>
           <p>
             Paid and refunded receipts are decoded from the exact Rialo workflow
@@ -41,11 +44,19 @@ export default async function SettlementReceiptPage({
           </p>
         </div>
         {valid ? (
-          <div className="settlement-page__identity">
-            <span>WORKFLOW ID</span>
-            <CopyValue value={slug} />
-            <small>Rialo DevNet · live account read</small>
-          </div>
+          <aside className="bounty-flow-hero__card settlement-page__identity" aria-label="Settlement workflow identifier">
+            <div className="bounty-flow-hero__card-head">
+              <span className="bounty-flow-hero__card-icon" aria-hidden="true">
+                <ReceiptText size={20} strokeWidth={1.6} />
+              </span>
+              <span className="bounty-flow-hero__card-state"><i aria-hidden="true" /> Proof ready</span>
+            </div>
+            <div className="bounty-flow-hero__card-body">
+              <span>WORKFLOW ID</span>
+              <CopyValue value={slug} />
+              <p>Rialo DevNet · live account read</p>
+            </div>
+          </aside>
         ) : (
           <Link className="button" href={routes.bounties}>
             Back to bounties
