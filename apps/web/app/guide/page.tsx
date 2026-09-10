@@ -21,35 +21,45 @@ export const metadata: Metadata = { title: "Guide" };
 
 export default function GuidePage() {
   return (
-    <main className="page-main page-width guide-page">
+    <main className="page-main page-width liquid-slate-page guide-page">
       <div className="page-hero guide-hero">
-        <div>
-          <p className="eyebrow">Product guide</p>
-          <h1>Code merged.<br />Value settled.</h1>
+        <ScrollReveal className="guide-hero__copy" delay={20} variant="left">
+          <div className="guide-eyebrow">
+            <span>
+              <i aria-hidden="true" /> Product walkthrough
+            </span>
+            <b>DevNet / Five steps</b>
+          </div>
+          <h1>
+            <span>Code merged.</span>
+            <em>Value settled.</em>
+          </h1>
           <p>MergePay is a Rialo-native marketplace for public GitHub pull-request bounties. Sponsors publish a clear brief, contributors prove they authored the target PR, and the sponsor approves the payout wallet before RLO is funded.</p>
-        </div>
-        <div className="guide-hero__signal" aria-label="MergePay product summary">
-          <div className="guide-hero__signal-mark"><Network aria-hidden="true" size={21} strokeWidth={1.6} /></div>
-          <p className="panel-label">THE SHORT VERSION</p>
-          <strong>A programmable escrow<br />for shipped code.</strong>
-          <span>Autonomous settlement · onchain receipts</span>
-        </div>
+        </ScrollReveal>
+        <ScrollReveal className="guide-hero__signal-reveal" delay={100} variant="scale">
+          <div className="guide-hero__signal" aria-label="MergePay product summary">
+            <div className="guide-hero__signal-mark"><Network aria-hidden="true" size={21} strokeWidth={1.6} /></div>
+            <p className="panel-label">THE SHORT VERSION</p>
+            <strong>A programmable escrow<br />for shipped code.</strong>
+            <span>Autonomous settlement · onchain receipts</span>
+          </div>
+        </ScrollReveal>
       </div>
 
       <div className="guide-layout">
         <aside className="guide-nav" aria-label="Guide sections">
           <p>ON THIS PAGE</p>
-          <a href="#what">What MergePay is</a>
-          <a href="#use">How to use it</a>
-          <a href="#rialo">Why Rialo</a>
-          <a href="#limits">Known limits</a>
-          <a href="#review">For reviewers</a>
+          <a href="#what"><span>01</span><b>What MergePay is</b></a>
+          <a href="#use"><span>02</span><b>How to use it</b></a>
+          <a href="#rialo"><span>03</span><b>Why Rialo</b></a>
+          <a href="#limits"><span>04</span><b>Known limits</b></a>
+          <a href="#review"><span>05</span><b>For reviewers</b></a>
         </aside>
 
         <div className="guide-content">
-          <ScrollReveal>
+          <ScrollReveal className="guide-section-reveal">
             <section className="guide-section guide-intro" id="what">
-              <div className="guide-section__index">01</div>
+              <div className="guide-section__index">01 / Product</div>
               <div>
                 <p className="eyebrow">The product</p>
                 <h2>A bounty that can prove why it paid.</h2>
@@ -59,9 +69,9 @@ export default function GuidePage() {
             </section>
           </ScrollReveal>
 
-          <ScrollReveal delay={70}>
+          <ScrollReveal className="guide-section-reveal" delay={70}>
             <section className="guide-section" id="use">
-              <div className="guide-section__index">02</div>
+              <div className="guide-section__index">02 / Workflow</div>
               <div>
                 <p className="eyebrow">Using MergePay</p>
                 <h2>Five steps from brief to settlement.</h2>
@@ -81,9 +91,9 @@ export default function GuidePage() {
             </section>
           </ScrollReveal>
 
-          <ScrollReveal delay={100}>
+          <ScrollReveal className="guide-section-reveal" delay={100}>
             <section className="guide-section" id="rialo">
-              <div className="guide-section__index">03</div>
+              <div className="guide-section__index">03 / Rialo</div>
               <div>
                 <p className="eyebrow">Why Rialo</p>
                 <h2>The chain is part of the verification loop.</h2>
@@ -96,9 +106,9 @@ export default function GuidePage() {
             </section>
           </ScrollReveal>
 
-          <ScrollReveal delay={120}>
+          <ScrollReveal className="guide-section-reveal" delay={120}>
             <section className="guide-section" id="limits">
-              <div className="guide-section__index">04</div>
+              <div className="guide-section__index">04 / Limits</div>
               <div>
                 <p className="eyebrow">Be precise about the MVP</p>
                 <h2>Useful today, intentionally bounded.</h2>
@@ -116,9 +126,9 @@ export default function GuidePage() {
             </section>
           </ScrollReveal>
 
-          <ScrollReveal delay={140}>
+          <ScrollReveal className="guide-section-reveal" delay={140}>
             <section className="guide-section guide-review" id="review">
-              <div className="guide-section__index">05</div>
+              <div className="guide-section__index">05 / Review</div>
               <div>
                 <p className="eyebrow">For Rialo reviewers</p>
                 <h2>Everything important is inspectable.</h2>

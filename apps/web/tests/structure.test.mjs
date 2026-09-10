@@ -620,10 +620,14 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.match(guidePage, /native heartbeat/);
   assert.match(guidePage, /separate Settlements page/);
   assert.match(guidePage, /Settlement is asynchronous/);
+  assert.match(guidePage, /liquid-slate-page/);
+  assert.match(guidePage, /guide-eyebrow/);
+  assert.match(guidePage, /guide-section-reveal/);
   assert.doesNotMatch(guidePage, /id="receipt"|guide-receipt-preview|Settlement receipt/);
   assert.doesNotMatch(guidePage, /Sponsor starts the check|manual and one-shot/);
   assert.match(styles, /\.protocol-flow/);
   assert.match(styles, /Documentation \/ Liquid Slate/);
+  assert.match(styles, /Guide \/ Liquid Slate/);
   assert.match(styles, /body:has\(\.liquid-slate-page\)/);
   assert.doesNotMatch(styles, /\.code-flow/);
 });
