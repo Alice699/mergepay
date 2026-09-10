@@ -5747,11 +5747,16 @@ body:has(.liquid-slate-page) .brand-mark__terminal {
 }
 
 body:has(.liquid-slate-page) .brand__network,
-body:has(.liquid-slate-page) .wallet-button,
-body:has(.liquid-slate-page) .network-pill {
+body:has(.liquid-slate-page) .wallet-button {
   border-color: rgb(228 228 228 / 0.13);
   background: rgb(228 228 228 / 0.045);
   box-shadow: inset 0 1px rgb(228 228 228 / 0.06);
+}
+
+body:has(.liquid-slate-page) .network-pill {
+  border-color: rgb(169 221 211 / 0.14);
+  background: rgb(169 221 211 / 0.035);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.025);
 }
 
 body:has(.liquid-slate-page) .wallet-button,
@@ -5773,7 +5778,7 @@ body:has(.liquid-slate-page) .network-pill[data-state="available"] i {
 }
 
 body:has(.liquid-slate-page) .network-pill[data-state="available"] b {
-  color: rgb(228 228 228 / 0.68);
+  color: var(--success);
 }
 
 .docs-page {
@@ -15751,11 +15756,16 @@ body:has(.docs-page, .guide-page, .ledger-page) .brand-mark__terminal {
 }
 
 body:has(.docs-page, .guide-page, .ledger-page) .brand__network,
-body:has(.docs-page, .guide-page, .ledger-page) .wallet-button,
-body:has(.docs-page, .guide-page, .ledger-page) .network-pill {
+body:has(.docs-page, .guide-page, .ledger-page) .wallet-button {
   border-color: rgb(228 228 228 / 0.13);
   background: rgb(228 228 228 / 0.045);
   box-shadow: inset 0 1px rgb(228 228 228 / 0.06);
+}
+
+body:has(.docs-page, .guide-page, .ledger-page) .network-pill {
+  border-color: rgb(169 221 211 / 0.14);
+  background: rgb(169 221 211 / 0.035);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.025);
 }
 
 body:has(.docs-page, .guide-page, .ledger-page) .wallet-button,
@@ -15777,7 +15787,7 @@ body:has(.docs-page, .guide-page, .ledger-page) .network-pill[data-state="availa
 }
 
 body:has(.docs-page, .guide-page, .ledger-page) .network-pill[data-state="available"] b {
-  color: rgb(228 228 228 / 0.68);
+  color: var(--success);
 }
 
 body:has(.docs-page, .guide-page, .ledger-page) :is(.docs-page, .guide-page, .ledger-page) {
@@ -15855,5 +15865,304 @@ body:has(.docs-page, .guide-page, .ledger-page) .footer-deployment {
     font-size: clamp(2.8rem, 12vw, 4rem);
     letter-spacing: -0.064em;
     line-height: 0.9;
+  }
+}
+
+/* Shared navigation identity */
+.site-header__inner {
+  width: min(calc(100% - 4rem), 96rem);
+}
+
+.site-header .brand {
+  gap: 0.6875rem;
+}
+
+.site-header .brand-mark {
+  font-size: 1.3125rem;
+}
+
+.site-header .network-pill {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.site-footer__inner {
+  width: min(calc(100% - 5rem), 112rem);
+}
+
+.site-footer .brand--footer .brand-mark {
+  font-size: 1.75rem;
+}
+
+@media (max-width: 45rem) {
+  .site-header__inner,
+  .site-footer__inner {
+    width: min(calc(100% - 1.75rem), 96rem);
+  }
+}
+
+/* Settlement receipts / shareable proof */
+.settlement-detail-page .settlement-receipt__detail--proof {
+  grid-column: 1 / -1;
+  border-right: 0;
+  background:
+    linear-gradient(90deg, rgb(43 69 89 / 0.14), transparent 70%),
+    rgb(228 228 228 / 0.012);
+}
+
+.settlement-detail-page .settlement-receipt__detail--proof dd,
+.settlement-detail-page .settlement-receipt__detail--proof .transaction-proof {
+  width: min(34rem, 100%);
+}
+
+.settlement-detail-page .settlement-receipt__detail--proof .transaction-proof .copy-value {
+  width: 100%;
+}
+
+.settlement-detail-page .settlement-receipt__detail--proof .transaction-proof__link {
+  border-color: rgb(169 221 211 / 0.2);
+  background: rgb(169 221 211 / 0.045);
+  color: rgb(169 221 211 / 0.78);
+}
+
+.settlement-detail-page .settlement-receipt__detail--proof .transaction-proof__link:hover {
+  border-color: rgb(169 221 211 / 0.38);
+  background: rgb(169 221 211 / 0.1);
+  color: #e4e4e4;
+}
+
+.ledger-page .settlement-receipt-link {
+  border: 1px solid rgb(169 221 211 / 0.16);
+  border-radius: 999px;
+  background: rgb(169 221 211 / 0.035);
+  padding: 0.35rem 0.65rem;
+}
+
+.ledger-page .settlement-receipt-link:hover {
+  border-color: rgb(169 221 211 / 0.34);
+  background: rgb(169 221 211 / 0.09);
+  color: #e4e4e4;
+}
+
+/* Contributor handoff / role-aware live state */
+.bounty-detail-page .workflow-claim--observer {
+  background:
+    linear-gradient(135deg, rgb(93 216 143 / 0.075), transparent 62%),
+    rgb(228 228 228 / 0.014);
+}
+
+.bounty-detail-page .workflow-claim--observer::before {
+  background: var(--success);
+}
+
+.bounty-detail-page .workflow-claim--observer .workflow-claim__copy > p:last-child {
+  max-width: 43rem;
+}
+
+.bounty-detail-page .workflow-claim--observer .workflow-claim__record {
+  border-color: rgb(93 216 143 / 0.2);
+}
+
+.bounty-detail-page .workflow-claim__observer-value {
+  display: block;
+  overflow-wrap: anywhere;
+  color: rgb(228 228 228 / 0.72);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Protocol lifecycle / Liquid Slate polish */
+.bounty-detail-page .detail-lifecycle {
+  grid-template-columns: minmax(18rem, 0.72fr) minmax(0, 1.28fr);
+  align-items: start;
+  gap: clamp(2.5rem, 6vw, 6rem);
+}
+
+.bounty-detail-page .detail-lifecycle .section-heading {
+  display: block;
+  margin: 0;
+}
+
+.bounty-detail-page .detail-lifecycle .section-heading .eyebrow {
+  margin: 0 0 1.5rem;
+  color: rgb(228 228 228 / 0.34);
+}
+
+.bounty-detail-page .detail-lifecycle .section-heading h2 {
+  max-width: 32rem;
+  color: rgb(228 228 228 / 0.9);
+  font-size: clamp(3rem, 4.7vw, 4.75rem);
+  font-weight: 520;
+  letter-spacing: -0.07em;
+  line-height: 0.95;
+  text-wrap: balance;
+}
+
+.bounty-detail-page .detail-lifecycle .section-heading > p:last-child {
+  max-width: 23rem;
+  margin-top: 1.75rem;
+  color: rgb(228 228 228 / 0.46);
+  font-size: 0.875rem;
+  line-height: 1.75;
+  text-wrap: pretty;
+}
+
+.bounty-detail-page .lifecycle {
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid rgb(228 228 228 / 0.13);
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(43 69 89 / 0.2), transparent 72%),
+    rgb(228 228 228 / 0.018);
+  box-shadow:
+    inset 0 1px rgb(228 228 228 / 0.05),
+    0 1.5rem 3rem rgb(0 0 0 / 0.12);
+}
+
+.bounty-detail-page .lifecycle li {
+  min-height: 7.75rem;
+  grid-template-columns: 3.5rem minmax(0, 1fr) 3.5rem;
+  gap: 1.25rem;
+  border-color: rgb(228 228 228 / 0.1);
+  padding: 1.35rem 1.5rem;
+  background: transparent;
+}
+
+.bounty-detail-page .lifecycle li::before {
+  position: absolute;
+  inset: 1.25rem auto 1.25rem 0;
+  width: 2px;
+  background: transparent;
+  content: "";
+  transition: background-color 180ms var(--ease-out-quart);
+}
+
+.bounty-detail-page .lifecycle li:last-child {
+  border-bottom: 0;
+}
+
+.bounty-detail-page .lifecycle li:hover {
+  border-color: rgb(228 228 228 / 0.13);
+  background:
+    linear-gradient(90deg, rgb(169 221 211 / 0.08), transparent 72%),
+    rgb(228 228 228 / 0.012);
+  padding-inline: 1.75rem;
+}
+
+.bounty-detail-page .lifecycle li:hover::before {
+  background: var(--accent);
+}
+
+.bounty-detail-page .lifecycle__number {
+  align-self: start;
+  padding-top: 0.2rem;
+  color: rgb(169 221 211 / 0.72);
+  font-size: 0.625rem;
+}
+
+.bounty-detail-page .lifecycle__scope {
+  margin-bottom: 0.55rem;
+  color: rgb(228 228 228 / 0.38);
+  font-size: 0.5rem;
+  letter-spacing: 0.14em;
+}
+
+.bounty-detail-page .lifecycle h3 {
+  margin-bottom: 0.45rem;
+  color: rgb(228 228 228 / 0.88);
+  font-size: 1.25rem;
+  font-weight: 570;
+  letter-spacing: -0.035em;
+}
+
+.bounty-detail-page .lifecycle p {
+  max-width: 34rem;
+  color: rgb(228 228 228 / 0.48);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.bounty-detail-page .lifecycle__marker {
+  justify-self: end;
+  width: 2.75rem;
+}
+
+.bounty-detail-page .lifecycle__marker::before {
+  background: rgb(228 228 228 / 0.16);
+}
+
+.bounty-detail-page .lifecycle__marker::after {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-color: rgb(169 221 211 / 0.34);
+  background: rgb(169 221 211 / 0.08);
+}
+
+.bounty-detail-page .lifecycle li:hover .lifecycle__marker::before {
+  background: rgb(169 221 211 / 0.52);
+}
+
+.bounty-detail-page .lifecycle li:hover .lifecycle__marker::after {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0.8rem rgb(169 221 211 / 0.3);
+  transform: scale(1.12);
+}
+
+@media (max-width: 60rem) {
+  .bounty-detail-page .detail-lifecycle {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+
+  .bounty-detail-page .detail-lifecycle .section-heading h2 {
+    max-width: 40rem;
+  }
+
+  .bounty-detail-page .detail-lifecycle .section-heading > p:last-child {
+    max-width: 38rem;
+  }
+}
+
+@media (max-width: 45rem) {
+  .bounty-detail-page .detail-lifecycle {
+    gap: 1.75rem;
+    margin-top: 5rem;
+  }
+
+  .bounty-detail-page .detail-lifecycle .section-heading .eyebrow {
+    margin-bottom: 1.25rem;
+  }
+
+  .bounty-detail-page .detail-lifecycle .section-heading h2 {
+    max-width: 24rem;
+    font-size: clamp(2.75rem, 13vw, 4rem);
+  }
+
+  .bounty-detail-page .detail-lifecycle .section-heading > p:last-child {
+    margin-top: 1.35rem;
+  }
+
+  .bounty-detail-page .lifecycle li {
+    min-height: 0;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: 0.75rem;
+    padding: 1.25rem 1.15rem;
+  }
+
+  .bounty-detail-page .lifecycle li:hover {
+    padding-inline: 1.35rem;
+  }
+
+  .bounty-detail-page .lifecycle__marker {
+    display: none;
+  }
+
+  .bounty-detail-page .lifecycle h3 {
+    font-size: 1.125rem;
   }
 }

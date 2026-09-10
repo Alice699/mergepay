@@ -20,6 +20,7 @@ import { CopyValue } from "@/components/ui/copy-value";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
 import { useWorkflow } from "@/hooks/use-workflow";
+import { TransactionProof } from "@/components/ui/transaction-proof";
 import { routes } from "@/lib/constants";
 import { formatDeadline, formatRlo } from "@/lib/format";
 import { requestWalletControlOpen } from "@/lib/wallet-control-events";
@@ -27,8 +28,9 @@ import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 const RECEIPT_POLL_INTERVAL_MS = 2_500;
 
 interface SettlementReceiptProps {
-  slug: string;
+  slug: string | null;
   sponsorHint: string | null;
+  transactionSignatureHint: string | null;
   workflowAddressHint: string | null;
 }
 
@@ -37,13 +39,14 @@ type TerminalState = "paid" | "refunded";
 export function SettlementReceipt({
   slug,
   sponsorHint,
+  transactionSignatureHint,
   workflowAddressHint,
 }: Readonly<SettlementReceiptProps>) {
   const network = useNetwork();
   const wallet = useWallet();
   const accountHint = workflowAddressHint?.trim() || null;
   const sponsor = sponsorHint?.trim() || (accountHint ? null : wallet.address);
-  const lookupKey = accountHint || (sponsor ? slug : null);
+  const lookupKey = accountHint || (sponsor && slug ? slug : null);
   const [refreshToken, setRefreshToken] = useState(0);
 
   const loadWorkflow = useCallback(
@@ -72,7 +75,7 @@ export function SettlementReceipt({
     : workflow?.state.refunded
       ? "refunded"
       : null;
-  const workflowMatchesReceipt = workflow
+  const workflowMatchesReceipt = workflow && slug
     ? network.client.deriveWorkflowPda(workflow.state.sponsor, slug).address ===
       workflow.address
     : true;
@@ -198,6 +201,7 @@ export function SettlementReceipt({
   return (
     <VerifiedSettlementReceipt
       slug={slug}
+      transactionSignature={transactionSignatureHint}
       terminalState={terminalState}
       workflow={workflow}
     />
@@ -206,16 +210,18 @@ export function SettlementReceipt({
 
 function VerifiedSettlementReceipt({
   slug,
+  transactionSignature,
   terminalState,
   workflow,
 }: Readonly<{
-  slug: string;
+  slug: string | null;
+  transactionSignature: string | null;
   terminalState: TerminalState;
   workflow: DecodedMergePayWorkflow;
 }>) {
   const paid = terminalState === "paid";
   const destination = paid ? workflow.state.beneficiary : workflow.state.sponsor;
-  const workflowUrl = workflowDetailHref(slug, workflow);
+  const workflowUrl = slug ? workflowDetailHref(slug, workflow) : routes.settlements;
   const githubUrl = `https://github.com/${encodeURIComponent(workflow.state.githubOwner)}/${encodeURIComponent(workflow.state.githubRepo)}/pull/${workflow.state.pullNumber.toString()}`;
 
   return (
@@ -311,6 +317,12 @@ function VerifiedSettlementReceipt({
             <span>The committed bounty is no longer held in escrow</span>
           </dd>
         </div>
+        {transactionSignature ? (
+          <div className="settlement-receipt__detail settlement-receipt__detail--proof">
+            <dt>Settlement transaction</dt>
+            <dd><TransactionProof signature={transactionSignature} /></dd>
+          </div>
+        ) : null}
       </dl>
 
       <footer className="settlement-receipt__footer">
@@ -323,7 +335,7 @@ function VerifiedSettlementReceipt({
         </div>
         <div className="settlement-receipt__actions">
           <Link className="button" href={workflowUrl}>
-            View workflow
+            {slug ? "View workflow" : "Settlement ledger"}
           </Link>
           <Link className="text-link" href={routes.activity}>
             <Activity aria-hidden="true" className="ui-icon" size={15} strokeWidth={1.8} />
@@ -341,11 +353,11 @@ function PendingSettlementReceipt({
   workflow,
 }: Readonly<{
   onRefresh: () => void;
-  slug: string;
+  slug: string | null;
   workflow: DecodedMergePayWorkflow;
 }>) {
   const funded = workflow.state.funded;
-  const workflowUrl = workflowDetailHref(slug, workflow);
+  const workflowUrl = slug ? workflowDetailHref(slug, workflow) : routes.settlements;
 
   return (
     <article

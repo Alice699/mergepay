@@ -13,6 +13,8 @@ const requiredPaths = [
   "app/bounties/[slug]/receipt/page.tsx",
   "app/activity/page.tsx",
   "app/settlements/page.tsx",
+  "app/settlements/[slug]/page.tsx",
+  "app/settlements/receipt/page.tsx",
   "app/guide/page.tsx",
   "app/docs/page.tsx",
   "app/api/rialo/route.ts",
@@ -27,6 +29,7 @@ const requiredPaths = [
   "components/feedback/transaction-notifications.tsx",
   "components/activity/wallet-activity-feed.tsx",
   "components/settlement/settlement-activity-feed.tsx",
+  "components/settlement/settlement-receipt-page.tsx",
   "components/motion/route-transition.tsx",
   "components/motion/scroll-reveal.tsx",
   "components/wallet/transaction-approval-dialog.tsx",
@@ -91,7 +94,6 @@ test("ships product routes instead of route placeholders", async () => {
     "app/bounties/page.tsx",
     "app/bounties/new/page.tsx",
     "app/bounties/[slug]/page.tsx",
-    "app/bounties/[slug]/receipt/page.tsx",
     "app/docs/page.tsx",
   ];
 
@@ -511,7 +513,7 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
     "utf8",
   );
   const receiptPage = await readFile(
-    new URL("app/bounties/[slug]/receipt/page.tsx", webRoot),
+    new URL("components/settlement/settlement-receipt-page.tsx", webRoot),
     "utf8",
   );
   const routes = await readFile(new URL("lib/constants.ts", webRoot), "utf8");
@@ -523,6 +525,9 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(notifications, /describeRialoError/);
   assert.match(notifications, /role=\{tone === "error" \? "alert" : "status"\}/);
   assert.match(workflowDetail, /LIVE_WORKFLOW_POLL_INTERVAL_MS/);
+  assert.match(workflowDetail, /claimApprovalPending/);
+  assert.match(workflowDetail, /Waiting for sponsor funding/);
+  assert.match(workflowDetail, /workflow-claim--observer/);
   assert.match(workflowDetail, /visibilitychange/);
   assert.match(workflowDetail, /publishAppNotification/);
   assert.match(workflowDetail, /Claim record address/);
@@ -543,6 +548,9 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(routes, /settlementReceipt/);
   assert.match(styles, /width: min\(22rem, calc\(100vw - 2rem\)\)/);
   assert.match(styles, /\.workflow-claim__record/);
+  assert.match(styles, /Contributor handoff \/ role-aware live state/);
+  assert.match(styles, /Protocol lifecycle \/ Liquid Slate polish/);
+  assert.match(styles, /grid-template-columns: minmax\(18rem, 0\.72fr\)/);
   assert.match(styles, /\.workflow-settlement/);
   assert.match(styles, /\.settlement-receipt__terminal-proof/);
   assert.match(styles, /\.copy-value > span:first-child/);
@@ -558,6 +566,10 @@ test("keeps the complete bounty workflow inside the Liquid Slate system", async 
     "utf8",
   );
   const receiptPage = await readFile(
+    new URL("components/settlement/settlement-receipt-page.tsx", webRoot),
+    "utf8",
+  );
+  const legacyReceiptPage = await readFile(
     new URL("app/bounties/[slug]/receipt/page.tsx", webRoot),
     "utf8",
   );
@@ -577,6 +589,7 @@ test("keeps the complete bounty workflow inside the Liquid Slate system", async 
   assert.match(createPage, /bounty-create__terms/);
   assert.match(detailPage, /bounty-detail-hero__identity/);
   assert.match(receiptPage, /bounty-receipt-page/);
+  assert.match(legacyReceiptPage, /redirect/);
   assert.match(workflowDetail, /RequestClaimAction/);
   assert.match(workflowDetail, /AcceptClaimAction/);
   assert.match(workflowDetail, /FundBountyAction/);
@@ -617,9 +630,11 @@ test("keeps paid and refunded history wallet-scoped and terminal-only", async ()
   assert.match(settlementFeed, /SETTLEMENT_REFRESH_INTERVAL_MS = 10_000/);
   assert.match(settlementFeed, /SettlementPageLoadingState/);
   assert.match(settlementFeed, /loadingPageIndex/);
-  assert.match(settlementFeed, /Verify receipt/);
+  assert.match(settlementFeed, /View receipt/);
   assert.match(settlementFeed, /TransactionProof/);
-  assert.match(settlementFeed, /No page\s+reload is required/);
+  assert.match(settlementFeed, /terminal transaction in Rialo Scan/);
+  assert.match(settlementFeed, /settlementReceiptByAccount/);
+  assert.match(settlementFeed, /tx: item\.signature/);
   assert.match(client, /getWalletSettlementPage/);
   assert.match(client, /workflow\.state\.paid/);
   assert.match(client, /workflow\.state\.refunded/);
@@ -632,6 +647,28 @@ test("keeps paid and refunded history wallet-scoped and terminal-only", async ()
   assert.match(styles, /ledger-row-enter/);
   assert.match(styles, /ledger-skeleton/);
   assert.match(styles, /\.transaction-proof/);
+  assert.match(styles, /Settlement receipts \/ shareable proof/);
+
+  const receiptRoute = await readFile(
+    new URL("app/settlements/[slug]/page.tsx", webRoot),
+    "utf8",
+  );
+  const accountReceiptRoute = await readFile(
+    new URL("app/settlements/receipt/page.tsx", webRoot),
+    "utf8",
+  );
+  const receiptPage = await readFile(
+    new URL("components/settlement/settlement-receipt-page.tsx", webRoot),
+    "utf8",
+  );
+  const legacyReceiptRoute = await readFile(
+    new URL("app/bounties/[slug]/receipt/page.tsx", webRoot),
+    "utf8",
+  );
+  assert.match(receiptRoute, /SettlementReceiptPage/);
+  assert.match(accountReceiptRoute, /slug=\{null\}/);
+  assert.match(receiptPage, /transactionSignatureHint/);
+  assert.match(legacyReceiptRoute, /redirect/);
 });
 
 test("keeps wallet activity paginated and protocol docs on the active deployment", async () => {
@@ -699,6 +736,10 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.match(styles, /Docs \+ Guide \+ Ledger shell alignment \/ Liquid Slate/);
   assert.match(styles, /body:has\(\.docs-page, \.guide-page, \.ledger-page\) \.site-header__inner/);
   assert.match(styles, /body:has\(\.docs-page, \.guide-page, \.ledger-page\) \.site-footer__inner/);
+  assert.match(styles, /Shared navigation identity/);
+  assert.match(styles, /\.site-header \.brand-mark/);
+  assert.match(styles, /\.site-footer \.brand--footer \.brand-mark/);
+  assert.match(styles, /body:has\(\.docs-page, \.guide-page, \.ledger-page\) \.network-pill/);
   assert.match(styles, /Guide \/ Liquid Slate/);
   assert.match(styles, /body:has\(\.liquid-slate-page\)/);
   assert.doesNotMatch(styles, /\.code-flow/);

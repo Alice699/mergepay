@@ -25,7 +25,7 @@ import {
 import { CopyValue } from "@/components/ui/copy-value";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
-import { formatRlo, shortenAddress } from "@/lib/format";
+import { formatRlo } from "@/lib/format";
 import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 import { routes } from "@/lib/constants";
 import { TransactionProof } from "@/components/ui/transaction-proof";
@@ -199,12 +199,12 @@ export function SettlementActivityFeed() {
     >
       <header className="settlement-activity__header">
         <div>
-          <p className="panel-label">TERMINAL OUTCOMES ONLY</p>
-          <h2 id="settlement-activity-title">Your settlement history</h2>
+          <p className="panel-label">TERMINAL PROOF ONLY</p>
+          <h2 id="settlement-activity-title">Verified settlement receipts</h2>
           <p>
-            Paid and refunded bounties involving this wallet. The page checks
-            the workflow account again on every refresh and watches for new
-            results automatically.
+            Paid and refunded bounties involving this wallet. Open any receipt
+            to verify the workflow flags, destination, and terminal transaction
+            without relying on a wallet balance change.
           </p>
         </div>
         <div className="settlement-activity__header-actions">
@@ -332,9 +332,9 @@ export function SettlementActivityFeed() {
       <footer className="settlement-activity__note">
         <ReceiptText aria-hidden="true" size={16} strokeWidth={1.7} />
         <p>
-          The contributor can see the same terminal result after a claim, even
-          when the sponsor is the wallet that initiated the refund. No page
-          reload is required while this page is visible.
+          Contributors can open the paid receipt, while sponsors can open the
+          refund receipt. Every receipt is decoded from Rialo and links to the
+          terminal transaction in Rialo Scan.
         </p>
       </footer>
     </section>
@@ -345,9 +345,14 @@ function SettlementRow({ item }: Readonly<{ item: MergePaySettlementItem }>) {
   const paid = item.outcome === "paid";
   const stateFlag = paid ? "paid = true" : "refunded = true";
   const time = formatSettlementTime(item.blockTime);
-  const receiptHref = item.workflowSlug
-    ? `${routes.settlementReceipt(item.workflowSlug)}?account=${encodeURIComponent(item.workflowAddress)}&sponsor=${encodeURIComponent(item.workflow.state.sponsor)}`
-    : null;
+  const receiptQuery = new URLSearchParams({
+    account: item.workflowAddress,
+    sponsor: item.workflow.state.sponsor,
+    tx: item.signature,
+  });
+  const receiptHref = `${item.workflowSlug
+    ? routes.settlementReceipt(item.workflowSlug)
+    : routes.settlementReceiptByAccount}?${receiptQuery.toString()}`;
   const source = item.action === "check_merge"
     ? "Native merge heartbeat"
     : item.action === "refund"
@@ -389,16 +394,10 @@ function SettlementRow({ item }: Readonly<{ item: MergePaySettlementItem }>) {
           <GitPullRequest aria-hidden="true" size={14} strokeWidth={1.7} />
           PR #{item.workflow.state.pullNumber.toString()}
         </a>
-        {receiptHref ? (
-          <Link className="settlement-receipt-link" href={receiptHref}>
-            <ReceiptText aria-hidden="true" size={14} strokeWidth={1.7} />
-            Verify receipt
-          </Link>
-        ) : (
-          <span className="settlement-workflow-address" title={item.workflowAddress}>
-            Workflow {shortenAddress(item.workflowAddress, 6)}
-          </span>
-        )}
+        <Link className="settlement-receipt-link" href={receiptHref}>
+          <ReceiptText aria-hidden="true" size={14} strokeWidth={1.7} />
+          View receipt
+        </Link>
         <TransactionProof signature={item.signature} />
       </div>
     </article>

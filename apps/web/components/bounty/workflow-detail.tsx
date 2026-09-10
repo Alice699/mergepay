@@ -79,6 +79,43 @@ const LIVE_WORKFLOW_POLL_INTERVAL_MS = 2_500;
 const PENDING_TRANSACTION_POLL_INTERVAL_MS = 1_500;
 const MAX_PENDING_TRANSACTION_READS = 24;
 
+function WorkflowObserverNotice({
+  label,
+  title,
+  copy,
+  valueLabel,
+  value,
+  copyValue = false,
+}: Readonly<{
+  label: string;
+  title: string;
+  copy: string;
+  valueLabel: string;
+  value: string;
+  copyValue?: boolean;
+}>) {
+  return (
+    <section
+      className="workflow-claim workflow-claim--shared workflow-claim--observer"
+      aria-live="polite"
+    >
+      <div className="workflow-claim__copy">
+        <p className="panel-label">{label}</p>
+        <h3>{title}</h3>
+        <p>{copy}</p>
+      </div>
+      <div className="workflow-claim__record">
+        <span>{valueLabel}</span>
+        {copyValue ? (
+          <CopyValue value={value} />
+        ) : (
+          <strong className="workflow-claim__observer-value">{value}</strong>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function WorkflowRecord({
   workflow,
   workflowSlug,
@@ -195,7 +232,7 @@ function WorkflowRecord({
         </section>
       ) : null}
 
-      {!isUnclaimed && !state.funded && !state.paid && !state.refunded ? (
+      {!isUnclaimed && !state.funded && !state.paid && !state.refunded && isSponsor ? (
         <FundBountyAction
           onConfirmed={onFundConfirmed}
           workflow={workflow}
@@ -203,7 +240,18 @@ function WorkflowRecord({
         />
       ) : null}
 
-      {state.funded && !state.paid && !state.refunded && !deadlinePassed ? (
+      {!isUnclaimed && !state.funded && !state.paid && !state.refunded && !isSponsor ? (
+        <WorkflowObserverNotice
+          copy="The sponsor approved your wallet. Escrow funding is the next step; this page will update automatically when it is confirmed."
+          label="CLAIM APPROVED / NEXT STEP"
+          title="Waiting for sponsor funding"
+          value={state.beneficiary}
+          valueLabel="Approved beneficiary"
+          copyValue
+        />
+      ) : null}
+
+      {state.funded && !state.paid && !state.refunded && !deadlinePassed && isSponsor ? (
         <CheckMergeAction
           onCompleted={onCheckCompleted}
           workflow={workflow}
@@ -211,11 +259,31 @@ function WorkflowRecord({
         />
       ) : null}
 
-      {state.funded && !state.paid && !state.refunded && deadlinePassed ? (
+      {state.funded && !state.paid && !state.refunded && !deadlinePassed && !isSponsor ? (
+        <WorkflowObserverNotice
+          copy="Escrow is funded and Rialo is watching the GitHub proof automatically. You do not need to refresh this page."
+          label="ESCROW FUNDED / LIVE MONITOR"
+          title="Settlement is running"
+          value="Rialo native heartbeat"
+          valueLabel="Settlement mode"
+        />
+      ) : null}
+
+      {state.funded && !state.paid && !state.refunded && deadlinePassed && isSponsor ? (
         <RefundBountyAction
           onConfirmed={onRefundConfirmed}
           workflow={workflow}
           workflowSlug={workflowSlug}
+        />
+      ) : null}
+
+      {state.funded && !state.paid && !state.refunded && deadlinePassed && !isSponsor ? (
+        <WorkflowObserverNotice
+          copy="The deadline has passed. The sponsor can recover the escrow, and this page will show the refund as soon as Rialo confirms it."
+          label="DEADLINE PASSED / NEXT STEP"
+          title="Waiting for sponsor refund"
+          value="Refund pending on Rialo"
+          valueLabel="Settlement status"
         />
       ) : null}
 
@@ -277,6 +345,7 @@ export function WorkflowDetail({
   const [refreshToken, setRefreshToken] = useState(0);
   const observedWorkflowState = useRef<{
     address: string;
+    beneficiary: string;
     terminal: "paid" | "refunded" | null;
   } | null>(null);
   const [confirmedTransaction, setConfirmedTransaction] =
@@ -331,9 +400,20 @@ export function WorkflowDetail({
   const liveSettlementActive = Boolean(
     workflow?.state.funded && !workflow.state.paid && !workflow.state.refunded,
   );
+  const claimApprovalPending = Boolean(
+    claimWorkflowHint &&
+      workflow &&
+      workflow.state.beneficiary === MERGEPAY_UNASSIGNED_BENEFICIARY &&
+      !workflow.state.funded &&
+      !workflow.state.paid &&
+      !workflow.state.refunded,
+  );
+  const shouldPollWorkflow = Boolean(
+    pendingStateSignature || liveSettlementActive || claimApprovalPending,
+  );
 
   useEffect(() => {
-    if (!pendingStateSignature && !liveSettlementActive) return;
+    if (!shouldPollWorkflow) return;
 
     let reads = 0;
     const intervalMs = pendingStateSignature
@@ -346,6 +426,7 @@ export function WorkflowDetail({
       if (
         pendingStateSignature &&
         !liveSettlementActive &&
+        !claimApprovalPending &&
         reads >= MAX_PENDING_TRANSACTION_READS
       ) {
         window.clearInterval(interval);
@@ -366,7 +447,7 @@ export function WorkflowDetail({
       window.removeEventListener("focus", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, [liveSettlementActive, pendingStateSignature]);
+  }, [claimApprovalPending, liveSettlementActive, pendingStateSignature, shouldPollWorkflow]);
 
   useEffect(() => {
     if (!workflow) return;
@@ -376,14 +457,28 @@ export function WorkflowDetail({
       : workflow.state.refunded
         ? "refunded"
         : null;
+    const beneficiary = workflow.state.beneficiary;
     const previous = observedWorkflowState.current;
 
     if (!previous || previous.address !== workflow.address) {
-      observedWorkflowState.current = { address: workflow.address, terminal };
+      observedWorkflowState.current = {
+        address: workflow.address,
+        beneficiary,
+        terminal,
+      };
       return;
     }
 
-    if (!previous.terminal && terminal === "paid") {
+    if (
+      previous.beneficiary === MERGEPAY_UNASSIGNED_BENEFICIARY &&
+      beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY
+    ) {
+      publishAppNotification({
+        title: "Contributor claim approved",
+        message: "The sponsor approved the contributor wallet. Funding can continue without refreshing.",
+        tone: "success",
+      });
+    } else if (!previous.terminal && terminal === "paid") {
       publishAppNotification({
         title: "Bounty payout complete",
         message: `${formatRlo(workflow.state.amountKelvin)} RLO was released to the approved contributor.`,
@@ -397,7 +492,7 @@ export function WorkflowDetail({
       });
     }
 
-    observedWorkflowState.current = { address: workflow.address, terminal };
+    observedWorkflowState.current = { address: workflow.address, beneficiary, terminal };
   }, [workflow]);
 
   const readLoading =
@@ -535,9 +630,15 @@ export function WorkflowDetail({
         "The initiating transaction executed. Rialo REX is processing the GitHub proof callback.";
     }
   } else if (confirmedTransaction?.kind === "claim") {
-    confirmationTitle = "Claim request confirmed";
-    confirmationCopy =
-      "The contributor claim record is live on Rialo. Share its address with the sponsor for approval.";
+    if (workflow && workflow.state.beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY) {
+      confirmationTitle = "Claim approved";
+      confirmationCopy =
+        "The sponsor locked the contributor wallet. Funding is now the next step, and this page will keep updating automatically.";
+    } else {
+      confirmationTitle = "Claim request confirmed";
+      confirmationCopy =
+        "The contributor claim record is live on Rialo. Share its address with the sponsor for approval.";
+    }
   } else if (confirmedTransaction?.kind === "accept_claim") {
     if (workflow && workflow.state.beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY) {
       confirmationTitle = "Claim approved";

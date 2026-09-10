@@ -16,5 +16,6 @@ export const routes = {
   docs: "/docs",
   bounty: (slug: string) => `/bounties/${encodeURIComponent(slug)}`,
   settlementReceipt: (slug: string) =>
-    `/bounties/${encodeURIComponent(slug)}/receipt`,
+    `/settlements/${encodeURIComponent(slug)}`,
+  settlementReceiptByAccount: "/settlements/receipt",
 } as const;

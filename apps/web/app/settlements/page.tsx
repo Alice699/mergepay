@@ -21,12 +21,12 @@ export default function SettlementsPage() {
           </div>
           <h1>
             <span>Paid or returned.</span>
-            <em>Never guess.</em>
+            <em>Proof you can share.</em>
           </h1>
           <p>
-            This page shows only terminal bounty outcomes involving the active
-            wallet: a confirmed payment to a contributor or an escrow refund to
-            a sponsor. Every row is checked against its live Rialo workflow.
+            Open a verified receipt for every terminal bounty outcome involving
+            the active wallet. Each payment or refund is checked against its
+            live Rialo workflow before it appears here.
           </p>
         </div>
         <div className="settlement-scope ledger-scope" aria-label="Live settlement source">
@@ -38,7 +38,7 @@ export default function SettlementsPage() {
           </div>
           <div className="ledger-scope__body">
             <span>TERMINAL STATES</span>
-            <strong>Paid + refunded</strong>
+            <strong>Receipts to share</strong>
             <small>Connected wallet · Rialo DevNet</small>
           </div>
         </div>
@@ -53,7 +53,9 @@ export default function SettlementsPage() {
             MergePay does not treat a submitted transaction, toast, or balance
             estimate as payment proof. A settlement appears here only when the
             decoded workflow reports <span className="mono">paid = true</span>{" "}
-            or <span className="mono">refunded = true</span>.
+            or <span className="mono">refunded = true</span>. Open the receipt
+            to share the decoded workflow proof and the terminal transaction in
+            Rialo Scan.
           </p>
         </div>
         <span className="state state--good">Verified onchain</span>
