@@ -561,6 +561,9 @@ test("keeps paid and refunded history wallet-scoped and terminal-only", async ()
   assert.match(settlementsPage, /SettlementActivityFeed/);
   assert.match(settlementsPage, /paid = true/);
   assert.match(settlementsPage, /refunded = true/);
+  assert.match(settlementsPage, /liquid-slate-page ledger-page/);
+  assert.match(settlementsPage, /ledger-eyebrow/);
+  assert.doesNotMatch(settlementsPage, /ScrollReveal/);
   assert.match(settlementFeed, /getWalletSettlementPage/);
   assert.match(settlementFeed, /Paid and refunded bounties/);
   assert.match(settlementFeed, /SETTLEMENT_PAGE_SIZE = 6/);
@@ -578,6 +581,10 @@ test("keeps paid and refunded history wallet-scoped and terminal-only", async ()
 });
 
 test("keeps wallet activity paginated and protocol docs on the active deployment", async () => {
+  const activityPage = await readFile(
+    new URL("app/activity/page.tsx", webRoot),
+    "utf8",
+  );
   const activityFeed = await readFile(
     new URL("components/activity/wallet-activity-feed.tsx", webRoot),
     "utf8",
@@ -597,6 +604,9 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
 
   assert.match(activityFeed, /ACTIVITY_PAGE_SIZE = 8/);
+  assert.match(activityPage, /liquid-slate-page ledger-page/);
+  assert.match(activityPage, /ledger-eyebrow/);
+  assert.doesNotMatch(activityPage, /ScrollReveal/);
   assert.match(activityFeed, /getWalletActivityPage/);
   assert.match(activityFeed, /showPreviousPage/);
   assert.match(activityFeed, /showNextPage/);

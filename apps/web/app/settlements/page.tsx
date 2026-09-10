@@ -10,14 +10,18 @@ export const metadata: Metadata = {
 
 export default function SettlementsPage() {
   return (
-    <main className="page-main page-width settlements-page">
-      <div className="page-hero">
-        <div>
-          <p className="eyebrow">Wallet-scoped settlement history</p>
+    <main className="page-main page-width liquid-slate-page ledger-page settlements-page">
+      <div className="page-hero ledger-hero">
+        <div className="ledger-hero__copy">
+          <div className="ledger-eyebrow">
+            <span>
+              <i aria-hidden="true" /> Settlement ledger
+            </span>
+            <b>DevNet / Terminal only</b>
+          </div>
           <h1>
-            Paid or returned.
-            <br />
-            Never guess.
+            <span>Paid or returned.</span>
+            <em>Never guess.</em>
           </h1>
           <p>
             This page shows only terminal bounty outcomes involving the active
@@ -25,11 +29,18 @@ export default function SettlementsPage() {
             a sponsor. Every row is checked against its live Rialo workflow.
           </p>
         </div>
-        <div className="settlement-scope" aria-label="Live settlement source">
-          <ReceiptText aria-hidden="true" size={20} strokeWidth={1.6} />
-          <span>LIVE SETTLEMENTS</span>
-          <strong>Connected wallet</strong>
-          <small>Rialo DevNet</small>
+        <div className="settlement-scope ledger-scope" aria-label="Live settlement source">
+          <div className="ledger-scope__head">
+            <div className="ledger-scope__icon" aria-hidden="true">
+              <ReceiptText size={20} strokeWidth={1.6} />
+            </div>
+            <span><i aria-hidden="true" /> Auto-refresh</span>
+          </div>
+          <div className="ledger-scope__body">
+            <span>TERMINAL STATES</span>
+            <strong>Paid + refunded</strong>
+            <small>Connected wallet · Rialo DevNet</small>
+          </div>
         </div>
       </div>
 

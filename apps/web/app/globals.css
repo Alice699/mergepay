@@ -12508,3 +12508,819 @@ body:has(.home-page) .footer-deployment {
     align-self: flex-start;
   }
 }
+
+/* Wallet ledgers / Liquid Slate */
+.ledger-page {
+  position: relative;
+  isolation: isolate;
+  width: min(calc(100% - 4rem), 90rem);
+  padding-block: clamp(5.5rem, 8vw, 8rem) 9rem;
+}
+
+.ledger-page::before {
+  position: absolute;
+  z-index: -1;
+  top: -12rem;
+  right: -18rem;
+  width: 48rem;
+  height: 48rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(43 69 89 / 0.2), transparent 68%);
+  content: "";
+  filter: blur(2rem);
+  pointer-events: none;
+}
+
+.ledger-hero {
+  min-height: 30rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 22rem);
+  align-items: center;
+  gap: clamp(4rem, 8vw, 8rem);
+  border-color: rgb(228 228 228 / 0.1);
+  padding-bottom: clamp(4rem, 6vw, 5.5rem);
+}
+
+.ledger-hero__copy {
+  min-width: 0;
+}
+
+.ledger-eyebrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  color: rgb(228 228 228 / 0.36);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ledger-eyebrow span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: rgb(228 228 228 / 0.76);
+}
+
+.ledger-eyebrow i {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: #e4e4e4;
+  box-shadow: 0 0 0.9rem rgb(228 228 228 / 0.42);
+}
+
+.ledger-eyebrow b {
+  font-weight: 500;
+}
+
+.ledger-hero h1 {
+  max-width: 50rem;
+  margin: 1.6rem 0 0;
+  color: #e4e4e4;
+  font-size: clamp(4rem, 6.2vw, 6rem);
+  font-weight: 540;
+  letter-spacing: -0.07em;
+  line-height: 0.92;
+}
+
+.ledger-hero h1 span,
+.ledger-hero h1 em {
+  display: block;
+}
+
+.ledger-hero h1 em {
+  margin-top: 0.08em;
+  color: rgb(228 228 228 / 0.46);
+  font-family: inherit;
+  font-style: normal;
+  font-weight: 420;
+}
+
+.page-hero .ledger-hero__copy > p {
+  max-width: 40rem;
+  margin-top: 2rem;
+  color: rgb(228 228 228 / 0.56);
+  font-size: 1rem;
+  line-height: 1.72;
+  text-wrap: pretty;
+}
+
+:is(.activity-scope, .settlement-scope).ledger-scope {
+  width: 100%;
+  min-width: 0;
+  min-height: 14.5rem;
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgb(228 228 228 / 0.12);
+  border-radius: 1.125rem;
+  background:
+    linear-gradient(145deg, rgb(43 69 89 / 0.3), transparent 68%),
+    rgb(228 228 228 / 0.025);
+  color: rgb(228 228 228 / 0.72);
+  padding: 1.25rem;
+  box-shadow:
+    inset 0 1px rgb(228 228 228 / 0.07),
+    0 2rem 5rem rgb(0 0 0 / 0.22);
+  backdrop-filter: blur(1.25rem) saturate(120%);
+}
+
+.ledger-scope__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ledger-scope__icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(228 228 228 / 0.14);
+  border-radius: 0.8rem;
+  background: rgb(228 228 228 / 0.045);
+  color: rgb(228 228 228 / 0.78);
+  box-shadow: inset 0 1px rgb(228 228 228 / 0.06);
+}
+
+.ledger-scope__head > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgb(228 228 228 / 0.56);
+  font-family: var(--font-mono);
+  font-size: 0.5375rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ledger-scope__head > span i {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0.75rem color-mix(in oklab, var(--success) 46%, transparent);
+}
+
+.ledger-scope__body {
+  width: 100%;
+  display: grid;
+  gap: 0.45rem;
+  border-top: 1px solid rgb(228 228 228 / 0.09);
+  padding-top: 1rem;
+}
+
+:is(.activity-scope, .settlement-scope) .ledger-scope__body > span {
+  color: rgb(228 228 228 / 0.3);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+:is(.activity-scope, .settlement-scope) .ledger-scope__body > strong {
+  color: rgb(228 228 228 / 0.88);
+  font-size: 1.35rem;
+  font-weight: 540;
+  letter-spacing: -0.045em;
+  line-height: 1.2;
+}
+
+:is(.activity-scope, .settlement-scope) .ledger-scope__body > small {
+  color: rgb(228 228 228 / 0.38);
+  font-family: var(--font-mono);
+  font-size: 0.5375rem;
+  letter-spacing: 0.02em;
+}
+
+.ledger-page :is(.wallet-activity, .settlement-activity) {
+  position: relative;
+  overflow: hidden;
+  margin-top: 2.5rem;
+  border: 1px solid rgb(228 228 228 / 0.11);
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(43 69 89 / 0.2), transparent 28rem),
+    linear-gradient(145deg, rgb(18 23 27 / 0.94), rgb(10 12 14 / 0.97));
+  box-shadow:
+    inset 0 1px rgb(228 228 228 / 0.05),
+    0 2rem 5rem rgb(0 0 0 / 0.18);
+}
+
+.ledger-page :is(.wallet-activity__header, .settlement-activity__header) {
+  align-items: center;
+  gap: 3rem;
+  border-color: rgb(228 228 228 / 0.1);
+  padding: 2.25rem;
+}
+
+.ledger-page :is(.wallet-activity__header, .settlement-activity__header) .panel-label {
+  margin-bottom: 0.7rem;
+  color: rgb(228 228 228 / 0.32);
+  font-size: 0.5375rem;
+}
+
+.ledger-page :is(.wallet-activity__header, .settlement-activity__header) h2 {
+  color: rgb(228 228 228 / 0.9);
+  font-size: clamp(2rem, 3vw, 2.65rem);
+  font-weight: 520;
+  letter-spacing: -0.06em;
+}
+
+.ledger-page :is(.wallet-activity__header, .settlement-activity__header) p:last-child {
+  max-width: 45rem;
+  color: rgb(228 228 228 / 0.48);
+  line-height: 1.72;
+  text-wrap: pretty;
+}
+
+.ledger-page .activity-refresh {
+  min-height: 2.75rem;
+  flex: 0 0 auto;
+  border-color: rgb(228 228 228 / 0.12);
+  border-radius: 999px;
+  background: rgb(228 228 228 / 0.035);
+  color: rgb(228 228 228 / 0.68);
+  padding-inline: 1rem;
+  box-shadow: inset 0 1px rgb(228 228 228 / 0.04);
+}
+
+.ledger-page .activity-refresh:hover:not(:disabled) {
+  border-color: rgb(228 228 228 / 0.2);
+  background: rgb(43 69 89 / 0.24);
+  color: #e4e4e4;
+}
+
+.ledger-page :is(.wallet-activity__identity, .settlement-activity__identity) {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  border-color: rgb(228 228 228 / 0.09);
+  background: rgb(5 7 8 / 0.24);
+  padding: 1rem 2.25rem;
+}
+
+.ledger-page :is(.wallet-activity__identity, .settlement-activity__identity) > div:nth-child(2) {
+  min-width: 0;
+}
+
+.ledger-page :is(.wallet-activity__identity-mark, .settlement-activity__identity-mark) {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-color: rgb(228 228 228 / 0.13);
+  border-radius: 0.75rem;
+  background: rgb(228 228 228 / 0.035);
+  color: rgb(228 228 228 / 0.68);
+  box-shadow: inset 0 1px rgb(228 228 228 / 0.04);
+}
+
+.ledger-page :is(.wallet-activity__identity, .settlement-activity__identity) > div:nth-child(2) > span {
+  margin-bottom: 0.4rem;
+  color: rgb(228 228 228 / 0.4);
+  font-size: 0.5625rem;
+  letter-spacing: 0.08em;
+}
+
+.ledger-page :is(.wallet-activity__identity, .settlement-activity__identity) .copy-value {
+  width: min(24rem, 100%);
+  min-height: 2rem;
+  border: 1px solid rgb(228 228 228 / 0.1);
+  border-radius: 0.5rem;
+  background: rgb(228 228 228 / 0.025);
+  padding: 0 0.5rem 0 0.65rem;
+}
+
+.ledger-page :is(.wallet-activity__balance, .settlement-activity__scope) {
+  min-width: 10.5rem;
+  border-left: 1px solid rgb(228 228 228 / 0.09);
+  padding-left: 1.5rem;
+}
+
+.ledger-page .wallet-activity__balance span,
+.ledger-page .settlement-activity__scope > span {
+  color: rgb(228 228 228 / 0.3);
+  font-size: 0.5rem;
+}
+
+.ledger-page .wallet-activity__balance strong {
+  color: rgb(228 228 228 / 0.76);
+}
+
+.ledger-page .settlement-activity__scope strong {
+  color: rgb(228 228 228 / 0.72);
+}
+
+.ledger-page .wallet-activity__list-header {
+  min-height: 3.5rem;
+  background: rgb(5 7 8 / 0.24);
+  color: rgb(228 228 228 / 0.28);
+}
+
+.ledger-page :is(.wallet-activity__list-header, .wallet-activity__row) {
+  grid-template-columns: minmax(0, 1.3fr) minmax(9rem, 0.6fr) minmax(15rem, 0.8fr);
+  gap: 2.25rem;
+  padding-inline: 2.25rem;
+}
+
+.ledger-page .wallet-activity__row {
+  min-height: 8.5rem;
+  border-color: rgb(228 228 228 / 0.09);
+}
+
+.ledger-page :is(.wallet-activity__row, .settlement-activity__row):hover {
+  background: linear-gradient(90deg, rgb(43 69 89 / 0.15), transparent 82%);
+}
+
+.ledger-page .wallet-activity__status-mark {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-color: rgb(93 216 143 / 0.32);
+  border-radius: 0.75rem;
+  background: rgb(93 216 143 / 0.065);
+}
+
+.ledger-page .wallet-activity__row[data-status="failed"] .wallet-activity__status-mark {
+  border-color: rgb(227 112 88 / 0.34);
+  background: rgb(227 112 88 / 0.065);
+}
+
+.ledger-page .wallet-activity__action h3 {
+  color: rgb(228 228 228 / 0.86);
+  font-size: 1rem;
+  font-weight: 580;
+}
+
+.ledger-page .wallet-activity__action p {
+  color: rgb(228 228 228 / 0.46);
+}
+
+.ledger-page :is(.wallet-activity__transaction, .settlement-activity__actions) .copy-value {
+  border-color: rgb(228 228 228 / 0.1);
+  background: rgb(5 7 8 / 0.34);
+}
+
+.ledger-page .settlement-activity__header-actions {
+  gap: 1.25rem;
+}
+
+.ledger-page .settlement-live-indicator {
+  color: rgb(228 228 228 / 0.48);
+}
+
+.ledger-page .settlement-activity__summary {
+  border-color: rgb(228 228 228 / 0.09);
+  background: rgb(5 7 8 / 0.18);
+  padding: 1.15rem 2.25rem;
+}
+
+.ledger-page .settlement-activity__summary .panel-label {
+  color: rgb(228 228 228 / 0.3);
+}
+
+.ledger-page .settlement-activity__summary strong {
+  color: rgb(228 228 228 / 0.72);
+}
+
+.ledger-page .settlement-activity__row {
+  grid-template-columns: 3rem minmax(0, 1fr) minmax(14rem, 17rem);
+  gap: 1.5rem;
+  min-height: 10rem;
+  border-color: rgb(228 228 228 / 0.09);
+  padding: 1.6rem 2.25rem;
+}
+
+.ledger-page .settlement-activity__mark {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.8rem;
+}
+
+.ledger-page .settlement-activity__row h3 {
+  color: rgb(228 228 228 / 0.88);
+  font-size: 1.05rem;
+  font-weight: 580;
+}
+
+.ledger-page .settlement-activity__row-heading > strong {
+  color: rgb(228 228 228 / 0.86);
+  font-size: 1.1rem;
+}
+
+.ledger-page :is(.settlement-github-link, .settlement-receipt-link) {
+  width: fit-content;
+  min-height: 1.75rem;
+  color: rgb(228 228 228 / 0.58);
+}
+
+.ledger-page :is(.settlement-github-link, .settlement-receipt-link):hover {
+  color: #e4e4e4;
+}
+
+.ledger-page .settlement-receipt-link svg {
+  color: rgb(228 228 228 / 0.68);
+}
+
+.ledger-page :is(.wallet-activity__pagination, .settlement-activity__pagination) {
+  min-height: 5.5rem;
+  border-color: rgb(228 228 228 / 0.09);
+  background: rgb(5 7 8 / 0.24);
+  padding-inline: 2.25rem;
+}
+
+.ledger-page :is(.wallet-activity__pagination, .settlement-activity__pagination) button {
+  min-height: 2.75rem;
+  border-color: rgb(228 228 228 / 0.11);
+  border-radius: 999px;
+  background: rgb(228 228 228 / 0.025);
+  color: rgb(228 228 228 / 0.62);
+}
+
+.ledger-page :is(.wallet-activity__pagination, .settlement-activity__pagination) button:hover:not(:disabled) {
+  border-color: rgb(228 228 228 / 0.2);
+  background: rgb(43 69 89 / 0.22);
+  color: #e4e4e4;
+}
+
+.ledger-page :is(.wallet-activity__pagination, .settlement-activity__pagination) strong {
+  color: rgb(228 228 228 / 0.8);
+}
+
+.ledger-page :is(.wallet-activity__empty, .settlement-activity__empty) {
+  min-height: 19rem;
+  grid-template-columns: 7.5rem minmax(0, 1fr) minmax(13rem, 17rem);
+  gap: clamp(2rem, 4vw, 4rem);
+  padding: 3rem;
+}
+
+.ledger-page :is(.wallet-activity__empty, .settlement-activity__empty)::before {
+  background:
+    radial-gradient(circle at 9% 50%, rgb(43 69 89 / 0.2), transparent 26%),
+    linear-gradient(90deg, transparent, rgb(228 228 228 / 0.012), transparent);
+}
+
+.ledger-page :is(.wallet-activity__empty-visual, .settlement-activity__empty-visual) {
+  width: 7rem;
+  border-color: rgb(228 228 228 / 0.1);
+  background: rgb(228 228 228 / 0.018);
+}
+
+.ledger-page :is(.wallet-activity__empty-orbit, .settlement-activity__empty-orbit) {
+  border-color: rgb(228 228 228 / 0.16);
+}
+
+.ledger-page :is(.wallet-activity__empty-icon, .settlement-activity__empty-icon) {
+  border-color: rgb(228 228 228 / 0.16);
+  background: rgb(228 228 228 / 0.045);
+  color: rgb(228 228 228 / 0.72);
+  box-shadow: 0 0 0 0.5rem rgb(228 228 228 / 0.025);
+}
+
+.ledger-page :is(.wallet-activity__empty-network, .settlement-activity__empty-network) {
+  border-color: rgb(228 228 228 / 0.14);
+  background: rgb(18 23 27 / 0.96);
+  color: rgb(228 228 228 / 0.5);
+}
+
+.ledger-page :is(.wallet-activity__empty-eyebrow, .settlement-activity__empty-copy > span) {
+  color: rgb(228 228 228 / 0.44);
+}
+
+.ledger-page :is(.wallet-activity__empty, .settlement-activity__empty) h3 {
+  color: rgb(228 228 228 / 0.88);
+  font-size: clamp(1.35rem, 2vw, 1.65rem);
+  font-weight: 560;
+}
+
+.ledger-page :is(.wallet-activity__empty, .settlement-activity__empty) p {
+  color: rgb(228 228 228 / 0.48);
+}
+
+.ledger-page :is(.wallet-activity__empty-details, .settlement-activity__empty-details) {
+  border-color: rgb(228 228 228 / 0.09);
+}
+
+.ledger-page :is(.wallet-activity__empty-details, .settlement-activity__empty-details) > span {
+  color: rgb(228 228 228 / 0.28);
+}
+
+.ledger-page :is(.wallet-activity__empty-details, .settlement-activity__empty-details) li {
+  color: rgb(228 228 228 / 0.58);
+}
+
+.ledger-page .button--dark {
+  min-height: 2.75rem;
+  border-color: rgb(228 228 228 / 0.12);
+  border-radius: 999px;
+  background: #e4e4e4;
+  color: #0b0b0b;
+  padding-inline: 1.1rem;
+}
+
+.ledger-page .button--dark:hover:not(:disabled) {
+  border-color: #f1f1f1;
+  background: #f1f1f1;
+  color: #0b0b0b;
+  box-shadow: 0 1rem 2.5rem rgb(228 228 228 / 0.08);
+}
+
+.ledger-page :is(.wallet-activity__note, .settlement-activity__note) {
+  gap: 0.75rem;
+  border-color: rgb(228 228 228 / 0.09);
+  background: rgb(5 7 8 / 0.16);
+  color: rgb(228 228 228 / 0.32);
+  padding: 1.05rem 2.25rem;
+}
+
+.ledger-page :is(.wallet-activity__note, .settlement-activity__note) svg {
+  color: rgb(228 228 228 / 0.5);
+}
+
+.ledger-page :is(.activity-footnote, .settlements-footnote) {
+  align-items: center;
+  margin-top: 1rem;
+  border: 1px solid rgb(228 228 228 / 0.1);
+  border-radius: 0.875rem;
+  background:
+    linear-gradient(90deg, rgb(43 69 89 / 0.13), transparent 72%),
+    rgb(228 228 228 / 0.014);
+  padding: 1.35rem 1.5rem;
+}
+
+.ledger-page :is(.activity-footnote, .settlements-footnote) .panel-label {
+  color: rgb(228 228 228 / 0.3);
+}
+
+.ledger-page :is(.activity-footnote, .settlements-footnote) p:last-child {
+  color: rgb(228 228 228 / 0.42);
+}
+
+.ledger-page .activity-footnote a {
+  color: rgb(228 228 228 / 0.76);
+  text-decoration: underline;
+  text-decoration-color: rgb(228 228 228 / 0.22);
+  text-underline-offset: 0.2em;
+}
+
+.ledger-page .state {
+  border: 1px solid color-mix(in oklab, currentColor 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, currentColor 7%, transparent);
+  padding: 0.4rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+@media (max-width: 64rem) {
+  .ledger-page .settlement-activity__row {
+    grid-template-columns: 3rem minmax(0, 1fr);
+  }
+
+  .ledger-page .settlement-activity__actions {
+    grid-column: 2;
+    grid-template-columns: repeat(3, minmax(0, auto));
+    align-items: center;
+    justify-content: start;
+    gap: 0.75rem 1rem;
+    border-top: 1px solid rgb(228 228 228 / 0.09);
+    padding-top: 1rem;
+  }
+
+  .ledger-page .settlement-activity__actions .copy-value {
+    width: min(16rem, 100%);
+  }
+
+  .ledger-page :is(.wallet-activity__empty, .settlement-activity__empty) {
+    grid-template-columns: 7rem minmax(0, 1fr);
+  }
+
+  .ledger-page :is(.wallet-activity__empty-details, .settlement-activity__empty-details) {
+    grid-column: 1 / -1;
+    border-top: 1px solid rgb(228 228 228 / 0.09);
+    border-left: 0;
+    padding: 1.25rem 0 0;
+  }
+
+  .ledger-page :is(.wallet-activity__empty-details, .settlement-activity__empty-details) ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 60rem) {
+  .ledger-hero {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+
+  :is(.activity-scope, .settlement-scope).ledger-scope {
+    width: min(30rem, 100%);
+    min-height: 12.5rem;
+  }
+
+  .ledger-page :is(.wallet-activity__list-header, .wallet-activity__row) {
+    grid-template-columns: minmax(0, 1.2fr) minmax(8rem, 0.7fr);
+  }
+
+  .ledger-page .wallet-activity__list-header span:last-child {
+    display: none;
+  }
+
+  .ledger-page .wallet-activity__transaction {
+    grid-column: 1 / -1;
+    margin-top: -1rem;
+    padding-bottom: 1.5rem;
+  }
+}
+
+@media (max-width: 45rem) {
+  .ledger-page {
+    width: min(calc(100% - 1.75rem), 90rem);
+    padding-block: 4.5rem 6rem;
+  }
+
+  .ledger-hero {
+    min-height: auto;
+  }
+
+  .ledger-hero h1 {
+    font-size: clamp(3rem, 14.5vw, 4.5rem);
+  }
+
+  :is(.activity-scope, .settlement-scope).ledger-scope {
+    width: 100%;
+    min-height: 12rem;
+    border: 1px solid rgb(228 228 228 / 0.12);
+    border-radius: 1rem;
+    padding: 1.125rem;
+  }
+
+  .ledger-page :is(.wallet-activity__header, .settlement-activity__header) {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+
+  .ledger-page .activity-refresh {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ledger-page .settlement-activity__header-actions {
+    width: 100%;
+  }
+
+  .ledger-page .settlement-activity__header-actions .activity-refresh {
+    flex: 1;
+  }
+
+  .ledger-page :is(.wallet-activity__identity, .settlement-activity__identity) {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 1rem 1.5rem;
+  }
+
+  .ledger-page :is(.wallet-activity__balance, .settlement-activity__scope) {
+    grid-column: 1 / -1;
+    align-items: flex-start;
+    justify-items: start;
+    border-top: 1px solid rgb(228 228 228 / 0.09);
+    border-left: 0;
+    padding: 0.875rem 0 0;
+  }
+
+  .ledger-page .wallet-activity__list-header {
+    display: none;
+  }
+
+  .ledger-page .wallet-activity__row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1.5rem;
+  }
+
+  .ledger-page :is(.wallet-activity__result, .wallet-activity__transaction) {
+    grid-column: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  .ledger-page .wallet-activity__transaction {
+    border-top: 1px solid rgb(228 228 228 / 0.09);
+    padding-top: 1rem;
+  }
+
+  .ledger-page .settlement-activity__summary {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 1.25rem 1.5rem;
+  }
+
+  .ledger-page .settlement-activity__row {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1.5rem;
+  }
+
+  .ledger-page .settlement-activity__mark {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .ledger-page .settlement-activity__row-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .ledger-page .settlement-activity__row h3 {
+    white-space: normal;
+  }
+
+  .ledger-page .settlement-activity__actions {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .ledger-page .settlement-activity__actions .copy-value,
+  .ledger-page :is(.settlement-github-link, .settlement-receipt-link) {
+    width: 100%;
+  }
+
+  .ledger-page :is(.wallet-activity__pagination, .settlement-activity__pagination) {
+    grid-template-columns: repeat(2, 1fr);
+    padding-inline: 1.5rem;
+  }
+
+  .ledger-page :is(.wallet-activity__page-status, .settlement-activity__pagination > div) {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .ledger-page :is(.wallet-activity__pagination, .settlement-activity__pagination) button {
+    width: 100%;
+  }
+
+  .ledger-page :is(.wallet-activity__empty, .settlement-activity__empty) {
+    grid-template-columns: 5.75rem minmax(0, 1fr);
+    gap: 1.5rem;
+    padding: 2.25rem 1.5rem;
+  }
+
+  .ledger-page :is(.wallet-activity__empty-visual, .settlement-activity__empty-visual) {
+    width: 5.25rem;
+  }
+
+  .ledger-page :is(.wallet-activity__empty-details, .settlement-activity__empty-details) ul {
+    grid-template-columns: 1fr;
+  }
+
+  .ledger-page :is(.wallet-activity__note, .settlement-activity__note) {
+    padding-inline: 1.5rem;
+  }
+
+  .ledger-page :is(.activity-footnote, .settlements-footnote) {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 28rem) {
+  .ledger-eyebrow b {
+    display: none;
+  }
+
+  .ledger-page :is(.wallet-activity__empty, .settlement-activity__empty) {
+    grid-template-columns: 1fr;
+  }
+
+  .ledger-page :is(.wallet-activity__empty-visual, .settlement-activity__empty-visual) {
+    width: 5rem;
+  }
+
+  .ledger-page :is(.wallet-activity__empty-details, .settlement-activity__empty-details) {
+    grid-column: auto;
+  }
+
+  .ledger-page .settlement-activity__header-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ledger-page .settlement-live-indicator {
+    min-height: 2rem;
+  }
+}

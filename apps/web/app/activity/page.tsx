@@ -8,18 +8,33 @@ export const metadata: Metadata = { title: "Activity" };
 
 export default function ActivityPage() {
   return (
-    <main className="page-main page-width activity-page">
-      <div className="page-hero">
-        <div>
-          <p className="eyebrow">Wallet activity</p>
-          <h1>Every action,<br />in context.</h1>
+    <main className="page-main page-width liquid-slate-page ledger-page activity-page">
+      <div className="page-hero ledger-hero">
+        <div className="ledger-hero__copy">
+          <div className="ledger-eyebrow">
+            <span>
+              <i aria-hidden="true" /> Onchain ledger
+            </span>
+            <b>DevNet / Wallet scoped</b>
+          </div>
+          <h1>
+            <span>Every action,</span>
+            <em>in context.</em>
+          </h1>
           <p>See what the connected wallet has actually done on Rialo DevNet. Activity is read from the chain, scoped to one address, and never filled with sample records.</p>
         </div>
-        <div className="activity-scope" aria-label="Live activity source">
-          <Activity aria-hidden="true" size={20} strokeWidth={1.6} />
-          <span>LIVE SOURCE</span>
-          <strong>Connected wallet</strong>
-          <small>Rialo DevNet</small>
+        <div className="activity-scope ledger-scope" aria-label="Live activity source">
+          <div className="ledger-scope__head">
+            <div className="ledger-scope__icon" aria-hidden="true">
+              <Activity size={20} strokeWidth={1.6} />
+            </div>
+            <span><i aria-hidden="true" /> Live source</span>
+          </div>
+          <div className="ledger-scope__body">
+            <span>TRANSACTION SCOPE</span>
+            <strong>Connected wallet</strong>
+            <small>Rialo DevNet · newest first</small>
+          </div>
         </div>
       </div>
       <WalletActivityFeed />
