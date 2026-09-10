@@ -28,6 +28,7 @@ import { useWallet } from "@/hooks/use-wallet";
 import { formatRlo, shortenAddress } from "@/lib/format";
 import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 import { routes } from "@/lib/constants";
+import { TransactionProof } from "@/components/ui/transaction-proof";
 
 const SETTLEMENT_PAGE_SIZE = 6;
 const SETTLEMENT_REFRESH_INTERVAL_MS = 10_000;
@@ -52,6 +53,7 @@ export function SettlementActivityFeed() {
   const wallet = useWallet();
   const network = useNetwork();
   const [state, setState] = useState<SettlementState>(initialState);
+  const [loadingPageIndex, setLoadingPageIndex] = useState<number | null>(null);
   const requestRef = useRef(0);
   const stateRef = useRef(state);
   const pageCursorsRef = useRef<Array<string | undefined>>([undefined]);
@@ -73,6 +75,7 @@ export function SettlementActivityFeed() {
       if (!wallet.address || network.rpcStatus !== "available") return;
 
       const requestId = ++requestRef.current;
+      setLoadingPageIndex(pageIndex);
       setState((current) => ({
         ...current,
         status: "loading",
@@ -100,6 +103,7 @@ export function SettlementActivityFeed() {
           pageIndex,
           lastChecked: Date.now(),
         });
+        setLoadingPageIndex(null);
       } catch (cause) {
         if (requestId !== requestRef.current) return;
         setState({
@@ -109,6 +113,7 @@ export function SettlementActivityFeed() {
           pageIndex,
           lastChecked: null,
         });
+        setLoadingPageIndex(null);
       }
     },
     [network.client, network.rpcStatus, wallet.address],
@@ -120,6 +125,7 @@ export function SettlementActivityFeed() {
 
     const timer = window.setTimeout(() => {
       if (!wallet.address || network.rpcStatus !== "available") {
+        setLoadingPageIndex(null);
         setState(initialState);
         return;
       }
@@ -282,6 +288,19 @@ export function SettlementActivityFeed() {
             ? <button className="button button--dark" onClick={showNextPage} type="button">Load older settlements</button>
             : <Link className="button button--dark" href={routes.activity}>View all activity</Link>}
         />
+      ) : state.status === "loading" ? (
+        <>
+          <SettlementPageLoadingState count={Math.max(items.length, 4)} />
+          <SettlementPagination
+            count={items.length}
+            hasNext={Boolean(page?.hasMore)}
+            loading={true}
+            loadingPageIndex={loadingPageIndex}
+            onNext={showNextPage}
+            onPrevious={showPreviousPage}
+            pageIndex={state.pageIndex}
+          />
+        </>
       ) : (
         <>
           <div className="settlement-activity__summary">
@@ -301,7 +320,8 @@ export function SettlementActivityFeed() {
           <SettlementPagination
             count={items.length}
             hasNext={Boolean(page?.hasMore)}
-            loading={state.status === "loading"}
+            loading={false}
+            loadingPageIndex={loadingPageIndex}
             onNext={showNextPage}
             onPrevious={showPreviousPage}
             pageIndex={state.pageIndex}
@@ -379,7 +399,7 @@ function SettlementRow({ item }: Readonly<{ item: MergePaySettlementItem }>) {
             Workflow {shortenAddress(item.workflowAddress, 6)}
           </span>
         )}
-        <CopyValue value={item.signature} />
+        <TransactionProof signature={item.signature} />
       </div>
     </article>
   );
@@ -389,6 +409,7 @@ function SettlementPagination({
   count,
   hasNext,
   loading,
+  loadingPageIndex,
   onNext,
   onPrevious,
   pageIndex,
@@ -396,11 +417,12 @@ function SettlementPagination({
   count: number;
   hasNext: boolean;
   loading: boolean;
+  loadingPageIndex: number | null;
   onNext: () => void;
   onPrevious: () => void;
   pageIndex: number;
 }>) {
-  const pageNumber = pageIndex + 1;
+  const pageNumber = (loadingPageIndex ?? pageIndex) + 1;
 
   return (
     <nav aria-label="Settlement history pages" className="settlement-activity__pagination">
@@ -468,6 +490,26 @@ function SettlementLoadingState() {
     <div className="settlement-activity__loading" aria-label="Reading settlement history" role="status">
       <span /><span /><span />
       <p>Checking terminal workflow states on Rialo DevNet...</p>
+    </div>
+  );
+}
+
+function SettlementPageLoadingState({ count }: Readonly<{ count: number }>) {
+  return (
+    <div className="settlement-activity__page-loading" aria-label="Loading settlement page" role="status">
+      <div className="settlement-activity__list settlement-activity__list--loading" aria-hidden="true">
+        {Array.from({ length: count }, (_, index) => (
+          <div className="settlement-activity__skeleton-row" key={index}>
+            <span className="settlement-activity__skeleton settlement-activity__skeleton--mark" />
+            <span className="settlement-activity__skeleton settlement-activity__skeleton--main" />
+            <span className="settlement-activity__skeleton settlement-activity__skeleton--actions" />
+          </div>
+        ))}
+      </div>
+      <div className="settlement-activity__page-loading-label">
+        <span aria-hidden="true" />
+        Loading the next settlement page…
+      </div>
     </div>
   );
 }

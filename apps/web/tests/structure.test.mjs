@@ -615,7 +615,10 @@ test("keeps paid and refunded history wallet-scoped and terminal-only", async ()
   assert.match(settlementFeed, /Paid and refunded bounties/);
   assert.match(settlementFeed, /SETTLEMENT_PAGE_SIZE = 6/);
   assert.match(settlementFeed, /SETTLEMENT_REFRESH_INTERVAL_MS = 10_000/);
+  assert.match(settlementFeed, /SettlementPageLoadingState/);
+  assert.match(settlementFeed, /loadingPageIndex/);
   assert.match(settlementFeed, /Verify receipt/);
+  assert.match(settlementFeed, /TransactionProof/);
   assert.match(settlementFeed, /No page\s+reload is required/);
   assert.match(client, /getWalletSettlementPage/);
   assert.match(client, /workflow\.state\.paid/);
@@ -625,6 +628,10 @@ test("keeps paid and refunded history wallet-scoped and terminal-only", async ()
   assert.match(styles, /\.settlement-activity__row/);
   assert.match(styles, /\.settlement-activity__pagination/);
   assert.match(styles, /\.settlement-activity__empty/);
+  assert.match(styles, /\.settlement-activity__skeleton-row/);
+  assert.match(styles, /ledger-row-enter/);
+  assert.match(styles, /ledger-skeleton/);
+  assert.match(styles, /\.transaction-proof/);
 });
 
 test("keeps wallet activity paginated and protocol docs on the active deployment", async () => {
@@ -657,11 +664,16 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.match(activityFeed, /getWalletActivityPage/);
   assert.match(activityFeed, /showPreviousPage/);
   assert.match(activityFeed, /showNextPage/);
+  assert.match(activityFeed, /ActivityPageLoadingState/);
+  assert.match(activityFeed, /loadingPageIndex/);
   assert.match(activityFeed, /requestWalletControlOpen/);
   assert.match(activityFeed, /THIS FEED SHOWS/);
+  assert.match(activityFeed, /TransactionProof/);
   assert.match(walletControl, /OPEN_WALLET_CONTROL_EVENT/);
   assert.match(styles, /\.wallet-activity__pagination/);
   assert.match(styles, /\.wallet-activity__empty-visual/);
+  assert.match(styles, /\.wallet-activity__skeleton-row/);
+  assert.match(styles, /Ledger hero typography polish/);
   assert.match(docsPage, /marketplaceDeployment\.programId/);
   assert.match(docsPage, /Autonomous payout and refund/);
   assert.match(docsPage, /liquid-slate-page/);

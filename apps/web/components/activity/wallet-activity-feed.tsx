@@ -17,6 +17,7 @@ import { useWallet } from "@/hooks/use-wallet";
 import { formatRlo, shortenAddress } from "@/lib/format";
 import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 import { CopyValue } from "@/components/ui/copy-value";
+import { TransactionProof } from "@/components/ui/transaction-proof";
 
 const ACTIVITY_PAGE_SIZE = 8;
 
@@ -66,6 +67,7 @@ export function WalletActivityFeed() {
   const wallet = useWallet();
   const network = useNetwork();
   const [state, setState] = useState<ActivityState>(initialActivityState);
+  const [loadingPageIndex, setLoadingPageIndex] = useState<number | null>(null);
   const requestRef = useRef(0);
   const pageCursorsRef = useRef<Array<string | undefined>>([undefined]);
 
@@ -81,6 +83,7 @@ export function WalletActivityFeed() {
     if (!wallet.address || network.rpcStatus !== "available") return;
 
     const requestId = ++requestRef.current;
+    setLoadingPageIndex(pageIndex);
     setState((current) => ({
       ...current,
       status: "loading",
@@ -109,6 +112,7 @@ export function WalletActivityFeed() {
         hasNext: page.hasMore,
         nextBefore: page.nextBefore,
       });
+      setLoadingPageIndex(null);
     } catch (cause) {
       if (requestId !== requestRef.current) return;
       setState({
@@ -119,6 +123,7 @@ export function WalletActivityFeed() {
         hasNext: false,
         nextBefore: null,
       });
+      setLoadingPageIndex(null);
     }
   }, [network.client, network.rpcStatus, wallet.address]);
 
@@ -128,6 +133,7 @@ export function WalletActivityFeed() {
 
     const timer = window.setTimeout(() => {
       if (!wallet.address || network.rpcStatus !== "available") {
+        setLoadingPageIndex(null);
         setState(initialActivityState);
         return;
       }
@@ -244,6 +250,19 @@ export function WalletActivityFeed() {
           description="Create or fund a workflow to make the first real MergePay transaction appear in this feed."
           action={<Link className="button button--dark" href="/bounties/new">Create a bounty</Link>}
         />
+      ) : state.status === "loading" ? (
+        <>
+          <ActivityPageLoadingState count={Math.max(state.items.length, 4)} />
+          <ActivityPagination
+            count={state.items.length}
+            hasNext={state.hasNext}
+            loading={true}
+            loadingPageIndex={loadingPageIndex}
+            onNext={showNextPage}
+            onPrevious={showPreviousPage}
+            pageIndex={state.pageIndex}
+          />
+        </>
       ) : (
         <>
           <div className="wallet-activity__list" aria-live="polite">
@@ -257,7 +276,8 @@ export function WalletActivityFeed() {
           <ActivityPagination
             count={state.items.length}
             hasNext={state.hasNext}
-            loading={state.status === "loading"}
+            loading={false}
+            loadingPageIndex={loadingPageIndex}
             onNext={showNextPage}
             onPrevious={showPreviousPage}
             pageIndex={state.pageIndex}
@@ -295,7 +315,7 @@ function ActivityRow({ item }: Readonly<{ item: MergePayActivityItem }>) {
         <small>{item.error ?? (item.feeKelvin === null ? "Execution recorded" : `Fee ${formatRlo(item.feeKelvin)} RLO`)}</small>
       </div>
       <div className="wallet-activity__transaction">
-        <CopyValue value={item.signature} />
+        <TransactionProof signature={item.signature} />
         {item.workflowAddress ? <small title={item.workflowAddress}>Workflow {shortenAddress(item.workflowAddress, 6)}</small> : null}
       </div>
     </article>
@@ -307,6 +327,31 @@ function ActivityLoadingState() {
     <div className="wallet-activity__loading" aria-label="Reading wallet activity" role="status">
       <span /><span /><span />
       <p>Reading recent transactions from Rialo DevNet…</p>
+    </div>
+  );
+}
+
+function ActivityPageLoadingState({ count }: Readonly<{ count: number }>) {
+  return (
+    <div className="wallet-activity__page-loading" aria-label="Loading activity page" role="status">
+      <div className="wallet-activity__list wallet-activity__list--loading" aria-hidden="true">
+        <div className="wallet-activity__list-header">
+          <span>ACTIVITY</span>
+          <span>STATUS</span>
+          <span>TRANSACTION</span>
+        </div>
+        {Array.from({ length: count }, (_, index) => (
+          <div className="wallet-activity__skeleton-row" key={index}>
+            <span className="wallet-activity__skeleton wallet-activity__skeleton--action" />
+            <span className="wallet-activity__skeleton wallet-activity__skeleton--result" />
+            <span className="wallet-activity__skeleton wallet-activity__skeleton--transaction" />
+          </div>
+        ))}
+      </div>
+      <div className="wallet-activity__page-loading-label">
+        <span aria-hidden="true" />
+        Loading the next activity page…
+      </div>
     </div>
   );
 }
@@ -355,6 +400,7 @@ function ActivityPagination({
   count,
   hasNext,
   loading,
+  loadingPageIndex,
   onNext,
   onPrevious,
   pageIndex,
@@ -362,11 +408,12 @@ function ActivityPagination({
   count: number;
   hasNext: boolean;
   loading: boolean;
+  loadingPageIndex: number | null;
   onNext: () => void;
   onPrevious: () => void;
   pageIndex: number;
 }>) {
-  const pageNumber = pageIndex + 1;
+  const pageNumber = (loadingPageIndex ?? pageIndex) + 1;
   return (
     <nav aria-label="Wallet activity pages" className="wallet-activity__pagination">
       <button
