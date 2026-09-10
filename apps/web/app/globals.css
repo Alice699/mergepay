@@ -15493,65 +15493,65 @@ body:has(.home-page) .footer-deployment {
   }
 }
 
-/* Docs shell alignment / Liquid Slate */
-body:has(.docs-page) .site-header {
+/* Docs + Guide shell alignment / Liquid Slate */
+body:has(.docs-page, .guide-page) .site-header {
   border-color: rgb(228 228 228 / 0.09);
   background: rgb(11 11 11 / 0.68);
   box-shadow: inset 0 1px rgb(228 228 228 / 0.025);
   backdrop-filter: blur(1.75rem) saturate(135%);
 }
 
-body:has(.docs-page) .site-header__inner {
+body:has(.docs-page, .guide-page) .site-header__inner {
   width: min(calc(100% - 4rem), 96rem);
 }
 
-body:has(.docs-page) .site-header::after {
+body:has(.docs-page, .guide-page) .site-header::after {
   background: linear-gradient(90deg, transparent, rgb(228 228 228 / 0.16), transparent);
 }
 
-body:has(.docs-page) .brand-mark__pay {
+body:has(.docs-page, .guide-page) .brand-mark__pay {
   color: rgb(228 228 228 / 0.64);
 }
 
-body:has(.docs-page) .brand-mark__terminal {
+body:has(.docs-page, .guide-page) .brand-mark__terminal {
   background: #e4e4e4;
 }
 
-body:has(.docs-page) .brand__network,
-body:has(.docs-page) .wallet-button,
-body:has(.docs-page) .network-pill {
+body:has(.docs-page, .guide-page) .brand__network,
+body:has(.docs-page, .guide-page) .wallet-button,
+body:has(.docs-page, .guide-page) .network-pill {
   border-color: rgb(228 228 228 / 0.13);
   background: rgb(228 228 228 / 0.045);
   box-shadow: inset 0 1px rgb(228 228 228 / 0.06);
 }
 
-body:has(.docs-page) .wallet-button,
-body:has(.docs-page) .nav-cta {
+body:has(.docs-page, .guide-page) .wallet-button,
+body:has(.docs-page, .guide-page) .nav-cta {
   border-radius: 999px;
 }
 
-body:has(.docs-page) .nav-cta {
+body:has(.docs-page, .guide-page) .nav-cta {
   border-color: #e4e4e4;
   background: #e4e4e4;
   color: #0b0b0b;
 }
 
-body:has(.docs-page) .network-pill[data-state="available"] i {
+body:has(.docs-page, .guide-page) .network-pill[data-state="available"] i {
   background: #e4e4e4;
   box-shadow:
     0 0 0 0.1875rem rgb(228 228 228 / 0.07),
     0 0 0.625rem rgb(228 228 228 / 0.26);
 }
 
-body:has(.docs-page) .network-pill[data-state="available"] b {
+body:has(.docs-page, .guide-page) .network-pill[data-state="available"] b {
   color: rgb(228 228 228 / 0.68);
 }
 
-body:has(.docs-page) .docs-page {
+body:has(.docs-page, .guide-page) :is(.docs-page, .guide-page) {
   width: min(calc(100% - 4rem), 96rem);
 }
 
-body:has(.docs-page) .site-footer {
+body:has(.docs-page, .guide-page) .site-footer {
   --text: #e4e4e4;
   --text-soft: rgb(228 228 228 / 0.78);
   --muted: rgb(228 228 228 / 0.54);
@@ -15563,29 +15563,48 @@ body:has(.docs-page) .site-footer {
   background: #0b0b0b;
 }
 
-body:has(.docs-page) .site-footer__inner {
+body:has(.docs-page, .guide-page) .site-footer__inner {
   width: min(calc(100% - 5rem), 112rem);
 }
 
-body:has(.docs-page) .site-footer::before {
+body:has(.docs-page, .guide-page) .site-footer::before {
   background: radial-gradient(circle, rgb(43 69 89 / 0.2), transparent 67%);
 }
 
-body:has(.docs-page) .footer-status i {
+body:has(.docs-page, .guide-page) .footer-status i {
   background: #e4e4e4;
   box-shadow: 0 0 0.75rem rgb(228 228 228 / 0.34);
 }
 
-body:has(.docs-page) .footer-deployment {
+body:has(.docs-page, .guide-page) .footer-deployment {
   background:
     linear-gradient(145deg, rgb(43 69 89 / 0.22), transparent 68%),
     rgb(228 228 228 / 0.018);
 }
 
+@media (max-width: 60rem) {
+  body:has(.docs-page, .guide-page) .mobile-nav {
+    border-color: rgb(228 228 228 / 0.1);
+    background: rgb(11 11 11 / 0.96);
+    backdrop-filter: blur(1.5rem);
+  }
+
+  body:has(.docs-page, .guide-page) .mobile-nav a,
+  body:has(.docs-page, .guide-page) .mobile-nav .mobile-nav__cta {
+    border-color: rgb(228 228 228 / 0.12);
+  }
+
+  body:has(.docs-page, .guide-page) .mobile-nav .mobile-nav__cta {
+    border-radius: 999px;
+    background: #e4e4e4;
+    color: #0b0b0b;
+  }
+}
+
 @media (max-width: 45rem) {
-  body:has(.docs-page) .site-header__inner,
-  body:has(.docs-page) .docs-page,
-  body:has(.docs-page) .site-footer__inner {
+  body:has(.docs-page, .guide-page) .site-header__inner,
+  body:has(.docs-page, .guide-page) :is(.docs-page, .guide-page),
+  body:has(.docs-page, .guide-page) .site-footer__inner {
     width: min(calc(100% - 1.75rem), 96rem);
   }
 }
