@@ -584,6 +584,10 @@ function ConnectedWalletView({
                 <strong>{funding === "requesting" ? "Funding wallet" : "Add funds"}</strong>
                 <small>DevNet faucet adds 1 RLO per request</small>
               </span>
+              <span className="wallet-quick-actions__amount" aria-hidden="true">
+                <strong>+1</strong>
+                <small>RLO</small>
+              </span>
             </button>
             <button onClick={onCopyAddress} type="button">
               <span aria-hidden="true"><Copy size={17} strokeWidth={1.8} /></span>

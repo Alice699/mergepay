@@ -125,6 +125,7 @@ test("keeps the polished application shell and local typography", async () => {
   assert.match(footer, /BrandMark/);
   assert.match(header, /Mobile navigation/);
   assert.match(header, /routes\.settlements/);
+  assert.match(header, /network-pill/);
   assert.match(footer, /Live deployment/);
   assert.match(footer, /Inspect verified activity/);
 
@@ -453,6 +454,7 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(wallet, /Create local wallet/);
   assert.match(wallet, /Add funds/);
   assert.match(wallet, /DevNet faucet adds 1 RLO per request/);
+  assert.match(wallet, /wallet-quick-actions__amount/);
   assert.match(wallet, /Wallet settings/);
   assert.match(wallet, /WalletRobotMark/);
   assert.match(wallet, /Refresh wallet balance/);
