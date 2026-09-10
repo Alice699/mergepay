@@ -684,9 +684,9 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.doesNotMatch(guidePage, /Sponsor starts the check|manual and one-shot/);
   assert.match(styles, /\.protocol-flow/);
   assert.match(styles, /Documentation \/ Liquid Slate/);
-  assert.match(styles, /Docs \+ Guide shell alignment \/ Liquid Slate/);
-  assert.match(styles, /body:has\(\.docs-page, \.guide-page\) \.site-header__inner/);
-  assert.match(styles, /body:has\(\.docs-page, \.guide-page\) \.site-footer__inner/);
+  assert.match(styles, /Docs \+ Guide \+ Ledger shell alignment \/ Liquid Slate/);
+  assert.match(styles, /body:has\(\.docs-page, \.guide-page, \.ledger-page\) \.site-header__inner/);
+  assert.match(styles, /body:has\(\.docs-page, \.guide-page, \.ledger-page\) \.site-footer__inner/);
   assert.match(styles, /Guide \/ Liquid Slate/);
   assert.match(styles, /body:has\(\.liquid-slate-page\)/);
   assert.doesNotMatch(styles, /\.code-flow/);
