@@ -454,7 +454,10 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(wallet, /Add funds/);
   assert.match(wallet, /DevNet faucet adds 1 RLO per request/);
   assert.match(wallet, /Wallet settings/);
-  assert.match(wallet, /Encrypted locally · auto-locks after 15 min/);
+  assert.match(wallet, /WalletRobotMark/);
+  assert.match(wallet, /Refresh wallet balance/);
+  assert.match(wallet, /Encrypted locally/);
+  assert.match(wallet, /15 min auto-lock/);
   assert.match(config, /configuredRpcUrl \|\| "\/api\/rialo"/);
   assert.match(rpcRelay, /allowedMethods/);
   assert.match(rpcRelay, /getWorkflowLineage/);

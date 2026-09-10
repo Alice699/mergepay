@@ -1,17 +1,18 @@
 "use client";
 
 import {
-  Activity,
   AlertCircle,
   Check,
   Copy,
   Download,
-  Ellipsis,
   LoaderCircle,
   LockKeyhole,
   Plus,
+  RefreshCw,
+  Settings2,
   Trash2,
   Unplug,
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -297,8 +298,7 @@ export function WalletControl() {
           <LoaderCircle aria-hidden="true" className="ui-icon--spin" size={14} />
         ) : (
           <span aria-hidden="true" className="wallet-button__mark">
-            <b>m</b>
-            <i />
+            <WalletRobotMark size={20} />
           </span>
         )}
         <span className="wallet-button__label">{buttonLabel}</span>
@@ -327,6 +327,12 @@ export function WalletControl() {
               isEmbedded={wallet.source === "embedded"}
               networkLabel={network.label}
               networkSupported={wallet.networkSupported}
+              onClose={() => {
+                setOpen(false);
+                setView("overview");
+                setActionError(null);
+                setNotice(null);
+              }}
               onCopyAddress={() => void handleCopyAddress()}
               onDisconnect={() => void handleDisconnect()}
               onManage={() => selectView("manage")}
@@ -385,6 +391,7 @@ function ConnectedWalletView({
   isEmbedded,
   networkLabel,
   networkSupported,
+  onClose,
   onCopyAddress,
   onDisconnect,
   onManage,
@@ -399,6 +406,7 @@ function ConnectedWalletView({
   isEmbedded: boolean;
   networkLabel: string;
   networkSupported: boolean | null;
+  onClose: () => void;
   onCopyAddress: () => void;
   onDisconnect: () => void;
   onManage: () => void;
@@ -440,21 +448,36 @@ function ConnectedWalletView({
       <header className="wallet-sheet__header">
         <div aria-label="MergePay wallet" className="wallet-sheet__brand">
           <span aria-hidden="true" className="wallet-sheet__brand-mark">
-            <b>m</b>
-            <i />
+            <WalletRobotMark size={25} />
           </span>
-          <span>MergePay</span>
+          <span>
+            <strong>MergePay</strong>
+            <small>Secure DevNet wallet</small>
+          </span>
         </div>
-        <span className="wallet-sheet__network" data-state={connectionState}>
-          <i aria-hidden="true" />
-          {networkLabel}
-        </span>
+        <div className="wallet-sheet__header-actions">
+          <span className="wallet-sheet__network" data-state={connectionState}>
+            <i aria-hidden="true" />
+            {networkLabel}
+          </span>
+          <button
+            aria-label="Close wallet"
+            className="wallet-sheet__close"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden="true" size={15} strokeWidth={1.8} />
+          </button>
+        </div>
       </header>
 
       <div className="wallet-account">
         <span aria-hidden="true" className="wallet-account__avatar">
-          <b>{isEmbedded ? "m" : accountName.slice(0, 1).toUpperCase()}</b>
-          <i />
+          {isEmbedded ? (
+            <WalletRobotMark size={27} />
+          ) : (
+            <b>{accountName.slice(0, 1).toUpperCase()}</b>
+          )}
         </span>
         <div>
           <strong>{accountName}</strong>
@@ -475,7 +498,23 @@ function ConnectedWalletView({
       </div>
 
       <div className="wallet-balance" aria-live="polite">
-        <span>Available balance</span>
+        <div className="wallet-balance__heading">
+          <span>Available balance</span>
+          <button
+            aria-label="Refresh wallet balance"
+            disabled={balancePending || rpcStatus !== "available" || networkSupported === false}
+            onClick={onRefresh}
+            type="button"
+          >
+            <RefreshCw
+              aria-hidden="true"
+              className={balancePending ? "ui-icon--spin" : undefined}
+              size={12}
+              strokeWidth={1.8}
+            />
+            {balancePending ? "Syncing" : "Sync"}
+          </button>
+        </div>
         <div data-state={balancePending ? "loading" : balanceUnavailable ? "unavailable" : "ready"}>
           {balancePending ? (
             <span className="wallet-balance__pending">
@@ -491,7 +530,7 @@ function ConnectedWalletView({
             </>
           )}
         </div>
-        <small>Native asset on {networkLabel}</small>
+        <small>Spendable native asset on {networkLabel}</small>
       </div>
 
       {(rpcStatus !== "available" || networkSupported === false) && (
@@ -519,10 +558,16 @@ function ConnectedWalletView({
         </div>
       )}
 
-      <div aria-label="Wallet actions" className="wallet-quick-actions" role="group">
+      <div
+        aria-label="Wallet actions"
+        className="wallet-quick-actions"
+        data-layout={isEmbedded ? "embedded" : "extension"}
+        role="group"
+      >
         {isEmbedded ? (
           <>
             <button
+              className="is-primary"
               disabled={!canRequestFunds}
               onClick={onRequestFunds}
               title="Add 1 RLO from the Rialo DevNet faucet"
@@ -535,54 +580,57 @@ function ConnectedWalletView({
                   <Plus size={18} strokeWidth={1.8} />
                 )}
               </span>
-              <small>{funding === "requesting" ? "Funding" : "Add funds"}</small>
+              <span className="wallet-quick-actions__copy">
+                <strong>{funding === "requesting" ? "Funding wallet" : "Add funds"}</strong>
+                <small>DevNet faucet adds 1 RLO per request</small>
+              </span>
             </button>
             <button onClick={onCopyAddress} type="button">
               <span aria-hidden="true"><Copy size={17} strokeWidth={1.8} /></span>
-              <small>Copy</small>
+              <span className="wallet-quick-actions__copy">
+                <strong>Copy address</strong>
+                <small>Signer ID</small>
+              </span>
             </button>
             <button onClick={onManage} type="button">
-              <span aria-hidden="true"><Ellipsis size={19} strokeWidth={1.8} /></span>
-              <small>Manage</small>
+              <span aria-hidden="true"><Settings2 size={18} strokeWidth={1.8} /></span>
+              <span className="wallet-quick-actions__copy">
+                <strong>Wallet settings</strong>
+                <small>Backup or lock</small>
+              </span>
             </button>
           </>
         ) : (
           <>
-            <button
-              disabled={wallet.balance.status === "loading"}
-              onClick={onRefresh}
-              type="button"
-            >
-              <span aria-hidden="true"><Activity size={18} strokeWidth={1.8} /></span>
-              <small>{wallet.balance.status === "loading" ? "Updating" : "Refresh"}</small>
-            </button>
             <button onClick={onCopyAddress} type="button">
               <span aria-hidden="true"><Copy size={17} strokeWidth={1.8} /></span>
-              <small>Copy</small>
+              <span className="wallet-quick-actions__copy">
+                <strong>Copy address</strong>
+                <small>Signer ID</small>
+              </span>
             </button>
             <button className="is-danger" onClick={onDisconnect} type="button">
               <span aria-hidden="true"><Unplug size={17} strokeWidth={1.8} /></span>
-              <small>Disconnect</small>
+              <span className="wallet-quick-actions__copy">
+                <strong>Disconnect</strong>
+                <small>End this session</small>
+              </span>
             </button>
           </>
         )}
       </div>
-
-      {isEmbedded && (
-        <p className="wallet-sheet__faucet-note">
-          DevNet faucet adds 1 RLO per request.
-        </p>
-      )}
 
       <footer className="wallet-sheet__footer">
         <span className="wallet-sheet__rpc" data-state={connectionState}>
           <i aria-hidden="true" />
           {rpcTitle}
         </span>
-        <span>
-          {isEmbedded
-            ? "Encrypted locally · auto-locks after 15 min"
-            : "Wallet Standard connection"}
+        <span className="wallet-sheet__security">
+          <LockKeyhole aria-hidden="true" size={13} strokeWidth={1.7} />
+          <span>
+            {isEmbedded ? "Encrypted locally" : "Wallet Standard"}
+            <b>{isEmbedded ? "15 min auto-lock" : "External signer"}</b>
+          </span>
         </span>
       </footer>
     </section>
@@ -614,8 +662,7 @@ function WalletSettingsView({
 
       <div className="wallet-settings__account">
         <span aria-hidden="true" className="wallet-account__avatar wallet-account__avatar--small">
-          <b>m</b>
-          <i />
+          <WalletRobotMark size={24} />
         </span>
         <span>
           <strong>{shortenAddress(address, 7)}</strong>
@@ -692,7 +739,7 @@ function WalletOptionsView({
     <div className="wallet-options-view">
       <div className="wallet-popover__heading">
         <div><p className="panel-label">SIGNING METHOD</p><h2>Open a Rialo wallet</h2></div>
-        <span aria-hidden="true" className="wallet-popover__form-index">m.key</span>
+        <span aria-hidden="true" className="wallet-popover__form-index">DEVNET</span>
       </div>
       <p className="wallet-popover__copy">Use the encrypted wallet built for this DevNet demo, or connect a compatible extension when one is available.</p>
 
@@ -702,7 +749,9 @@ function WalletOptionsView({
         onClick={hasVault ? onUnlock : onCreate}
         type="button"
       >
-        <span aria-hidden="true" className="wallet-option__icon wallet-option__monogram">m</span>
+        <span aria-hidden="true" className="wallet-option__icon wallet-option__monogram">
+          <WalletRobotMark size={25} />
+        </span>
         <span>
           <strong>{hasVault ? "Unlock local wallet" : "Create local wallet"}</strong>
           <small>{hasVault && embeddedAddress ? shortenAddress(embeddedAddress, 6) : "Encrypted in this browser · DevNet only"}</small>
@@ -789,7 +838,20 @@ interface WalletFormProps {
 }
 
 function VaultHeading({ label, title }: { label: string; title: string }) {
-  return <div className="wallet-popover__heading"><div><p className="panel-label">{label}</p><h2>{title}</h2></div><span aria-hidden="true" className="wallet-popover__form-index">m.key</span></div>;
+  return <div className="wallet-popover__heading"><div><p className="panel-label">{label}</p><h2>{title}</h2></div><span aria-hidden="true" className="wallet-popover__form-index">DEVNET</span></div>;
+}
+
+function WalletRobotMark({ size }: Readonly<{ size: number }>) {
+  return (
+    <Image
+      alt=""
+      className="wallet-robot-mark"
+      height={size}
+      src="/favicon.svg?v=robot-head-1"
+      unoptimized
+      width={size}
+    />
+  );
 }
 
 function PasswordField({ autoComplete, label, name }: { autoComplete: string; label: string; name: string }) {

@@ -544,6 +544,34 @@ test("projects terminal workflow state into paid and refunded wallet settlements
   assert.equal(refundedPage.items[0]?.workflowSlug, null);
 });
 
+test("bounds settlement discovery and exposes older history through the cursor", async () => {
+  const requests = [];
+  const firstPage = Array.from({ length: 13 }, (_, index) => ({
+    signature: `recent-${index}`,
+    blockHeight: BigInt(100 - index),
+    blockTime: 1_787_941_100n - BigInt(index),
+  }));
+  const client = new MergePayClient({
+    rpc: {
+      getSignaturesForAddressPage: async (address, limit, before) => {
+        requests.push({ address, limit, before });
+        return firstPage;
+      },
+      getTransaction: async () => null,
+    },
+  });
+
+  const page = await client.getWalletSettlementPage(payer, { limit: 6 });
+
+  assert.equal(page.items.length, 0);
+  assert.equal(page.scannedTransactions, 12);
+  assert.equal(page.hasMore, true);
+  assert.equal(page.nextBefore, "recent-11");
+  assert.deepEqual(requests, [
+    { address: payer, limit: 13, before: undefined },
+  ]);
+});
+
 test("discovers an open bounty from program history and decoded account state", async () => {
   const signature =
     "5qAb9BS7VTx39tuEjCLHQxLQp9YEDpRoRnhD8fUenfB1eyCdRPQLv5qMhYfFBfcmw7E3zuEL34omPbzTUjs7y7Se";

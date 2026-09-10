@@ -138,7 +138,8 @@ export function SettlementActivityFeed() {
     const refreshLatest = () => {
       if (
         document.visibilityState === "visible" &&
-        stateRef.current.pageIndex === 0
+        stateRef.current.pageIndex === 0 &&
+        stateRef.current.status !== "loading"
       ) {
         void loadSettlements({ clearItems: false, pageIndex: 0 });
       }
@@ -256,7 +257,7 @@ export function SettlementActivityFeed() {
           description="The wallet is connected, but the RPC has not reported a healthy response yet. Settlement history will appear when the live connection is ready."
           action={<button className="button button--dark" onClick={network.refreshRpcHealth} type="button">Check connection</button>}
         />
-      ) : state.status === "loading" && !page ? (
+      ) : state.status === "loading" && items.length === 0 ? (
         <SettlementLoadingState />
       ) : state.status === "error" ? (
         <SettlementEmptyState
@@ -273,9 +274,13 @@ export function SettlementActivityFeed() {
           details={["Only paid outcomes", "Only refunded outcomes"]}
           eyebrow="NO TERMINAL OUTCOMES"
           icon={<Clock3 aria-hidden="true" size={20} strokeWidth={1.7} />}
-          title="Nothing paid or refunded yet"
-          description="This page intentionally hides funding, claims, and failed attempts. A bounty appears here only after its workflow reaches a verified paid or refunded state."
-          action={<Link className="button button--dark" href={routes.activity}>View all activity</Link>}
+          title={page?.hasMore ? "No recent settlement found" : "Nothing paid or refunded yet"}
+          description={page?.hasMore
+            ? `We checked ${page.scannedTransactions} recent wallet transactions. Older activity is available if a paid or refunded bounty is further back.`
+            : "This page intentionally hides funding, claims, and failed attempts. A bounty appears here only after its workflow reaches a verified paid or refunded state."}
+          action={page?.hasMore
+            ? <button className="button button--dark" onClick={showNextPage} type="button">Load older settlements</button>
+            : <Link className="button button--dark" href={routes.activity}>View all activity</Link>}
         />
       ) : (
         <>

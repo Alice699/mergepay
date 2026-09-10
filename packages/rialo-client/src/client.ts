@@ -106,6 +106,17 @@ export interface MergePaySettlementPageOptions {
   before?: string;
 }
 
+interface TimedPromise<T> {
+  expiresAt: number;
+  promise: Promise<T>;
+}
+
+const SETTLEMENT_SOURCE_PAGE_SIZE = 12;
+const SETTLEMENT_MAX_SCAN_PAGES = 1;
+const TRANSACTION_CACHE_TTL_MS = 30_000;
+const WORKFLOW_CACHE_TTL_MS = 5_000;
+const MAX_READ_CACHE_ENTRIES = 256;
+
 export type MergePayPublicBountyStatus =
   | "open"
   | "claimed"
@@ -137,6 +148,14 @@ export class MergePayClient {
   readonly network: RialoNetwork;
   readonly programId: string;
   readonly rpc: MergePayRpcClient;
+  private readonly transactionCache = new Map<
+    string,
+    TimedPromise<MergePayTransactionResponse | null>
+  >();
+  private readonly workflowCache = new Map<
+    string,
+    TimedPromise<DecodedMergePayWorkflow | null>
+  >();
 
   constructor(options: MergePayClientOptions = {}) {
     this.network = options.network ?? DEFAULT_RIALO_NETWORK;
@@ -286,8 +305,6 @@ export class MergePayClient {
     options: MergePaySettlementPageOptions = {},
   ): Promise<MergePaySettlementPage> {
     const pageSize = Math.min(Math.max(Math.trunc(options.limit ?? 8), 1), 12);
-    const sourcePageSize = 24;
-    const maxScanPages = 8;
     const items: MergePaySettlementItem[] = [];
     const seenWorkflows = new Set<string>();
     let before = options.before;
@@ -295,10 +312,18 @@ export class MergePayClient {
     let hasMore = false;
     let scannedTransactions = 0;
 
-    for (let pageNumber = 0; pageNumber < maxScanPages; pageNumber += 1) {
+    // Settlement history is derived from wallet signatures, so an unbounded
+    // search makes an empty page surprisingly expensive. Read a small recent
+    // window and let the cursor-driven Next button continue older history.
+    // This keeps the first load bounded while preserving older history.
+    for (
+      let pageNumber = 0;
+      pageNumber < SETTLEMENT_MAX_SCAN_PAGES;
+      pageNumber += 1
+    ) {
       const signatures = await this.rpc.getSignaturesForAddressPage(
         address,
-        sourcePageSize + 1,
+        SETTLEMENT_SOURCE_PAGE_SIZE + 1,
         before,
       );
       if (signatures.length === 0) {
@@ -307,7 +332,7 @@ export class MergePayClient {
         break;
       }
 
-      const pageSignatures = signatures.slice(0, sourcePageSize);
+      const pageSignatures = signatures.slice(0, SETTLEMENT_SOURCE_PAGE_SIZE);
       const activity = await this.decodeWalletActivity(pageSignatures);
       scannedTransactions += pageSignatures.length;
       const candidates = await Promise.all(
@@ -324,7 +349,9 @@ export class MergePayClient {
           const cursor = pageSignatures[index]?.signature ?? null;
           nextBefore = cursor;
           hasMore = Boolean(
-            cursor && (index < pageSignatures.length - 1 || signatures.length > sourcePageSize),
+            cursor &&
+              (index < pageSignatures.length - 1 ||
+                signatures.length > SETTLEMENT_SOURCE_PAGE_SIZE),
           );
           pageComplete = false;
           break;
@@ -334,7 +361,7 @@ export class MergePayClient {
       if (!pageComplete) break;
 
       nextBefore = pageSignatures[pageSignatures.length - 1]?.signature ?? null;
-      hasMore = signatures.length > sourcePageSize;
+      hasMore = signatures.length > SETTLEMENT_SOURCE_PAGE_SIZE;
       if (!hasMore || !nextBefore) break;
       before = nextBefore;
     }
@@ -495,7 +522,7 @@ export class MergePayClient {
     const workflowSlug = item.action === "request_claim" ? null : item.workflowSlug;
     if (workflowSlug !== null && !isWorkflowSlugHex(workflowSlug)) return null;
 
-    const workflow = await this.getWorkflowByAddress(workflowAddress);
+    const workflow = await this.getWorkflowByAddressCached(workflowAddress);
     if (
       !workflow ||
       workflow.state.claimRequest ||
@@ -554,10 +581,45 @@ export class MergePayClient {
   private async getTransactionSafely(
     signature: string,
   ): Promise<MergePayTransactionResponse | null> {
-    try {
-      return await this.getTransaction(signature);
-    } catch {
-      return null;
+    const now = Date.now();
+    const cached = this.transactionCache.get(signature);
+    if (cached && cached.expiresAt > now) return cached.promise;
+
+    const promise = this.getTransaction(signature).catch(() => null);
+    this.transactionCache.set(signature, {
+      promise,
+      expiresAt: now + TRANSACTION_CACHE_TTL_MS,
+    });
+    this.trimReadCache(this.transactionCache);
+    return promise;
+  }
+
+  private getWorkflowByAddressCached(
+    address: string,
+  ): Promise<DecodedMergePayWorkflow | null> {
+    const now = Date.now();
+    const cached = this.workflowCache.get(address);
+    if (cached && cached.expiresAt > now) return cached.promise;
+
+    let promise: Promise<DecodedMergePayWorkflow | null>;
+    promise = this.getWorkflowByAddress(address).catch((error: unknown) => {
+      const current = this.workflowCache.get(address);
+      if (current?.promise === promise) this.workflowCache.delete(address);
+      throw error;
+    });
+    this.workflowCache.set(address, {
+      promise,
+      expiresAt: now + WORKFLOW_CACHE_TTL_MS,
+    });
+    this.trimReadCache(this.workflowCache);
+    return promise;
+  }
+
+  private trimReadCache<T>(cache: Map<string, TimedPromise<T>>): void {
+    while (cache.size > MAX_READ_CACHE_ENTRIES) {
+      const oldest = cache.keys().next().value;
+      if (oldest === undefined) break;
+      cache.delete(oldest);
     }
   }
 }
