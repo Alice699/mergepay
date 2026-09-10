@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ScrollReveal } from "@/components/motion/scroll-reveal";
 import { CopyValue } from "@/components/ui/copy-value";
 import { marketplaceDeployment } from "@/lib/deployment";
 
@@ -9,33 +10,48 @@ export const metadata: Metadata = {
 
 export default function DocsPage() {
   return (
-    <main className="page-main page-width docs-page">
-      <div className="page-hero">
-        <div>
-          <p className="eyebrow">Protocol guide</p>
-          <h1>Small surface.<br />Clear trust.</h1>
+    <main className="page-main page-width liquid-slate-page docs-page">
+      <div className="page-hero docs-hero">
+        <ScrollReveal className="docs-hero__copy" delay={20} variant="left">
+          <div className="docs-eyebrow">
+            <span><i aria-hidden="true" /> Rialo-native protocol</span>
+            <b>DevNet / Live reference</b>
+          </div>
+          <h1><span>Small surface.</span><em>Clear trust.</em></h1>
           <p>Follow the exact path from a verified GitHub claim to native Rialo payout or deadline refund.</p>
-        </div>
-        <div className="docs-program">
-          <span>ACTIVE DEVNET PROGRAM</span>
-          <CopyValue value={marketplaceDeployment.programId} />
-          <small>Autonomous payout and refund · runtime-proven</small>
-        </div>
+        </ScrollReveal>
+        <ScrollReveal className="docs-program-reveal" delay={100} variant="scale">
+          <div aria-label="Active MergePay deployment" className="docs-program">
+            <div className="docs-program__status">
+              <span><i aria-hidden="true" /> Active DevNet program</span>
+              <b>Live</b>
+            </div>
+            <div className="docs-program__identity">
+              <small>Marketplace program</small>
+              <CopyValue value={marketplaceDeployment.programId} />
+            </div>
+            <div className="docs-program__footer">
+              <span>Autonomous payout and refund</span>
+              <strong>Runtime-proven</strong>
+            </div>
+          </div>
+        </ScrollReveal>
       </div>
 
       <div className="docs-layout">
         <aside aria-label="Documentation sections" className="docs-nav">
           <p>ON THIS PAGE</p>
-          <a href="#flow">Execution flow</a>
-          <a href="#roles">Account roles</a>
-          <a href="#signal">GitHub signal</a>
-          <a href="#trust">Settlement &amp; limits</a>
+          <a href="#flow"><span>01</span><b>Execution flow</b></a>
+          <a href="#roles"><span>02</span><b>Account roles</b></a>
+          <a href="#signal"><span>03</span><b>GitHub signal</b></a>
+          <a href="#trust"><span>04</span><b>Settlement &amp; limits</b></a>
         </aside>
 
         <div className="docs-content">
           <section id="flow">
-            <span className="docs-index">01</span>
-            <div>
+            <span className="docs-index">01 / Flow</span>
+            <ScrollReveal className="docs-section-reveal" delay={40}>
+              <div>
               <h2>Execution flow</h2>
               <p>A sponsor publishes an open workflow PDA. The contributor authenticates with GitHub, the server matches the numeric user ID to the exact public PR author, and the contributor signs a separate claim PDA. The sponsor approves that immutable claim before atomic preparation and funding lock the exact RLO escrow.</p>
               <p>Funding arms a native Rialo heartbeat. It rechecks the deadline, polls GitHub through REX, and completes payout or refund without another sponsor click. The workflow page keeps reading the decoded account while settlement is active and announces the confirmed terminal state without requiring a manual refresh.</p>
@@ -90,12 +106,14 @@ export default function DocsPage() {
                   </div>
                 </li>
               </ol>
-            </div>
+              </div>
+            </ScrollReveal>
           </section>
 
           <section id="roles">
-            <span className="docs-index">02</span>
-            <div>
+            <span className="docs-index">02 / Roles</span>
+            <ScrollReveal className="docs-section-reveal" delay={40}>
+              <div>
               <h2>Account roles</h2>
               <dl className="role-list">
                 <div><dt>Sponsor</dt><dd>Publishes the terms, approves the exact contributor claim, funds escrow, and retains immediate check and refund fallbacks.</dd></div>
@@ -104,12 +122,14 @@ export default function DocsPage() {
                 <div><dt>Rialo runtime</dt><dd>Re-arms the native heartbeat, queries GitHub through REX, and delivers validator reports to the callback.</dd></div>
                 <div><dt>Beneficiary</dt><dd>Receives only the committed escrow after a unanimous merged proof and exact account match.</dd></div>
               </dl>
-            </div>
+              </div>
+            </ScrollReveal>
           </section>
 
           <section id="signal">
-            <span className="docs-index">03</span>
-            <div>
+            <span className="docs-index">03 / Signal</span>
+            <ScrollReveal className="docs-section-reveal" delay={40}>
+              <div>
               <h2>GitHub signal</h2>
               <p>MergePay constructs a fixed public URL from the committed owner, repository, and pull-request number. The compact merged-check endpoint avoids the REX response-size failure observed with the full pull-request representation.</p>
               <pre><code>GET https://api.github.com/repos/&#123;owner&#125;/&#123;repo&#125;/pulls/&#123;number&#125;/merge</code></pre>
@@ -118,12 +138,14 @@ export default function DocsPage() {
                 <div><strong>404</strong><span>The PR is open, missing, or inaccessible; escrow stays locked.</span></div>
                 <div><strong>ERROR</strong><span>Empty, mixed, or malformed reports fail closed and retry later.</span></div>
               </div>
-            </div>
+              </div>
+            </ScrollReveal>
           </section>
 
           <section id="trust">
-            <span className="docs-index">04</span>
-            <div>
+            <span className="docs-index">04 / Trust</span>
+            <ScrollReveal className="docs-section-reveal" delay={40}>
+              <div>
               <h2>Settlement &amp; limits</h2>
               <p>The native heartbeat owns both terminal paths. A unanimous merged proof pays the contributor; reaching the immutable deadline first refunds the sponsor. Terminal flags and exact-amount accounting prevent a second release when a manual fallback races an automatic callback. Each terminal workflow exposes a shareable receipt containing the exact amount, destination, reserve, and decoded success flag.</p>
 
@@ -147,7 +169,8 @@ export default function DocsPage() {
                 <li>Workflow rent remains after settlement</li>
                 <li>Embedded wallet is reviewer-only</li>
               </ul>
-            </div>
+              </div>
+            </ScrollReveal>
           </section>
         </div>
       </div>

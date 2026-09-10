@@ -607,6 +607,11 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.match(styles, /\.wallet-activity__empty-visual/);
   assert.match(docsPage, /marketplaceDeployment\.programId/);
   assert.match(docsPage, /Autonomous payout and refund/);
+  assert.match(docsPage, /liquid-slate-page/);
+  assert.match(docsPage, /ScrollReveal/);
+  assert.match(docsPage, /docs-section-reveal/);
+  assert.match(docsPage, /docs-eyebrow/);
+  assert.match(docsPage, /docs-program__status/);
   assert.match(docsPage, /requires no GitHub App installation token/);
   assert.match(docsPage, /protocol-flow/);
   assert.match(docsPage, /paid = true/);
@@ -618,5 +623,7 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.doesNotMatch(guidePage, /id="receipt"|guide-receipt-preview|Settlement receipt/);
   assert.doesNotMatch(guidePage, /Sponsor starts the check|manual and one-shot/);
   assert.match(styles, /\.protocol-flow/);
+  assert.match(styles, /Documentation \/ Liquid Slate/);
+  assert.match(styles, /body:has\(\.liquid-slate-page\)/);
   assert.doesNotMatch(styles, /\.code-flow/);
 });
