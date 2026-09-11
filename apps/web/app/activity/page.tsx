@@ -38,12 +38,29 @@ export default function ActivityPage() {
         </div>
       </div>
       <WalletActivityFeed />
-      <section className="activity-footnote">
-        <div>
-          <p className="panel-label">CURRENT PROGRAM</p>
-          <p>MergePay transactions are decoded against the active autonomous-settlement ABI <span className="mono">{marketplaceDeployment.programId}</span>. Open a workflow record for its escrow state, beneficiary, deadline, and REX outcome. Need only the final money movement? <Link href="/settlements">Open settlement history</Link>.</p>
+      <section className="activity-footnote ledger-footnote">
+        <div className="ledger-footnote__intro">
+          <span className="ledger-footnote__icon" aria-hidden="true">
+            <Activity size={17} strokeWidth={1.7} />
+          </span>
+          <div className="ledger-footnote__content">
+            <p className="panel-label">CURRENT PROGRAM</p>
+            <p>
+              Activity is decoded from the active autonomous-settlement ABI.
+              Inspect a workflow for complete escrow state, or{" "}
+              <Link href="/settlements">view terminal settlements</Link>.
+            </p>
+          </div>
         </div>
-        <span className="state state--good">Live data only</span>
+        <div className="ledger-footnote__proof">
+          <span className="state state--good">Live data only</span>
+          <div className="ledger-footnote__reference">
+            <span>PROGRAM</span>
+            <code title={marketplaceDeployment.programId}>
+              {marketplaceDeployment.programId}
+            </code>
+          </div>
+        </div>
       </section>
     </main>
   );

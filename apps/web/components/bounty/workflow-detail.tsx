@@ -15,7 +15,10 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AcceptClaimAction } from "@/features/claim-bounty/components/accept-claim-action";
+import {
+  AcceptClaimAction,
+  type ClaimDiscoveryStatus,
+} from "@/features/claim-bounty/components/accept-claim-action";
 import { RequestClaimAction } from "@/features/claim-bounty/components/request-claim-action";
 import type { AcceptClaimResult } from "@/features/claim-bounty/use-accept-claim";
 import type { RequestClaimResult } from "@/features/claim-bounty/use-request-claim";
@@ -64,6 +67,18 @@ function workflowStatus(workflow: DecodedMergePayWorkflow) {
   return { label: "Open claim", className: "state--warn" };
 }
 
+interface ClaimDiscoveryState {
+  targetAddress: string | null;
+  status: ClaimDiscoveryStatus;
+  claimAddress: string | null;
+  error: Error | null;
+}
+
+interface SubmittedClaimReference {
+  targetAddress: string;
+  claimAddress: string;
+}
+
 function settlementReceiptHref(
   slug: string,
   workflow: DecodedMergePayWorkflow,
@@ -77,6 +92,7 @@ function settlementReceiptHref(
 
 const LIVE_WORKFLOW_POLL_INTERVAL_MS = 2_500;
 const PENDING_TRANSACTION_POLL_INTERVAL_MS = 1_500;
+const CLAIM_DISCOVERY_POLL_INTERVAL_MS = 2_500;
 const MAX_PENDING_TRANSACTION_READS = 24;
 
 function WorkflowObserverNotice({
@@ -120,20 +136,26 @@ function WorkflowRecord({
   workflow,
   workflowSlug,
   claimWorkflowHint,
+  claimDiscoveryError,
+  claimDiscoveryStatus,
   onFundConfirmed,
   onCheckCompleted,
   onRefundConfirmed,
   onClaimSubmitted,
   onClaimAccepted,
+  onRetryClaimDiscovery,
 }: Readonly<{
   workflow: DecodedMergePayWorkflow;
   workflowSlug: string;
   claimWorkflowHint: string | null;
+  claimDiscoveryError: Error | null;
+  claimDiscoveryStatus: ClaimDiscoveryStatus;
   onFundConfirmed: (signature: string) => void;
   onCheckCompleted: (result: CheckMergeResult) => void;
   onRefundConfirmed: (signature: string) => void;
   onClaimSubmitted: (result: RequestClaimResult) => void;
   onClaimAccepted: (result: AcceptClaimResult) => void;
+  onRetryClaimDiscovery: () => void;
 }>) {
   const status = workflowStatus(workflow);
   const { state } = workflow;
@@ -210,9 +232,12 @@ function WorkflowRecord({
 
       {isUnclaimed && !state.claimRequest && isSponsor ? (
         <AcceptClaimAction
-          key={claimWorkflowHint ?? "manual-claim-approval"}
+          key={claimWorkflowHint ?? "automatic-claim-discovery"}
+          claimDiscoveryError={claimDiscoveryError}
+          claimDiscoveryStatus={claimDiscoveryStatus}
           claimWorkflowHint={claimWorkflowHint}
           onConfirmed={onClaimAccepted}
+          onRetryClaimDiscovery={onRetryClaimDiscovery}
           workflow={workflow}
           workflowSlug={workflowSlug}
         />
@@ -223,7 +248,7 @@ function WorkflowRecord({
           <div className="workflow-claim__copy">
             <p className="panel-label">CLAIM REQUEST READY</p>
             <h3>Waiting for sponsor approval</h3>
-            <p>Share this contributor claim record with the sponsor. The bounty cannot be funded until the sponsor approves it.</p>
+            <p>This claim is live on Rialo. The sponsor page detects it automatically, and this page advances as soon as approval is confirmed.</p>
           </div>
           <div className="workflow-claim__record">
             <span>Claim record address</span>
@@ -343,6 +368,16 @@ export function WorkflowDetail({
   const wallet = useWallet();
   const accountHint = workflowAddressHint?.trim() || null;
   const [refreshToken, setRefreshToken] = useState(0);
+  const [claimDiscoveryRefreshToken, setClaimDiscoveryRefreshToken] = useState(0);
+  const [claimDiscovery, setClaimDiscovery] = useState<ClaimDiscoveryState>({
+    targetAddress: null,
+    status: "idle",
+    claimAddress: null,
+    error: null,
+  });
+  const [submittedClaim, setSubmittedClaim] =
+    useState<SubmittedClaimReference | null>(null);
+  const announcedClaimAddress = useRef<string | null>(null);
   const observedWorkflowState = useRef<{
     address: string;
     beneficiary: string;
@@ -382,6 +417,44 @@ export function WorkflowDetail({
     refreshToken,
   );
   const workflow = workflowRead.workflow;
+  const claimWorkflowFromQuery = claimWorkflowHint?.trim() || null;
+  const isConnectedSponsor = Boolean(
+    workflow && wallet.address === workflow.state.sponsor,
+  );
+  const locallySubmittedClaim =
+    workflow && submittedClaim?.targetAddress === workflow.address
+      ? submittedClaim.claimAddress
+      : null;
+  const automaticallyDiscoveredClaim =
+    workflow && claimDiscovery.targetAddress === workflow.address
+      ? claimDiscovery.claimAddress
+      : null;
+  const contributorClaimReference =
+    claimWorkflowFromQuery ?? locallySubmittedClaim;
+  const resolvedClaimWorkflow = isConnectedSponsor
+    ? automaticallyDiscoveredClaim
+    : contributorClaimReference ?? automaticallyDiscoveredClaim;
+  const claimDiscoveryEligible = Boolean(
+    workflow &&
+      isConnectedSponsor &&
+      workflow.state.beneficiary === MERGEPAY_UNASSIGNED_BENEFICIARY &&
+      !workflow.state.funded &&
+      !workflow.state.paid &&
+      !workflow.state.refunded &&
+      !resolvedClaimWorkflow &&
+      network.rpcStatus === "available",
+  );
+  const claimDiscoveryStatus: ClaimDiscoveryStatus = automaticallyDiscoveredClaim
+    ? "found"
+    : workflow && claimDiscovery.targetAddress === workflow.address
+      ? claimDiscovery.status
+      : claimDiscoveryEligible
+        ? "searching"
+        : "idle";
+  const claimDiscoveryError =
+    workflow && claimDiscovery.targetAddress === workflow.address
+      ? claimDiscovery.error
+      : null;
   const displaySponsor = workflow?.state.sponsor ?? sponsor;
   const confirmedStateIsPending = Boolean(
     confirmedTransaction &&
@@ -401,7 +474,7 @@ export function WorkflowDetail({
     workflow?.state.funded && !workflow.state.paid && !workflow.state.refunded,
   );
   const claimApprovalPending = Boolean(
-    claimWorkflowHint &&
+    resolvedClaimWorkflow &&
       workflow &&
       workflow.state.beneficiary === MERGEPAY_UNASSIGNED_BENEFICIARY &&
       !workflow.state.funded &&
@@ -411,6 +484,102 @@ export function WorkflowDetail({
   const shouldPollWorkflow = Boolean(
     pendingStateSignature || liveSettlementActive || claimApprovalPending,
   );
+
+  useEffect(() => {
+    if (!claimDiscoveryEligible || !workflow || resolvedClaimWorkflow) return;
+
+    let active = true;
+    let reading = false;
+    const targetWorkflow = workflow;
+
+    async function discoverClaim() {
+      if (reading || document.visibilityState !== "visible") return;
+      reading = true;
+      setClaimDiscovery((current) => {
+        if (
+          current.targetAddress === targetWorkflow.address &&
+          (current.status === "searching" || current.status === "waiting")
+        ) {
+          return current;
+        }
+        return {
+          targetAddress: targetWorkflow.address,
+          status: "searching",
+          claimAddress: null,
+          error: null,
+        };
+      });
+
+      try {
+        const result = await network.client.findLatestClaimRequest(targetWorkflow);
+        if (!active) return;
+
+        if (result) {
+          setClaimDiscovery({
+            targetAddress: targetWorkflow.address,
+            status: "found",
+            claimAddress: result.claim.address,
+            error: null,
+          });
+          if (announcedClaimAddress.current !== result.claim.address) {
+            announcedClaimAddress.current = result.claim.address;
+            publishAppNotification({
+              title: "Contributor claim detected",
+              message: `MergePay found @${result.claim.state.claimantGithub}'s matching claim. Sponsor approval is ready.`,
+              tone: "success",
+            });
+          }
+        } else {
+          setClaimDiscovery((current) =>
+            current.targetAddress === targetWorkflow.address &&
+            current.status === "waiting"
+              ? current
+              : {
+                  targetAddress: targetWorkflow.address,
+                  status: "waiting",
+                  claimAddress: null,
+                  error: null,
+                },
+          );
+        }
+      } catch (cause) {
+        if (!active) return;
+        setClaimDiscovery({
+          targetAddress: targetWorkflow.address,
+          status: "error",
+          claimAddress: null,
+          error: cause instanceof Error ? cause : new Error(String(cause)),
+        });
+      } finally {
+        reading = false;
+      }
+    }
+
+    void discoverClaim();
+    const interval = window.setInterval(
+      discoverClaim,
+      CLAIM_DISCOVERY_POLL_INTERVAL_MS,
+    );
+    const discoverWhenVisible = () => {
+      if (document.visibilityState === "visible") void discoverClaim();
+    };
+
+    window.addEventListener("focus", discoverWhenVisible);
+    document.addEventListener("visibilitychange", discoverWhenVisible);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", discoverWhenVisible);
+      document.removeEventListener("visibilitychange", discoverWhenVisible);
+    };
+  }, [
+    claimDiscoveryEligible,
+    claimDiscoveryRefreshToken,
+    network.client,
+    resolvedClaimWorkflow,
+    workflow,
+  ]);
 
   useEffect(() => {
     if (!shouldPollWorkflow) return;
@@ -521,6 +690,18 @@ export function WorkflowDetail({
     network.refreshRpcHealth();
   }
 
+  function retryClaimDiscovery() {
+    if (workflow) {
+      setClaimDiscovery({
+        targetAddress: workflow.address,
+        status: "searching",
+        claimAddress: null,
+        error: null,
+      });
+    }
+    setClaimDiscoveryRefreshToken((value) => value + 1);
+  }
+
   function addWorkflowAccount(query: URLSearchParams) {
     const account = workflow?.address ?? accountHint;
     if (account) query.set("account", account);
@@ -571,6 +752,12 @@ export function WorkflowDetail({
   function handleClaimSubmitted(result: RequestClaimResult) {
     const confirmedSponsor = workflow?.state.sponsor ?? sponsor;
     setConfirmedTransaction({ signature: result.signature, callbackSignature: null, kind: "claim" });
+    if (workflow) {
+      setSubmittedClaim({
+        targetAddress: workflow.address,
+        claimAddress: result.claimWorkflowAddress,
+      });
+    }
     setRefreshToken((value) => value + 1);
 
     const query = new URLSearchParams({
@@ -637,7 +824,7 @@ export function WorkflowDetail({
     } else {
       confirmationTitle = "Claim request confirmed";
       confirmationCopy =
-        "The contributor claim record is live on Rialo. Share its address with the sponsor for approval.";
+        "The contributor claim is live on Rialo. The sponsor page will detect it automatically, and this page is watching for approval.";
     }
   } else if (confirmedTransaction?.kind === "accept_claim") {
     if (workflow && workflow.state.beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY) {
@@ -677,7 +864,7 @@ export function WorkflowDetail({
           : confirmedTransaction.kind === "refund"
             ? "The refund transaction executed, but the updated account cannot be read yet. Retry without assuming its terminal state."
             : confirmedTransaction.kind === "claim"
-              ? "The claim transaction executed, but the sponsor-owned bounty is unchanged until approval. Keep the claim record address from the confirmation above."
+              ? "The claim transaction executed. The sponsor page will discover it automatically; this page keeps watching the bounty until approval is visible."
               : confirmedTransaction.kind === "accept_claim"
                 ? "The approval transaction executed, but the beneficiary change is not visible yet. Retry the account read before funding."
                 : "The create transaction executed, but this account read returned no data yet. Retry the read in a moment."
@@ -702,12 +889,15 @@ export function WorkflowDetail({
       <div className="content-grid workflow-detail__grid">
         {workflow ? (
           <WorkflowRecord
-            claimWorkflowHint={claimWorkflowHint}
+            claimDiscoveryError={claimDiscoveryError}
+            claimDiscoveryStatus={claimDiscoveryStatus}
+            claimWorkflowHint={resolvedClaimWorkflow}
             onCheckCompleted={handleCheckCompleted}
             onClaimAccepted={handleClaimAccepted}
             onClaimSubmitted={handleClaimSubmitted}
             onFundConfirmed={handleFundConfirmed}
             onRefundConfirmed={handleRefundConfirmed}
+            onRetryClaimDiscovery={retryClaimDiscovery}
             workflow={workflow}
             workflowSlug={slug}
           />

@@ -301,10 +301,16 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
     new URL("features/claim-bounty/components/accept-claim-action.tsx", webRoot),
     "utf8",
   );
+  const rialoClient = await readFile(
+    new URL("../../packages/rialo-client/src/client.ts", webRoot),
+    "utf8",
+  );
   assert.match(acceptClaimHook, /CLAIM_RECORD_OWNER_MISMATCH/);
-  assert.match(acceptClaimHook, /not the payout wallet/);
-  assert.match(acceptClaimAction, /confirmed claim-record address/);
-  assert.match(acceptClaimAction, /different from the payout wallet/);
+  assert.match(acceptClaimHook, /detected account/);
+  assert.match(acceptClaimAction, /fills the record automatically/);
+  assert.match(acceptClaimAction, /workflow-claim__approval-detection/);
+  assert.doesNotMatch(acceptClaimAction, /Paste the confirmed claim/);
+  assert.match(rialoClient, /findLatestClaimRequest/);
   const githubProofRoute = await readFile(
     new URL("app/api/github/pull/route.ts", webRoot),
     "utf8",
@@ -525,6 +531,9 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(notifications, /describeRialoError/);
   assert.match(notifications, /role=\{tone === "error" \? "alert" : "status"\}/);
   assert.match(workflowDetail, /LIVE_WORKFLOW_POLL_INTERVAL_MS/);
+  assert.match(workflowDetail, /CLAIM_DISCOVERY_POLL_INTERVAL_MS/);
+  assert.match(workflowDetail, /findLatestClaimRequest/);
+  assert.match(workflowDetail, /setSubmittedClaim/);
   assert.match(workflowDetail, /claimApprovalPending/);
   assert.match(workflowDetail, /Waiting for sponsor funding/);
   assert.match(workflowDetail, /workflow-claim--observer/);

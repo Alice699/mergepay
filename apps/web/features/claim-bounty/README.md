@@ -6,9 +6,10 @@ contributor-owned claim PDA required by Rialo Venus payer derivation.
 1. `request-claim-action.tsx` requires GitHub OAuth, verifies the authenticated
    GitHub user ID against the exact PR author, then submits `request_claim` from
    the contributor wallet.
-2. The contributor shares the resulting claim workflow address.
-3. `accept-claim-action.tsx` reads that claim account and submits `accept_claim`
-   from the sponsor wallet after the onchain program matches all bounty terms.
+2. The sponsor page discovers the confirmed `request_claim` transaction through
+   the bounty workflow history and derives the contributor claim address.
+3. `accept-claim-action.tsx` reads that discovered claim account and submits
+   `accept_claim` from the sponsor wallet after every bounty term is matched again.
 4. The main bounty can then be funded; its beneficiary is locked for payout.
 
 The browser check is gated by a signed, HttpOnly GitHub identity session. The

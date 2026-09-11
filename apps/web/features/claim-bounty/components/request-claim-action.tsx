@@ -177,7 +177,7 @@ export function RequestClaimAction({
   } else if (requestClaim.status === "success") {
     statusTone = "success";
     statusTitle = "Claim request submitted";
-    statusCopy = "Send the claim record address to the sponsor for approval.";
+    statusCopy = "The sponsor page will detect this claim automatically. Keep this page open to follow the next step.";
     buttonLabel = "Claim submitted";
   } else if (proofMatches) {
     statusTone = "ready";
@@ -270,7 +270,7 @@ export function RequestClaimAction({
           ? "Ready"
           : "Locked";
   const submitHelp = requestClaim.status === "success"
-    ? "Copy this record for the sponsor approval step."
+    ? "No handoff is required. MergePay is watching the bounty for sponsor approval."
     : requestClaim.status === "error"
       ? "Review the error above, then retry with the same verified identity and wallet."
       : busy

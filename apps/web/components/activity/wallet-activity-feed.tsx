@@ -285,10 +285,12 @@ export function WalletActivityFeed() {
         </>
       )}
 
-      <div className="wallet-activity__note">
-        <Activity aria-hidden="true" size={16} strokeWidth={1.7} />
-        <p>Activity is wallet-scoped and read-only. It does not replace the verified workflow record or invent a status when Rialo has not returned transaction details.</p>
-      </div>
+      {wallet.address ? (
+        <div className="wallet-activity__note">
+          <Activity aria-hidden="true" size={16} strokeWidth={1.7} />
+          <p>Activity is wallet-scoped and read-only. It does not replace the verified workflow record or invent a status when Rialo has not returned transaction details.</p>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -380,17 +382,19 @@ function ActivityEmptyState({
         <div className="wallet-activity__empty-icon">{icon}</div>
         <span className="wallet-activity__empty-network">DEVNET</span>
       </div>
-      <div className="wallet-activity__empty-copy">
-        <span className="wallet-activity__empty-eyebrow">{eyebrow}</span>
-        <h3>{title}</h3>
-        <p>{description}</p>
-        <div className="wallet-activity__empty-action">{action}</div>
-      </div>
-      <div className="wallet-activity__empty-details">
-        <span>THIS FEED SHOWS</span>
-        <ul>
-          {details.map((detail) => <li key={detail}>{detail}</li>)}
-        </ul>
+      <div className="wallet-activity__empty-body">
+        <div className="wallet-activity__empty-copy">
+          <span className="wallet-activity__empty-eyebrow">{eyebrow}</span>
+          <h3>{title}</h3>
+          <p>{description}</p>
+          <div className="wallet-activity__empty-action">{action}</div>
+        </div>
+        <div className="wallet-activity__empty-details">
+          <span>THIS FEED SHOWS</span>
+          <ul>
+            {details.map((detail) => <li key={detail}>{detail}</li>)}
+          </ul>
+        </div>
       </div>
     </div>
   );

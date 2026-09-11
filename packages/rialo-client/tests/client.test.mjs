@@ -443,6 +443,110 @@ test("paginates wallet activity with a Rialo cursor and look-ahead", async () =>
   assert.equal(page.nextBefore, "page-boundary-signature");
 });
 
+test("discovers and validates the latest claim request from workflow history", async () => {
+  const signature = "detected-claim-signature";
+  const claimPda = deriveWorkflowPda(
+    MERGEPAY_PROGRAM_ID,
+    beneficiary,
+    claimSlug,
+  ).address;
+  const requestClaimInstruction = buildRequestClaimInstruction({
+    programId: MERGEPAY_PROGRAM_ID,
+    payer: beneficiary,
+    workflowSlug: claimSlug,
+    targetWorkflow: workflowPda,
+    claimantGithub: "biawaklahat",
+    claimantGithubId: 136351960n,
+  });
+  const deadlineUnixMs = 1_800_000_000_000n;
+  const bounty = {
+    address: workflowPda,
+    state: {
+      sponsor: payer,
+      githubOwner: "Alice699",
+      githubRepo: "mergepay-demo",
+      pullNumber: 6n,
+      amountKelvin: 2_000_000n,
+      deadlineUnixMs,
+    },
+  };
+  const claim = {
+    address: claimPda,
+    state: {
+      initialized: true,
+      claimRequest: true,
+      funded: false,
+      mergeConfirmed: false,
+      paid: false,
+      refunded: false,
+      claimTarget: workflowPda,
+      sponsor: payer,
+      beneficiary,
+      githubOwner: bounty.state.githubOwner,
+      githubRepo: bounty.state.githubRepo,
+      pullNumber: bounty.state.pullNumber,
+      amountKelvin: bounty.state.amountKelvin,
+      deadlineUnixMs,
+      claimantGithub: "biawaklahat",
+      claimantGithubId: 136351960n,
+    },
+  };
+  const requests = [];
+  const requestClaimAccountKeys = requestClaimInstruction.accounts.map(
+    (account) => account.pubkey.toString(),
+  );
+  const client = new MergePayClient({
+    rpc: {
+      getSignaturesForAddressPage: async (address, limit, before) => {
+        requests.push({ address, before, limit });
+        return [{ signature, blockHeight: 22n, blockTime: 1_787_941_102n }];
+      },
+      getTransaction: async () => ({
+        blockHeight: 22n,
+        blockTime: 1_787_941_102n,
+        transaction: {
+          signatures: [signature],
+          validFrom: 1_787_941_000_000n,
+          message: {
+            accountKeys: [...requestClaimAccountKeys, MERGEPAY_PROGRAM_ID],
+            instructions: [
+              {
+                programIdIndex: 4,
+                accounts: [0, 1, 2, 3],
+                data: Buffer.from(requestClaimInstruction.data).toString("base64"),
+              },
+            ],
+          },
+        },
+        meta: { fee: 100n },
+      }),
+    },
+  });
+  client.getWorkflowByAddress = async (address) => {
+    assert.equal(address, claimPda);
+    return claim;
+  };
+
+  const result = await client.findLatestClaimRequest(bounty);
+
+  assert.deepEqual(requests, [
+    { address: workflowPda, before: undefined, limit: 12 },
+  ]);
+  assert.equal(result?.signature, signature);
+  assert.equal(result?.claim.address, claimPda);
+  assert.equal(result?.claim.state.beneficiary, beneficiary);
+
+  client.getWorkflowByAddress = async () => ({
+    ...claim,
+    state: {
+      ...claim.state,
+      amountKelvin: claim.state.amountKelvin + 1n,
+    },
+  });
+  const mismatchedResult = await client.findLatestClaimRequest(bounty);
+  assert.equal(mismatchedResult, null);
+});
+
 test("projects terminal workflow state into paid and refunded wallet settlements", async () => {
   const terminalWorkflow = {
     address: workflowPda,

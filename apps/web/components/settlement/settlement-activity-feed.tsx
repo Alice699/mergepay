@@ -329,14 +329,16 @@ export function SettlementActivityFeed() {
         </>
       )}
 
-      <footer className="settlement-activity__note">
-        <ReceiptText aria-hidden="true" size={16} strokeWidth={1.7} />
-        <p>
-          Contributors can open the paid receipt, while sponsors can open the
-          refund receipt. Every receipt is decoded from Rialo and links to the
-          terminal transaction in Rialo Scan.
-        </p>
-      </footer>
+      {wallet.address ? (
+        <footer className="settlement-activity__note">
+          <ReceiptText aria-hidden="true" size={16} strokeWidth={1.7} />
+          <p>
+            Contributors can open the paid receipt, while sponsors can open the
+            refund receipt. Every receipt is decoded from Rialo and links to the
+            terminal transaction in Rialo Scan.
+          </p>
+        </footer>
+      ) : null}
     </section>
   );
 }
@@ -468,17 +470,19 @@ function SettlementEmptyState({
         <div className="settlement-activity__empty-icon">{icon}</div>
         <span className="settlement-activity__empty-network">DEVNET</span>
       </div>
-      <div className="settlement-activity__empty-copy">
-        <span>{eyebrow}</span>
-        <h3>{title}</h3>
-        <p>{description}</p>
-        <div>{action}</div>
-      </div>
-      <div className="settlement-activity__empty-details">
-        <span>THIS PAGE SHOWS</span>
-        <ul>
-          {details.map((detail) => <li key={detail}>{detail}</li>)}
-        </ul>
+      <div className="settlement-activity__empty-body">
+        <div className="settlement-activity__empty-copy">
+          <span className="settlement-activity__empty-eyebrow">{eyebrow}</span>
+          <h3>{title}</h3>
+          <p>{description}</p>
+          <div className="settlement-activity__empty-action">{action}</div>
+        </div>
+        <div className="settlement-activity__empty-details">
+          <span>THIS PAGE SHOWS</span>
+          <ul>
+            {details.map((detail) => <li key={detail}>{detail}</li>)}
+          </ul>
+        </div>
       </div>
     </div>
   );

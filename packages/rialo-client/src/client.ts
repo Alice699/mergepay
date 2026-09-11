@@ -43,7 +43,11 @@ import type {
   WorkflowSlug,
 } from "./types.js";
 import { decodeBase58, decodeBase64 } from "./encoding.js";
-import type { HttpTransportConfig, Transaction } from "@rialo/ts-cdk";
+import {
+  PublicKey,
+  type HttpTransportConfig,
+  type Transaction,
+} from "@rialo/ts-cdk";
 
 export interface MergePayClientOptions {
   network?: RialoNetwork;
@@ -77,6 +81,13 @@ export interface MergePayActivityPage {
 export interface MergePayActivityPageOptions {
   limit?: number;
   before?: string;
+}
+
+export interface MergePayClaimRequest {
+  signature: string;
+  blockHeight: bigint;
+  blockTime: bigint | null;
+  claim: DecodedMergePayWorkflow;
 }
 
 export type MergePaySettlementOutcome = "paid" | "refunded";
@@ -113,6 +124,8 @@ interface TimedPromise<T> {
 
 const SETTLEMENT_SOURCE_PAGE_SIZE = 12;
 const SETTLEMENT_MAX_SCAN_PAGES = 1;
+const CLAIM_DISCOVERY_PAGE_SIZE = 12;
+const REQUEST_CLAIM_TARGET_OFFSET = 4 + 32;
 const TRANSACTION_CACHE_TTL_MS = 30_000;
 const WORKFLOW_CACHE_TTL_MS = 5_000;
 const MAX_READ_CACHE_ENTRIES = 256;
@@ -298,6 +311,56 @@ export class MergePayClient {
         : null,
       hasMore,
     };
+  }
+
+  async findLatestClaimRequest(
+    bounty: DecodedMergePayWorkflow,
+    limit = CLAIM_DISCOVERY_PAGE_SIZE,
+  ): Promise<MergePayClaimRequest | null> {
+    const pageSize = Math.min(Math.max(Math.trunc(limit), 1), 25);
+    const signatures = await this.rpc.getSignaturesForAddressPage(
+      bounty.address,
+      pageSize,
+    );
+    const activity = await this.decodeWalletActivity(signatures);
+
+    for (const item of activity) {
+      if (
+        item.status !== "confirmed" ||
+        item.legacyInstruction ||
+        item.action !== "request_claim" ||
+        item.relatedWorkflowAddress !== bounty.address ||
+        !item.workflowAddress ||
+        !item.workflowPayer ||
+        !item.workflowSlug ||
+        !isWorkflowSlugHex(item.workflowSlug)
+      ) {
+        continue;
+      }
+
+      const expectedClaim = deriveWorkflowPda(
+        this.programId,
+        item.workflowPayer,
+        item.workflowSlug,
+      );
+      if (expectedClaim.address !== item.workflowAddress) continue;
+
+      try {
+        const claim = await this.getWorkflowByAddress(item.workflowAddress);
+        if (!claim || !claimRequestMatchesBounty(claim, bounty)) continue;
+
+        return {
+          signature: item.signature,
+          blockHeight: item.blockHeight,
+          blockTime: item.blockTime,
+          claim,
+        };
+      } catch {
+        // A malformed or unavailable candidate must never unlock approval.
+      }
+    }
+
+    return null;
   }
 
   async getWalletSettlementPage(
@@ -649,18 +712,24 @@ function findMergePayInstruction(
         : transaction.transaction.message.accountKeys[payerIndex] ?? null;
 
     const workflowAccountIndex = instruction.accounts[1];
+    const relatedWorkflowAddress =
+      decodedInstruction.action === "request_claim"
+        ? decodeRequestClaimTarget(
+            decodedInstruction.bytes,
+            instruction.accounts[3] === undefined
+              ? null
+              : transaction.transaction.message.accountKeys[
+                  instruction.accounts[3]
+                ] ?? null,
+          )
+        : null;
     return {
       action: decodedInstruction.action,
       workflowAddress:
         workflowAccountIndex === undefined
           ? null
           : transaction.transaction.message.accountKeys[workflowAccountIndex] ?? null,
-      relatedWorkflowAddress:
-        decodedInstruction.action === "request_claim"
-          ? instruction.accounts[2] === undefined
-            ? null
-            : transaction.transaction.message.accountKeys[instruction.accounts[2]] ?? null
-          : null,
+      relatedWorkflowAddress,
       workflowSlug: decodeWorkflowSlug(decodedInstruction.bytes),
       workflowPayer,
       legacyInstruction: decodedInstruction.legacy,
@@ -668,6 +737,54 @@ function findMergePayInstruction(
   }
 
   return null;
+}
+
+function decodeRequestClaimTarget(
+  bytes: Uint8Array,
+  accountTarget: string | null,
+): string | null {
+  if (bytes.byteLength < REQUEST_CLAIM_TARGET_OFFSET + 32) return null;
+
+  try {
+    const payloadTarget = PublicKey.fromBytes(
+      bytes.slice(
+        REQUEST_CLAIM_TARGET_OFFSET,
+        REQUEST_CLAIM_TARGET_OFFSET + 32,
+      ),
+    ).toString();
+
+    // The runtime account list is payer, claim PDA, system program, then target.
+    // Requiring both representations to agree prevents a malformed transaction
+    // from being treated as a claim for an unrelated bounty.
+    return accountTarget === null || accountTarget === payloadTarget
+      ? payloadTarget
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function claimRequestMatchesBounty(
+  claim: DecodedMergePayWorkflow,
+  bounty: DecodedMergePayWorkflow,
+): boolean {
+  return (
+    claim.state.initialized &&
+    claim.state.claimRequest &&
+    !claim.state.funded &&
+    !claim.state.mergeConfirmed &&
+    !claim.state.paid &&
+    !claim.state.refunded &&
+    claim.state.claimTarget === bounty.address &&
+    claim.state.sponsor === bounty.state.sponsor &&
+    claim.state.beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY &&
+    claim.state.githubOwner === bounty.state.githubOwner &&
+    claim.state.githubRepo === bounty.state.githubRepo &&
+    claim.state.pullNumber === bounty.state.pullNumber &&
+    claim.state.amountKelvin === bounty.state.amountKelvin &&
+    claim.state.deadlineUnixMs === bounty.state.deadlineUnixMs &&
+    claim.state.claimantGithubId !== 0n
+  );
 }
 
 function decodeWorkflowSlug(bytes: Uint8Array): string | null {

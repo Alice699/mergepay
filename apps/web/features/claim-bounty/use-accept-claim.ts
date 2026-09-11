@@ -75,13 +75,13 @@ export function useAcceptClaim() {
     const account = await network.client.getAccountInfo(claimWorkflow);
     if (!account) {
       throw new MergePayUiError(
-        "The claim record was not found on Rialo. Ask the contributor to send the confirmed claim address.",
+        "The detected claim record is not available on Rialo yet. Refresh claim discovery and try again after confirmation.",
         "CLAIM_RECORD_NOT_FOUND",
       );
     }
     if (account.owner !== network.client.programId) {
       throw new MergePayUiError(
-        "That address is not a MergePay claim record for this DevNet. Do not paste the payout wallet; paste the claim-record address shown after the contributor's claim request is confirmed.",
+        "The detected account is not owned by the active MergePay program, so approval was blocked.",
         "CLAIM_RECORD_OWNER_MISMATCH",
       );
     }
@@ -91,7 +91,7 @@ export function useAcceptClaim() {
       claim = decodeWorkflowAccount(account, network.client.programId);
     } catch (cause) {
       throw new MergePayUiError(
-        "The address is not a valid MergePay claim record. The contributor must complete Request claim and share the address from the claim confirmation, not the payout wallet.",
+        "The detected account could not be decoded as a valid MergePay claim record, so approval was blocked.",
         "CLAIM_RECORD_INVALID",
         { cause: cause instanceof Error ? cause : undefined },
       );

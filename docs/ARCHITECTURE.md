@@ -90,9 +90,11 @@ the PDA identity and weaken sponsor ownership. MergePay uses two linked records 
 2. The contributor signs in with GitHub, the web API matches the authenticated numeric
    user ID to the public PR author, and the contributor signs `request_claim` from a
    separate wallet. That creates a contributor-derived claim PDA.
-3. The sponsor supplies the claim PDA to `accept_claim`. The program reads the claim
-   account and compares target, sponsor, repository, PR, amount, deadline, and GitHub
-   login and numeric GitHub user ID before copying the contributor wallet into the main PDA.
+3. The sponsor page finds the confirmed `request_claim` transaction in the main
+   workflow history, derives its contributor claim PDA, and validates the linked account.
+   The sponsor then signs `accept_claim`; the program compares target, sponsor,
+   repository, PR, amount, deadline, and GitHub login and numeric GitHub user ID before
+   copying the contributor wallet into the main PDA.
 4. Funding is rejected until the beneficiary is assigned, so the approved wallet cannot
    be changed after escrow begins.
 

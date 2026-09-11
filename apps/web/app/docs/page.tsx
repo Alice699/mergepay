@@ -53,7 +53,7 @@ export default function DocsPage() {
             <ScrollReveal className="docs-section-reveal" delay={40}>
               <div>
               <h2>Execution flow</h2>
-              <p>A sponsor publishes an open workflow PDA. The contributor authenticates with GitHub, the server matches the numeric user ID to the exact public PR author, and the contributor signs a separate claim PDA. The sponsor approves that immutable claim before atomic preparation and funding lock the exact RLO escrow.</p>
+              <p>A sponsor publishes an open workflow PDA. The contributor authenticates with GitHub, the server matches the numeric user ID to the exact public PR author, and the contributor signs a separate claim PDA. The sponsor page discovers that confirmed claim from onchain workflow history and validates its immutable terms before approval, preparation, and funding lock the exact RLO escrow.</p>
               <p>Funding arms a native Rialo heartbeat. It rechecks the deadline, polls GitHub through REX, and completes payout or refund without another sponsor click. The workflow page keeps reading the decoded account while settlement is active and announces the confirmed terminal state without requiring a manual refresh.</p>
               <ol aria-label="MergePay execution phases" className="protocol-flow">
                 <li>

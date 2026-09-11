@@ -12,6 +12,7 @@ export * from "./rpc/index.js";
 export * from "./transactions/index.js";
 export type {
   MergePayActivityItem,
+  MergePayClaimRequest,
   MergePaySettlementItem,
   MergePaySettlementPage,
   MergePaySettlementPageOptions,

@@ -46,19 +46,28 @@ export default function SettlementsPage() {
 
       <SettlementActivityFeed />
 
-      <section className="settlements-footnote">
-        <div>
-          <p className="panel-label">WHAT COUNTS AS FINAL</p>
-          <p>
-            MergePay does not treat a submitted transaction, toast, or balance
-            estimate as payment proof. A settlement appears here only when the
-            decoded workflow reports <span className="mono">paid = true</span>{" "}
-            or <span className="mono">refunded = true</span>. Open the receipt
-            to share the decoded workflow proof and the terminal transaction in
-            Rialo Scan.
-          </p>
+      <section className="settlements-footnote ledger-footnote">
+        <div className="ledger-footnote__intro">
+          <span className="ledger-footnote__icon" aria-hidden="true">
+            <ReceiptText size={17} strokeWidth={1.7} />
+          </span>
+          <div className="ledger-footnote__content">
+            <p className="panel-label">WHAT COUNTS AS FINAL</p>
+            <p>
+              Receipts appear only after a live workflow reaches a terminal
+              state. Each one proves the destination, exact amount, and Rialo
+              Scan transaction.
+            </p>
+          </div>
         </div>
-        <span className="state state--good">Verified onchain</span>
+        <div className="ledger-footnote__proof">
+          <span className="state state--good">Verified onchain</span>
+          <div className="ledger-footnote__flags" aria-label="Verified terminal flags">
+            <code>paid = true</code>
+            <span>OR</span>
+            <code>refunded = true</code>
+          </div>
+        </div>
       </section>
     </main>
   );

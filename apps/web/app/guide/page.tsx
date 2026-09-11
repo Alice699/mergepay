@@ -64,7 +64,7 @@ export default function GuidePage() {
                 <p className="eyebrow">The product</p>
                 <h2>A bounty that can prove why it paid.</h2>
                 <p>Most GitHub bounties rely on a person or a private backend to coordinate the work, identify the contributor, and decide where payment goes. MergePay moves the terms into a Rialo workflow account: repository, pull request, amount, deadline, and an open claim state are committed before funding.</p>
-                <p>The contributor verifies the public PR author, signs a claim with the receiving wallet, and shares the claim record. The sponsor approves that exact claim before funding. Funding arms Rialo&apos;s native heartbeat: a merged pull request pays the approved wallet automatically, while reaching the deadline first refunds the sponsor automatically.</p>
+                <p>The contributor verifies the public PR author and signs a claim with the receiving wallet. MergePay detects that onchain claim on the sponsor page, where the sponsor approves it before funding. Funding arms Rialo&apos;s native heartbeat: a merged pull request pays the approved wallet automatically, while reaching the deadline first refunds the sponsor automatically.</p>
               </div>
             </section>
           </ScrollReveal>
@@ -79,7 +79,7 @@ export default function GuidePage() {
                   <GuideStep number="01" icon={<WalletCards aria-hidden="true" size={18} strokeWidth={1.7} />} title="Connect a wallet" copy="Connect a Rialo extension or unlock the embedded DevNet wallet. The active address becomes the sponsor for workflows it creates, or the contributor wallet for a claim." />
                   <GuideStep number="02" icon={<Plus aria-hidden="true" size={18} strokeWidth={1.9} />} title="Post the bounty" copy="Enter a public GitHub owner, repository, pull request number, amount, deadline, and generated workflow ID. The beneficiary is intentionally left open for a contributor claim." />
                   <GuideStep number="03" icon={<GitPullRequest aria-hidden="true" size={18} strokeWidth={1.7} />} title="Claim the PR" copy="The PR author connects GitHub. MergePay compares the authenticated GitHub user ID with the exact public pull request, then the contributor signs a claim record with the wallet that should be paid." />
-                  <GuideStep number="04" icon={<KeyRound aria-hidden="true" size={18} strokeWidth={1.7} />} title="Approve and fund" copy="The sponsor reviews the claim record, approves the matching contributor wallet, and funds the escrow in a separate transaction. The beneficiary cannot change after approval." />
+                  <GuideStep number="04" icon={<KeyRound aria-hidden="true" size={18} strokeWidth={1.7} />} title="Approve and fund" copy="The sponsor page detects the matching claim automatically. The sponsor reviews the contributor wallet, approves it, and funds escrow in a separate transaction. The beneficiary cannot change after approval." />
                   <GuideStep number="05" icon={<ReceiptText aria-hidden="true" size={18} strokeWidth={1.7} />} title="Watch and verify" copy="Rialo keeps checking after funding. A unanimous merged proof pays the contributor; reaching the deadline first refunds the sponsor. The live workflow updates without a page reload, and the separate Settlements page shows only confirmed paid or refunded outcomes." />
                 </div>
                 <div className="guide-cta-row">

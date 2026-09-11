@@ -1,7 +1,7 @@
 "use client";
 
 import type { DecodedMergePayWorkflow } from "@mergepay/rialo-client";
-import { Check, CircleAlert, KeyRound, LoaderCircle } from "lucide-react";
+import { Check, CircleAlert, KeyRound, LoaderCircle, RadioTower, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { CopyValue } from "@/components/ui/copy-value";
 import { useNetwork } from "@/hooks/use-network";
@@ -16,20 +16,33 @@ interface AcceptClaimActionProps {
   workflow: DecodedMergePayWorkflow;
   workflowSlug: string;
   claimWorkflowHint: string | null;
+  claimDiscoveryError: Error | null;
+  claimDiscoveryStatus: ClaimDiscoveryStatus;
   onConfirmed: (result: AcceptClaimResult) => void;
+  onRetryClaimDiscovery: () => void;
 }
+
+export type ClaimDiscoveryStatus =
+  | "idle"
+  | "searching"
+  | "waiting"
+  | "found"
+  | "error";
 
 export function AcceptClaimAction({
   workflow,
   workflowSlug,
   claimWorkflowHint,
+  claimDiscoveryError,
+  claimDiscoveryStatus,
   onConfirmed,
+  onRetryClaimDiscovery,
 }: Readonly<AcceptClaimActionProps>) {
   const wallet = useWallet();
   const network = useNetwork();
   const acceptClaim = useAcceptClaim();
-  const [claimWorkflow, setClaimWorkflow] = useState(claimWorkflowHint ?? "");
   const [formError, setFormError] = useState<Error | null>(null);
+  const claimWorkflow = claimWorkflowHint?.trim() ?? "";
   const phase = acceptClaim.transaction.phase;
   const busy = acceptClaim.status === "pending";
   const isSponsor = wallet.address === workflow.state.sponsor;
@@ -41,14 +54,14 @@ export function AcceptClaimAction({
 
   async function approveClaim() {
     setFormError(null);
-    if (!claimWorkflow.trim()) {
-      setFormError(new Error("Paste the contributor claim record address first."));
+    if (!claimWorkflow) {
+      setFormError(new Error("No confirmed contributor claim has been detected yet."));
       return;
     }
     try {
       const result = await acceptClaim.execute({
         workflowSlug,
-        claimWorkflow: claimWorkflow.trim(),
+        claimWorkflow,
         bounty: workflow,
       });
       onConfirmed(result);
@@ -60,7 +73,7 @@ export function AcceptClaimAction({
   let statusTone = "idle";
   let statusTitle = "Sponsor approval";
   let statusCopy =
-    "Read the contributor claim record, confirm its terms match this bounty, then lock the payout wallet.";
+    "MergePay watches this workflow for a matching contributor claim and fills the record automatically.";
   let buttonLabel = "Approve claim";
 
   if (wallet.status !== "connected" || !wallet.address) {
@@ -108,12 +121,32 @@ export function AcceptClaimAction({
     statusTitle = "Claim approved";
     statusCopy = `Payout is now locked to @${acceptClaim.result?.githubLogin ?? "the contributor"}. Fund the escrow to continue.`;
     buttonLabel = "Claim approved";
+  } else if (!claimWorkflow && claimDiscoveryStatus === "error") {
+    statusTone = "error";
+    statusTitle = "Claim lookup interrupted";
+    statusCopy = claimDiscoveryError
+      ? describeRialoError(claimDiscoveryError)
+      : "Rialo did not return claim history for this workflow.";
+    buttonLabel = "Claim not detected";
+  } else if (!claimWorkflow && claimDiscoveryStatus === "waiting") {
+    statusTitle = "Waiting for contributor";
+    statusCopy = "No matching claim is onchain yet. This page checks again automatically.";
+    buttonLabel = "Waiting for claim";
+  } else if (!claimWorkflow) {
+    statusTone = "pending";
+    statusTitle = "Finding contributor claim";
+    statusCopy = "Scanning recent transactions that reference this exact workflow.";
+    buttonLabel = "Finding claim";
+  } else {
+    statusTone = "ready";
+    statusTitle = "Claim detected";
+    statusCopy = "A matching onchain claim record was found and its bounty terms will be checked again before approval.";
   }
 
   const unavailable =
     !walletReady ||
     !isSponsor ||
-    !claimWorkflow.trim() ||
+    !claimWorkflow ||
     busy ||
     acceptClaim.status === "success";
 
@@ -140,27 +173,48 @@ export function AcceptClaimAction({
       </div>
       <div className="workflow-claim__approval-body">
         <div className="workflow-claim__approval-entry">
-          <label className="form-field" htmlFor="contributor-claim-record">
-            <span>Contributor claim record</span>
-            <input
-              autoComplete="off"
-              disabled={busy || acceptClaim.status === "success"}
-              id="contributor-claim-record"
-              onChange={(event) => {
-                setClaimWorkflow(event.target.value);
-                setFormError(null);
-              }}
-              placeholder="Paste the confirmed claim-record address"
-              spellCheck={false}
-              value={claimWorkflow}
-            />
-          </label>
+          <div
+            className="workflow-claim__approval-detection"
+            data-status={claimWorkflow ? "found" : claimDiscoveryStatus}
+          >
+            <span className="workflow-claim__approval-detection-icon" aria-hidden="true">
+              {claimWorkflow ? (
+                <Check size={16} strokeWidth={2} />
+              ) : claimDiscoveryStatus === "error" ? (
+                <CircleAlert size={16} strokeWidth={1.8} />
+              ) : claimDiscoveryStatus === "searching" || claimDiscoveryStatus === "idle" ? (
+                <LoaderCircle className="ui-icon ui-icon--spin" size={16} strokeWidth={1.8} />
+              ) : (
+                <RadioTower size={16} strokeWidth={1.8} />
+              )}
+            </span>
+            <div>
+              <span>CONTRIBUTOR CLAIM RECORD</span>
+              {claimWorkflow ? (
+                <CopyValue value={claimWorkflow} />
+              ) : (
+                <strong>{claimDiscoveryStatus === "error" ? "Lookup unavailable" : claimDiscoveryStatus === "waiting" ? "Watching Rialo DevNet" : "Scanning workflow history"}</strong>
+              )}
+              <small>{claimWorkflow ? "Matched to this bounty and ready for sponsor review." : "The address appears here as soon as the contributor transaction is confirmed."}</small>
+            </div>
+            {!claimWorkflow && claimDiscoveryStatus !== "searching" ? (
+              <button
+                className="button button--quiet workflow-claim__approval-retry"
+                disabled={!walletReady || !isSponsor || busy}
+                onClick={onRetryClaimDiscovery}
+                type="button"
+              >
+                <RefreshCw aria-hidden="true" size={13} strokeWidth={1.8} />
+                Check now
+              </button>
+            ) : null}
+          </div>
           <button className="button workflow-claim__approval-submit" disabled={unavailable} onClick={approveClaim} type="button">
             {busy ? <LoaderCircle aria-hidden="true" className="ui-icon ui-icon--spin" size={15} /> : acceptClaim.status === "success" ? <Check aria-hidden="true" size={15} /> : <KeyRound aria-hidden="true" size={15} />}
             {buttonLabel}
           </button>
         </div>
-        <p className="workflow-claim__approval-help">Use the address shown after &quot;Claim request confirmed&quot;. It is different from the payout wallet above.</p>
+        <p className="workflow-claim__approval-help">Discovery reads transactions that reference this workflow, then approval independently validates the claim owner, target, contributor wallet, GitHub identity, amount, and deadline.</p>
         {acceptClaim.result?.beneficiary ? <div className="workflow-claim__approved"><span>Locked beneficiary</span><CopyValue value={acceptClaim.result.beneficiary} /></div> : null}
       </div>
     </section>

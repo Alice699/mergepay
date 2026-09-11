@@ -123,8 +123,9 @@ scripts/                     Repeatable deployment and verification utilities
 | External proof | Rialo REX + GitHub REST API | Validator-attested public pull-request merge signal. |
 
 The workflow PDA stores the immutable bounty terms and terminal state. Contributor
-claims use separate contributor-derived PDAs; the sponsor must approve a matching claim
-before funding. See [Architecture](docs/ARCHITECTURE.md) for account layouts, state
+claims use separate contributor-derived PDAs; the sponsor page discovers the confirmed
+claim from onchain workflow history and the sponsor approves it before funding. See
+[Architecture](docs/ARCHITECTURE.md) for account layouts, state
 transitions, callback ABI details, and retry behavior.
 
 ## Run locally
