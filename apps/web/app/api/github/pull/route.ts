@@ -1,20 +1,9 @@
 import { getGitHubIdentity } from "@/lib/github-auth";
-
-const UPSTREAM_TIMEOUT_MS = 12_000;
-const GITHUB_SLUG = /^[A-Za-z0-9._-]{1,100}$/;
-
-interface GitHubPullResponse {
-  number: number;
-  title: string;
-  state: string;
-  html_url: string;
-  merged_at: string | null;
-  user?: {
-    id?: number;
-    login?: string;
-    avatar_url?: string;
-  };
-}
+import {
+  fetchPublicGitHubPull,
+  GitHubPublicPullError,
+  isValidGitHubPullReference,
+} from "@/lib/github-public-pull";
 
 function json(value: unknown, status = 200) {
   return Response.json(value, {
@@ -37,50 +26,13 @@ export async function GET(request: Request) {
   const repo = url.searchParams.get("repo")?.trim() ?? "";
   const number = Number(url.searchParams.get("number"));
 
-  if (
-    !GITHUB_SLUG.test(owner) ||
-    !GITHUB_SLUG.test(repo) ||
-    !Number.isSafeInteger(number) ||
-    number < 1
-  ) {
+  if (!isValidGitHubPullReference(owner, repo, number)) {
     return json({ error: "A valid public GitHub owner, repository, and PR number are required." }, 400);
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
-
   try {
-    const response = await fetch(
-      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${number}`,
-      {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-          "User-Agent": "MergePay-GitHub-Proof/0.1",
-        },
-        cache: "no-store",
-        redirect: "manual",
-        signal: controller.signal,
-      },
-    );
-
-    if (response.status === 404) {
-      return json({ error: "GitHub could not find this public pull request." }, 404);
-    }
-    if (response.status >= 300 && response.status < 400) {
-      return json({ error: "GitHub returned an unexpected redirect." }, 502);
-    }
-    if (!response.ok) {
-      return json({ error: `GitHub returned HTTP ${response.status}.` }, 502);
-    }
-
-    const payload = (await response.json()) as GitHubPullResponse;
-    const login = payload.user?.login?.trim();
-    const authorId = payload.user?.id;
-    if (!login || !Number.isSafeInteger(authorId) || typeof payload.number !== "number") {
-      return json({ error: "GitHub returned an incomplete pull-request record." }, 502);
-    }
-    if (authorId !== identity.id) {
+    const pull = await fetchPublicGitHubPull(owner, repo, number);
+    if (pull.author.id !== identity.id) {
       return json(
         { error: "The connected GitHub account did not author this pull request." },
         403,
@@ -90,32 +42,22 @@ export async function GET(request: Request) {
     return json({
       owner,
       repo,
-      number: payload.number,
-      title: payload.title,
-      state: payload.state,
-      htmlUrl: payload.html_url,
-      mergedAt: payload.merged_at,
-      author: {
-        id: authorId,
-        login,
-        avatarUrl: payload.user?.avatar_url ?? null,
-      },
+      number: pull.number,
+      title: pull.title,
+      state: pull.state,
+      htmlUrl: pull.htmlUrl,
+      mergedAt: pull.mergedAt,
+      author: pull.author,
       githubIdentity: {
         id: identity.id,
         login: identity.login,
       },
     });
   } catch (cause) {
-    return json(
-      {
-        error:
-          cause instanceof Error && cause.name === "AbortError"
-            ? "GitHub did not respond in time."
-            : "MergePay could not reach GitHub.",
-      },
-      502,
-    );
-  } finally {
-    clearTimeout(timeout);
+    const error =
+      cause instanceof GitHubPublicPullError
+        ? cause
+        : new GitHubPublicPullError("MergePay could not reach GitHub.", 502);
+    return json({ error: error.message }, error.status);
   }
 }

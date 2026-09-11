@@ -19,6 +19,7 @@ const requiredPaths = [
   "app/docs/page.tsx",
   "app/api/rialo/route.ts",
   "app/api/github/pull/route.ts",
+  "app/api/github/claim-review/route.ts",
   "app/api/github/auth/start/route.ts",
   "app/api/github/auth/callback/route.ts",
   "app/api/github/auth/session/route.ts",
@@ -41,6 +42,7 @@ const requiredPaths = [
   "features/create-bounty/use-create-bounty.ts",
   "features/claim-bounty/components/request-claim-action.tsx",
   "features/claim-bounty/components/accept-claim-action.tsx",
+  "features/claim-bounty/claim-review.ts",
   "features/claim-bounty/use-request-claim.ts",
   "features/claim-bounty/use-accept-claim.ts",
   "features/claim-bounty/README.md",
@@ -66,11 +68,14 @@ const requiredPaths = [
   "hooks/use-transaction.ts",
   "hooks/use-workflow.ts",
   "hooks/use-github-identity.ts",
+  "hooks/use-github-claim-review.ts",
   "lib/config.ts",
   "lib/rialo.ts",
   "lib/embedded-wallet.ts",
   "lib/constants.ts",
   "lib/errors.ts",
+  "lib/github-claim-review.ts",
+  "lib/github-public-pull.ts",
   "lib/app-notifications.ts",
   "lib/wallet-control-events.ts",
   "lib/format.ts",
@@ -307,12 +312,24 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   );
   assert.match(acceptClaimHook, /CLAIM_RECORD_OWNER_MISMATCH/);
   assert.match(acceptClaimHook, /detected account/);
-  assert.match(acceptClaimAction, /fills the record automatically/);
+  assert.match(acceptClaimAction, /Review contributor claim/);
   assert.match(acceptClaimAction, /workflow-claim__approval-detection/);
+  assert.match(acceptClaimAction, /workflow-claim__candidate-list/);
+  assert.match(acceptClaimAction, /TransactionProof/);
+  assert.match(acceptClaimAction, /useGitHubClaimReview/);
   assert.doesNotMatch(acceptClaimAction, /Paste the confirmed claim/);
   assert.match(rialoClient, /findLatestClaimRequest/);
+  assert.match(rialoClient, /findClaimRequests/);
   const githubProofRoute = await readFile(
     new URL("app/api/github/pull/route.ts", webRoot),
+    "utf8",
+  );
+  const githubClaimReviewRoute = await readFile(
+    new URL("app/api/github/claim-review/route.ts", webRoot),
+    "utf8",
+  );
+  const githubPublicPull = await readFile(
+    new URL("lib/github-public-pull.ts", webRoot),
     "utf8",
   );
   const githubAuthRoutes = await Promise.all(
@@ -418,11 +435,16 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(requestClaimHook, /claimantGithubId/);
   assert.match(acceptClaimHook, /buildAcceptClaim/);
   assert.match(acceptClaimHook, /submitTransaction/);
-  assert.match(acceptClaimAction, /Approve claim/);
-  assert.match(githubProofRoute, /api.github.com/);
-  assert.match(githubProofRoute, /merged_at/);
+  assert.match(acceptClaimHook, /verifyGitHubClaimAuthor/);
+  assert.match(acceptClaimHook, /CLAIM_GITHUB_AUTHOR_MISMATCH/);
+  assert.match(acceptClaimAction, /Approve contributor/);
+  assert.match(githubPublicPull, /api.github.com/);
+  assert.match(githubPublicPull, /merged_at/);
+  assert.match(githubPublicPull, /redirect: "manual"/);
   assert.match(githubProofRoute, /getGitHubIdentity/);
-  assert.match(githubProofRoute, /authorId !== identity.id/);
+  assert.match(githubProofRoute, /pull.author.id !== identity.id/);
+  assert.match(githubClaimReviewRoute, /authorIdMatches/);
+  assert.match(githubClaimReviewRoute, /recordedLoginMatches/);
   assert.match(githubIdentityHook, /api\/github\/auth\/session/);
   assert.match(githubIdentityHook, /window.location.assign/);
   assert.match(githubAuthRoutes[0], /login\/oauth\/authorize/);
@@ -532,7 +554,7 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(notifications, /role=\{tone === "error" \? "alert" : "status"\}/);
   assert.match(workflowDetail, /LIVE_WORKFLOW_POLL_INTERVAL_MS/);
   assert.match(workflowDetail, /CLAIM_DISCOVERY_POLL_INTERVAL_MS/);
-  assert.match(workflowDetail, /findLatestClaimRequest/);
+  assert.match(workflowDetail, /findClaimRequests/);
   assert.match(workflowDetail, /setSubmittedClaim/);
   assert.match(workflowDetail, /claimApprovalPending/);
   assert.match(workflowDetail, /Waiting for sponsor funding/);

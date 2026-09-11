@@ -317,12 +317,21 @@ export class MergePayClient {
     bounty: DecodedMergePayWorkflow,
     limit = CLAIM_DISCOVERY_PAGE_SIZE,
   ): Promise<MergePayClaimRequest | null> {
+    return (await this.findClaimRequests(bounty, limit))[0] ?? null;
+  }
+
+  async findClaimRequests(
+    bounty: DecodedMergePayWorkflow,
+    limit = CLAIM_DISCOVERY_PAGE_SIZE,
+  ): Promise<MergePayClaimRequest[]> {
     const pageSize = Math.min(Math.max(Math.trunc(limit), 1), 25);
     const signatures = await this.rpc.getSignaturesForAddressPage(
       bounty.address,
       pageSize,
     );
     const activity = await this.decodeWalletActivity(signatures);
+    const requests: MergePayClaimRequest[] = [];
+    const seenClaims = new Set<string>();
 
     for (const item of activity) {
       if (
@@ -343,24 +352,30 @@ export class MergePayClient {
         item.workflowPayer,
         item.workflowSlug,
       );
-      if (expectedClaim.address !== item.workflowAddress) continue;
+      if (
+        expectedClaim.address !== item.workflowAddress ||
+        seenClaims.has(item.workflowAddress)
+      ) {
+        continue;
+      }
 
       try {
         const claim = await this.getWorkflowByAddress(item.workflowAddress);
         if (!claim || !claimRequestMatchesBounty(claim, bounty)) continue;
 
-        return {
+        seenClaims.add(item.workflowAddress);
+        requests.push({
           signature: item.signature,
           blockHeight: item.blockHeight,
           blockTime: item.blockTime,
           claim,
-        };
+        });
       } catch {
         // A malformed or unavailable candidate must never unlock approval.
       }
     }
 
-    return null;
+    return requests;
   }
 
   async getWalletSettlementPage(

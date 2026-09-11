@@ -443,17 +443,33 @@ test("paginates wallet activity with a Rialo cursor and look-ahead", async () =>
   assert.equal(page.nextBefore, "page-boundary-signature");
 });
 
-test("discovers and validates the latest claim request from workflow history", async () => {
+test("discovers every valid claim request and rejects mismatched records", async () => {
   const signature = "detected-claim-signature";
+  const secondSignature = "second-detected-claim-signature";
+  const secondClaimSlug =
+    "000000000000000000000000000000000000000000000000000000000000000b";
   const claimPda = deriveWorkflowPda(
     MERGEPAY_PROGRAM_ID,
     beneficiary,
     claimSlug,
   ).address;
+  const secondClaimPda = deriveWorkflowPda(
+    MERGEPAY_PROGRAM_ID,
+    beneficiary,
+    secondClaimSlug,
+  ).address;
   const requestClaimInstruction = buildRequestClaimInstruction({
     programId: MERGEPAY_PROGRAM_ID,
     payer: beneficiary,
     workflowSlug: claimSlug,
+    targetWorkflow: workflowPda,
+    claimantGithub: "biawaklahat",
+    claimantGithubId: 136351960n,
+  });
+  const secondRequestClaimInstruction = buildRequestClaimInstruction({
+    programId: MERGEPAY_PROGRAM_ID,
+    payer: beneficiary,
+    workflowSlug: secondClaimSlug,
     targetWorkflow: workflowPda,
     claimantGithub: "biawaklahat",
     claimantGithubId: 136351960n,
@@ -491,29 +507,50 @@ test("discovers and validates the latest claim request from workflow history", a
       claimantGithubId: 136351960n,
     },
   };
+  const secondClaim = { ...claim, address: secondClaimPda };
   const requests = [];
   const requestClaimAccountKeys = requestClaimInstruction.accounts.map(
+    (account) => account.pubkey.toString(),
+  );
+  const secondRequestClaimAccountKeys = secondRequestClaimInstruction.accounts.map(
     (account) => account.pubkey.toString(),
   );
   const client = new MergePayClient({
     rpc: {
       getSignaturesForAddressPage: async (address, limit, before) => {
         requests.push({ address, before, limit });
-        return [{ signature, blockHeight: 22n, blockTime: 1_787_941_102n }];
+        return [
+          { signature, blockHeight: 22n, blockTime: 1_787_941_102n },
+          {
+            signature: secondSignature,
+            blockHeight: 21n,
+            blockTime: 1_787_941_101n,
+          },
+        ];
       },
-      getTransaction: async () => ({
-        blockHeight: 22n,
-        blockTime: 1_787_941_102n,
+      getTransaction: async (requestedSignature) => ({
+        blockHeight: requestedSignature === signature ? 22n : 21n,
+        blockTime:
+          requestedSignature === signature ? 1_787_941_102n : 1_787_941_101n,
         transaction: {
-          signatures: [signature],
+          signatures: [requestedSignature],
           validFrom: 1_787_941_000_000n,
           message: {
-            accountKeys: [...requestClaimAccountKeys, MERGEPAY_PROGRAM_ID],
+            accountKeys: [
+              ...(requestedSignature === signature
+                ? requestClaimAccountKeys
+                : secondRequestClaimAccountKeys),
+              MERGEPAY_PROGRAM_ID,
+            ],
             instructions: [
               {
                 programIdIndex: 4,
                 accounts: [0, 1, 2, 3],
-                data: Buffer.from(requestClaimInstruction.data).toString("base64"),
+                data: Buffer.from(
+                  requestedSignature === signature
+                    ? requestClaimInstruction.data
+                    : secondRequestClaimInstruction.data,
+                ).toString("base64"),
               },
             ],
           },
@@ -523,18 +560,25 @@ test("discovers and validates the latest claim request from workflow history", a
     },
   });
   client.getWorkflowByAddress = async (address) => {
-    assert.equal(address, claimPda);
-    return claim;
+    if (address === claimPda) return claim;
+    if (address === secondClaimPda) return secondClaim;
+    assert.fail(`Unexpected claim address ${address}`);
   };
 
-  const result = await client.findLatestClaimRequest(bounty);
+  const result = await client.findClaimRequests(bounty);
 
   assert.deepEqual(requests, [
     { address: workflowPda, before: undefined, limit: 12 },
   ]);
-  assert.equal(result?.signature, signature);
-  assert.equal(result?.claim.address, claimPda);
-  assert.equal(result?.claim.state.beneficiary, beneficiary);
+  assert.deepEqual(
+    result.map((request) => request.signature),
+    [signature, secondSignature],
+  );
+  assert.deepEqual(
+    result.map((request) => request.claim.address),
+    [claimPda, secondClaimPda],
+  );
+  assert.equal(result[0]?.claim.state.beneficiary, beneficiary);
 
   client.getWorkflowByAddress = async () => ({
     ...claim,
@@ -543,8 +587,8 @@ test("discovers and validates the latest claim request from workflow history", a
       amountKelvin: claim.state.amountKelvin + 1n,
     },
   });
-  const mismatchedResult = await client.findLatestClaimRequest(bounty);
-  assert.equal(mismatchedResult, null);
+  const mismatchedResult = await client.findClaimRequests(bounty);
+  assert.deepEqual(mismatchedResult, []);
 });
 
 test("projects terminal workflow state into paid and refunded wallet settlements", async () => {

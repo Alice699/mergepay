@@ -12,6 +12,11 @@ import {
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
 import { MergePayUiError } from "@/lib/errors";
+import { verifyGitHubClaimAuthor } from "@/lib/github-claim-review";
+import {
+  claimMatchesBountyTerms,
+  githubReviewMatchesClaim,
+} from "@/features/claim-bounty/claim-review";
 
 export interface AcceptClaimInput {
   workflowSlug: string;
@@ -96,21 +101,40 @@ export function useAcceptClaim() {
         { cause: cause instanceof Error ? cause : undefined },
       );
     }
-    if (
-      !claim.state.claimRequest ||
-      claim.state.claimTarget !== bounty.address ||
-      claim.state.sponsor !== bounty.state.sponsor ||
-      claim.state.beneficiary === MERGEPAY_UNASSIGNED_BENEFICIARY ||
-      claim.state.githubOwner !== bounty.state.githubOwner ||
-      claim.state.githubRepo !== bounty.state.githubRepo ||
-      claim.state.pullNumber !== bounty.state.pullNumber ||
-      claim.state.amountKelvin !== bounty.state.amountKelvin ||
-      claim.state.deadlineUnixMs !== bounty.state.deadlineUnixMs ||
-      claim.state.claimantGithubId === 0n
-    ) {
+    if (!claimMatchesBountyTerms(claim, bounty)) {
       throw new MergePayUiError(
         "This claim record does not match the bounty terms and was not approved.",
         "CLAIM_TERMS_MISMATCH",
+      );
+    }
+
+    let githubReview;
+    try {
+      githubReview = await verifyGitHubClaimAuthor({
+        owner: claim.state.githubOwner,
+        repo: claim.state.githubRepo,
+        number: claim.state.pullNumber,
+        claimantGithubId: claim.state.claimantGithubId,
+        claimantGithubLogin: claim.state.claimantGithub,
+      });
+    } catch (cause) {
+      throw new MergePayUiError(
+        "GitHub could not re-check the pull-request author. Approval stays locked until the public PR is available.",
+        "CLAIM_GITHUB_REVIEW_UNAVAILABLE",
+        { cause: cause instanceof Error ? cause : undefined },
+      );
+    }
+
+    if (!githubReviewMatchesClaim(githubReview, claim)) {
+      throw new MergePayUiError(
+        "The GitHub review response does not match this claim record. Refresh the review before approving.",
+        "CLAIM_GITHUB_REVIEW_INVALID",
+      );
+    }
+    if (!githubReview.verification.authorIdMatches) {
+      throw new MergePayUiError(
+        `GitHub reports @${githubReview.author.login} as the pull-request author, but this claim records @${claim.state.claimantGithub}. Approval was blocked.`,
+        "CLAIM_GITHUB_AUTHOR_MISMATCH",
       );
     }
 

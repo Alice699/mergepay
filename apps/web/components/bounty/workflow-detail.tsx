@@ -3,6 +3,7 @@
 import {
   MERGEPAY_UNASSIGNED_BENEFICIARY,
   type DecodedMergePayWorkflow,
+  type MergePayClaimRequest,
 } from "@mergepay/rialo-client";
 import {
   Check,
@@ -70,7 +71,9 @@ function workflowStatus(workflow: DecodedMergePayWorkflow) {
 interface ClaimDiscoveryState {
   targetAddress: string | null;
   status: ClaimDiscoveryStatus;
-  claimAddress: string | null;
+  requests: MergePayClaimRequest[];
+  selectedClaimAddress: string | null;
+  selectionExplicit: boolean;
   error: Error | null;
 }
 
@@ -136,6 +139,7 @@ function WorkflowRecord({
   workflow,
   workflowSlug,
   claimWorkflowHint,
+  claimRequests,
   claimDiscoveryError,
   claimDiscoveryStatus,
   onFundConfirmed,
@@ -144,10 +148,12 @@ function WorkflowRecord({
   onClaimSubmitted,
   onClaimAccepted,
   onRetryClaimDiscovery,
+  onSelectClaim,
 }: Readonly<{
   workflow: DecodedMergePayWorkflow;
   workflowSlug: string;
   claimWorkflowHint: string | null;
+  claimRequests: readonly MergePayClaimRequest[];
   claimDiscoveryError: Error | null;
   claimDiscoveryStatus: ClaimDiscoveryStatus;
   onFundConfirmed: (signature: string) => void;
@@ -156,6 +162,7 @@ function WorkflowRecord({
   onClaimSubmitted: (result: RequestClaimResult) => void;
   onClaimAccepted: (result: AcceptClaimResult) => void;
   onRetryClaimDiscovery: () => void;
+  onSelectClaim: (claimAddress: string) => void;
 }>) {
   const status = workflowStatus(workflow);
   const { state } = workflow;
@@ -232,12 +239,13 @@ function WorkflowRecord({
 
       {isUnclaimed && !state.claimRequest && isSponsor ? (
         <AcceptClaimAction
-          key={claimWorkflowHint ?? "automatic-claim-discovery"}
           claimDiscoveryError={claimDiscoveryError}
           claimDiscoveryStatus={claimDiscoveryStatus}
+          claimRequests={claimRequests}
           claimWorkflowHint={claimWorkflowHint}
           onConfirmed={onClaimAccepted}
           onRetryClaimDiscovery={onRetryClaimDiscovery}
+          onSelectClaim={onSelectClaim}
           workflow={workflow}
           workflowSlug={workflowSlug}
         />
@@ -372,7 +380,9 @@ export function WorkflowDetail({
   const [claimDiscovery, setClaimDiscovery] = useState<ClaimDiscoveryState>({
     targetAddress: null,
     status: "idle",
-    claimAddress: null,
+    requests: [],
+    selectedClaimAddress: null,
+    selectionExplicit: false,
     error: null,
   });
   const [submittedClaim, setSubmittedClaim] =
@@ -425,9 +435,13 @@ export function WorkflowDetail({
     workflow && submittedClaim?.targetAddress === workflow.address
       ? submittedClaim.claimAddress
       : null;
+  const discoveredClaimRequests =
+    workflow && claimDiscovery.targetAddress === workflow.address
+      ? claimDiscovery.requests
+      : [];
   const automaticallyDiscoveredClaim =
     workflow && claimDiscovery.targetAddress === workflow.address
-      ? claimDiscovery.claimAddress
+      ? claimDiscovery.selectedClaimAddress
       : null;
   const contributorClaimReference =
     claimWorkflowFromQuery ?? locallySubmittedClaim;
@@ -441,10 +455,9 @@ export function WorkflowDetail({
       !workflow.state.funded &&
       !workflow.state.paid &&
       !workflow.state.refunded &&
-      !resolvedClaimWorkflow &&
       network.rpcStatus === "available",
   );
-  const claimDiscoveryStatus: ClaimDiscoveryStatus = automaticallyDiscoveredClaim
+  const claimDiscoveryStatus: ClaimDiscoveryStatus = discoveredClaimRequests.length > 0
     ? "found"
     : workflow && claimDiscovery.targetAddress === workflow.address
       ? claimDiscovery.status
@@ -486,7 +499,7 @@ export function WorkflowDetail({
   );
 
   useEffect(() => {
-    if (!claimDiscoveryEligible || !workflow || resolvedClaimWorkflow) return;
+    if (!claimDiscoveryEligible || !workflow) return;
 
     let active = true;
     let reading = false;
@@ -498,58 +511,115 @@ export function WorkflowDetail({
       setClaimDiscovery((current) => {
         if (
           current.targetAddress === targetWorkflow.address &&
-          (current.status === "searching" || current.status === "waiting")
+          (current.requests.length > 0 ||
+            current.status === "searching" ||
+            current.status === "waiting")
         ) {
           return current;
         }
         return {
           targetAddress: targetWorkflow.address,
           status: "searching",
-          claimAddress: null,
+          requests: [],
+          selectedClaimAddress: null,
+          selectionExplicit: false,
           error: null,
         };
       });
 
       try {
-        const result = await network.client.findLatestClaimRequest(targetWorkflow);
+        const result = await network.client.findClaimRequests(targetWorkflow);
         if (!active) return;
 
-        if (result) {
-          setClaimDiscovery({
-            targetAddress: targetWorkflow.address,
-            status: "found",
-            claimAddress: result.claim.address,
-            error: null,
+        if (result.length > 0) {
+          setClaimDiscovery((current) => {
+            const sameTarget = current.targetAddress === targetWorkflow.address;
+            const selectedStillExists = result.some(
+              (request) => request.claim.address === current.selectedClaimAddress,
+            );
+            const keepExplicitSelection =
+              result.length > 1 &&
+              sameTarget &&
+              current.selectionExplicit &&
+              selectedStillExists;
+            const selectedClaimAddress =
+              result.length === 1
+                ? result[0]?.claim.address ?? null
+                : keepExplicitSelection
+                  ? current.selectedClaimAddress
+                  : null;
+            const selectionExplicit =
+              result.length > 1 && keepExplicitSelection;
+            const unchanged =
+              sameTarget &&
+              current.status === "found" &&
+              current.selectedClaimAddress === selectedClaimAddress &&
+              current.selectionExplicit === selectionExplicit &&
+              current.requests.length === result.length &&
+              current.requests.every(
+                (request, index) =>
+                  request.signature === result[index]?.signature &&
+                  request.claim.address === result[index]?.claim.address,
+              );
+
+            return unchanged
+              ? current
+              : {
+                  targetAddress: targetWorkflow.address,
+                  status: "found",
+                  requests: result,
+                  selectedClaimAddress,
+                  selectionExplicit,
+                  error: null,
+                };
           });
-          if (announcedClaimAddress.current !== result.claim.address) {
-            announcedClaimAddress.current = result.claim.address;
+          const announcementKey = result
+            .map((request) => request.claim.address)
+            .join("|");
+          if (announcedClaimAddress.current !== announcementKey) {
+            announcedClaimAddress.current = announcementKey;
             publishAppNotification({
-              title: "Contributor claim detected",
-              message: `MergePay found @${result.claim.state.claimantGithub}'s matching claim. Sponsor approval is ready.`,
-              tone: "success",
+              title:
+                result.length === 1
+                  ? "Contributor claim detected"
+                  : "Multiple contributor claims detected",
+              message:
+                result.length === 1
+                  ? `MergePay found @${result[0]?.claim.state.claimantGithub}'s matching claim. Sponsor review is ready.`
+                  : `${result.length} matching claim records are onchain. Choose one explicitly before approval.`,
+              tone: result.length === 1 ? "success" : "info",
             });
           }
         } else {
           setClaimDiscovery((current) =>
             current.targetAddress === targetWorkflow.address &&
-            current.status === "waiting"
+            (current.requests.length > 0 || current.status === "waiting")
               ? current
               : {
                   targetAddress: targetWorkflow.address,
                   status: "waiting",
-                  claimAddress: null,
+                  requests: [],
+                  selectedClaimAddress: null,
+                  selectionExplicit: false,
                   error: null,
                 },
           );
         }
       } catch (cause) {
         if (!active) return;
-        setClaimDiscovery({
-          targetAddress: targetWorkflow.address,
-          status: "error",
-          claimAddress: null,
-          error: cause instanceof Error ? cause : new Error(String(cause)),
-        });
+        setClaimDiscovery((current) =>
+          current.targetAddress === targetWorkflow.address &&
+          current.requests.length > 0
+            ? current
+            : {
+                targetAddress: targetWorkflow.address,
+                status: "error",
+                requests: [],
+                selectedClaimAddress: null,
+                selectionExplicit: false,
+                error: cause instanceof Error ? cause : new Error(String(cause)),
+              },
+        );
       } finally {
         reading = false;
       }
@@ -577,7 +647,6 @@ export function WorkflowDetail({
     claimDiscoveryEligible,
     claimDiscoveryRefreshToken,
     network.client,
-    resolvedClaimWorkflow,
     workflow,
   ]);
 
@@ -695,11 +764,27 @@ export function WorkflowDetail({
       setClaimDiscovery({
         targetAddress: workflow.address,
         status: "searching",
-        claimAddress: null,
+        requests: [],
+        selectedClaimAddress: null,
+        selectionExplicit: false,
         error: null,
       });
     }
     setClaimDiscoveryRefreshToken((value) => value + 1);
+  }
+
+  function selectClaimForReview(claimAddress: string) {
+    setClaimDiscovery((current) =>
+      current.requests.some(
+        (request) => request.claim.address === claimAddress,
+      )
+        ? {
+            ...current,
+            selectedClaimAddress: claimAddress,
+            selectionExplicit: true,
+          }
+        : current,
+    );
   }
 
   function addWorkflowAccount(query: URLSearchParams) {
@@ -891,6 +976,7 @@ export function WorkflowDetail({
           <WorkflowRecord
             claimDiscoveryError={claimDiscoveryError}
             claimDiscoveryStatus={claimDiscoveryStatus}
+            claimRequests={discoveredClaimRequests}
             claimWorkflowHint={resolvedClaimWorkflow}
             onCheckCompleted={handleCheckCompleted}
             onClaimAccepted={handleClaimAccepted}
@@ -898,6 +984,7 @@ export function WorkflowDetail({
             onFundConfirmed={handleFundConfirmed}
             onRefundConfirmed={handleRefundConfirmed}
             onRetryClaimDiscovery={retryClaimDiscovery}
+            onSelectClaim={selectClaimForReview}
             workflow={workflow}
             workflowSlug={slug}
           />

@@ -53,7 +53,7 @@ export default function DocsPage() {
             <ScrollReveal className="docs-section-reveal" delay={40}>
               <div>
               <h2>Execution flow</h2>
-              <p>A sponsor publishes an open workflow PDA. The contributor authenticates with GitHub, the server matches the numeric user ID to the exact public PR author, and the contributor signs a separate claim PDA. The sponsor page discovers that confirmed claim from onchain workflow history and validates its immutable terms before approval, preparation, and funding lock the exact RLO escrow.</p>
+              <p>A sponsor publishes an open workflow PDA. The contributor authenticates with GitHub, the server matches the numeric user ID to the exact public PR author, and the contributor signs a separate claim PDA. The sponsor page discovers confirmed claims from onchain workflow history. Its review exposes the identity, payout wallet, exact terms, claim PDA, and source transaction; multiple matches require an explicit choice. The app re-fetches the public PR and compares its stable author ID again before approval, preparation, and funding lock the exact RLO escrow.</p>
               <p>Funding arms a native Rialo heartbeat. It rechecks the deadline, polls GitHub through REX, and completes payout or refund without another sponsor click. The workflow page keeps reading the decoded account while settlement is active and announces the confirmed terminal state without requiring a manual refresh.</p>
               <ol aria-label="MergePay execution phases" className="protocol-flow">
                 <li>
@@ -78,7 +78,7 @@ export default function DocsPage() {
                     <i aria-hidden="true" />
                     <code>accept_claim</code>
                   </div>
-                  <p>Match the GitHub author, record the payout wallet, and lock sponsor approval.</p>
+                  <p>Record the payout wallet, review every onchain proof, recheck the live GitHub author ID, and lock one sponsor-approved claim.</p>
                 </li>
                 <li>
                   <header>
@@ -116,7 +116,7 @@ export default function DocsPage() {
               <div>
               <h2>Account roles</h2>
               <dl className="role-list">
-                <div><dt>Sponsor</dt><dd>Publishes the terms, approves the exact contributor claim, funds escrow, and retains immediate check and refund fallbacks.</dd></div>
+                <div><dt>Sponsor</dt><dd>Publishes the terms, selects and reviews the exact contributor claim, approves its payout wallet, funds escrow, and retains immediate check and refund fallbacks.</dd></div>
                 <div><dt>Contributor claim PDA</dt><dd>Records the contributor wallet, canonical GitHub login, numeric user ID, and the sponsor-owned bounty it targets.</dd></div>
                 <div><dt>Workflow PDA</dt><dd>Persists immutable bounty terms, approved beneficiary, escrow amount, timers, and terminal flags.</dd></div>
                 <div><dt>Rialo runtime</dt><dd>Re-arms the native heartbeat, queries GitHub through REX, and delivers validator reports to the callback.</dd></div>
@@ -157,7 +157,7 @@ export default function DocsPage() {
 
               <div className="docs-auth-note">
                 <span>AUTH BOUNDARY</span>
-                <p>GitHub OAuth verifies contributor identity. Public merge settlement uses fixed non-secret headers and requires no GitHub App installation token or private key.</p>
+                <p>GitHub OAuth verifies contributor identity when the claim is created. Sponsor review then re-fetches the public PR and compares the stable numeric author ID again, failing closed if GitHub is unavailable or disagrees. This second check is an application gate; the onchain program independently enforces sponsor authority, account ownership, exact terms, and the beneficiary lock. Public merge settlement uses fixed non-secret headers and requires no GitHub App installation token or private key.</p>
               </div>
 
               <p>MergePay remains an unaudited DevNet MVP. It trusts the tested Rialo runtime, REX validators, and GitHub’s public merge endpoint. Its current product boundary is intentionally narrow:</p>
@@ -168,6 +168,7 @@ export default function DocsPage() {
                 <li>Native RLO escrow only</li>
                 <li>Workflow rent remains after settlement</li>
                 <li>Embedded wallet is reviewer-only</li>
+                <li>Live sponsor-side author review is enforced by the web app, not a new REX assertion in the approval instruction</li>
               </ul>
               </div>
             </ScrollReveal>

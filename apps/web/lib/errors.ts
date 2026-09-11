@@ -88,6 +88,9 @@ export function describeRialoError(cause: unknown): string {
       return errorText(cause);
     case "CLAIM_RECORD_OWNER_MISMATCH":
     case "CLAIM_RECORD_INVALID":
+    case "CLAIM_GITHUB_REVIEW_UNAVAILABLE":
+    case "CLAIM_GITHUB_REVIEW_INVALID":
+    case "CLAIM_GITHUB_AUTHOR_MISMATCH":
       return errorText(cause);
     case "TRANSACTION_FAILED": {
       const detail = errorText(cause).trim();

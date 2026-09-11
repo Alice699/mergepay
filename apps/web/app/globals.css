@@ -4866,6 +4866,508 @@ input:user-valid {
   text-transform: uppercase;
 }
 
+.workflow-claim__candidates,
+.workflow-claim__review {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: rgb(5 7 8 / 0.28);
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.02);
+}
+
+.workflow-claim__candidates {
+  padding: 1rem;
+}
+
+.workflow-claim__section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.875rem;
+}
+
+.workflow-claim__section-heading span,
+.workflow-claim__review-identity > div > span,
+.workflow-claim__review-field > span {
+  display: block;
+  color: var(--subtle);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 620;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.workflow-claim__section-heading h4 {
+  margin: 0.35rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.9375rem;
+  font-weight: 620;
+  letter-spacing: -0.02em;
+}
+
+.workflow-claim__section-heading small {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  white-space: nowrap;
+}
+
+.workflow-claim__candidate-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+  gap: 0.625rem;
+}
+
+.workflow-claim__candidate {
+  min-width: 0;
+  min-height: 4.25rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.625rem;
+  background: rgb(255 255 255 / 0.018);
+  color: var(--text-soft);
+  padding: 0.75rem;
+  text-align: left;
+  transition:
+    border-color 160ms var(--ease-out-quart),
+    background-color 160ms var(--ease-out-quart),
+    transform 160ms var(--ease-out-quart);
+}
+
+.workflow-claim__candidate:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: rgb(255 255 255 / 0.032);
+  transform: translateY(-1px);
+}
+
+.workflow-claim__candidate[data-selected="true"] {
+  border-color: oklch(0.76 0.13 155 / 0.34);
+  background: oklch(0.76 0.13 155 / 0.055);
+}
+
+.workflow-claim__candidate-index {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--subtle);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+}
+
+.workflow-claim__candidate-copy {
+  min-width: 0;
+}
+
+.workflow-claim__candidate-copy strong,
+.workflow-claim__candidate-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-claim__candidate-copy strong {
+  font-size: 0.75rem;
+  font-weight: 620;
+}
+
+.workflow-claim__candidate-copy small {
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+}
+
+.workflow-claim__candidate-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--subtle);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 620;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.workflow-claim__candidate[data-selected="true"]
+  .workflow-claim__candidate-state {
+  color: var(--success);
+}
+
+.workflow-claim__approval-detection[data-status="multiple"] {
+  border-color: oklch(0.8 0.14 78 / 0.22);
+  background: var(--warning-soft);
+}
+
+.workflow-claim__review {
+  position: relative;
+}
+
+.workflow-claim__review::before {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.workflow-claim__review[data-verdict="verified"] {
+  border-color: oklch(0.76 0.13 155 / 0.28);
+  background:
+    linear-gradient(135deg, oklch(0.76 0.13 155 / 0.045), transparent 42%),
+    rgb(5 7 8 / 0.3);
+}
+
+.workflow-claim__review[data-verdict="blocked"] {
+  border-color: color-mix(in oklab, var(--danger) 25%, transparent);
+}
+
+.workflow-claim__review-identity {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1rem;
+}
+
+.workflow-claim__review-avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 0.035);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.workflow-claim__review-identity > div {
+  min-width: 0;
+}
+
+.workflow-claim__review-identity h4,
+.workflow-claim__review-identity p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-claim__review-identity h4 {
+  margin: 0.3rem 0 0;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 640;
+  letter-spacing: -0.025em;
+}
+
+.workflow-claim__review-identity p {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+}
+
+.workflow-claim__review-verdict {
+  min-height: 1.875rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--subtle);
+  padding: 0.3rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 620;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.workflow-claim__review-verdict[data-tone="success"] {
+  border-color: oklch(0.76 0.13 155 / 0.3);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.workflow-claim__review-verdict[data-tone="pending"] {
+  border-color: oklch(0.8 0.14 78 / 0.25);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.workflow-claim__review-verdict[data-tone="error"] {
+  border-color: color-mix(in oklab, var(--danger) 28%, transparent);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.workflow-claim__review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+}
+
+.workflow-claim__review-field {
+  min-width: 0;
+  min-height: 7rem;
+  border-bottom: 1px solid var(--line);
+  padding: 1rem;
+}
+
+.workflow-claim__review-field:nth-child(odd):not(:last-child) {
+  border-right: 1px solid var(--line);
+}
+
+.workflow-claim__review-field--transaction {
+  grid-column: 1 / -1;
+  min-height: 0;
+  border-bottom: 0;
+}
+
+.workflow-claim__review-field > strong {
+  display: block;
+  margin-top: 0.625rem;
+  color: var(--text-soft);
+  font-size: 0.875rem;
+  font-weight: 620;
+}
+
+.workflow-claim__review-field > small {
+  display: block;
+  overflow: hidden;
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.625rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-claim__review-field > a {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+  color: var(--text-soft);
+}
+
+.workflow-claim__review-field > a strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-claim__review-field > a strong span,
+.workflow-claim__review-field > a > svg:first-child {
+  color: var(--accent);
+}
+
+.workflow-claim__review-field .copy-value {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 0.625rem;
+  background: rgb(2 4 5 / 0.28);
+}
+
+.workflow-claim__review-field .transaction-proof {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 0.625rem;
+}
+
+.workflow-claim__review-field .transaction-proof .copy-value {
+  margin-top: 0;
+}
+
+.workflow-claim__review-value {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+  color: var(--accent);
+}
+
+.workflow-claim__review-value > svg {
+  flex: 0 0 auto;
+}
+
+.workflow-claim__review-value .copy-value {
+  min-width: 0;
+  margin-top: 0;
+}
+
+.workflow-claim__review-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+  margin: 0;
+  border-top: 1px solid var(--line);
+  padding: 1rem;
+  list-style: none;
+}
+
+.workflow-claim__review-checks li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.625rem;
+  border: 1px solid var(--line);
+  border-radius: 0.625rem;
+  background: rgb(255 255 255 / 0.016);
+  padding: 0.75rem;
+}
+
+.workflow-claim__review-checks li > svg {
+  margin-top: 0.1rem;
+}
+
+.workflow-claim__review-checks li[data-tone="success"] > svg {
+  color: var(--success);
+}
+
+.workflow-claim__review-checks li[data-tone="pending"] > svg {
+  color: var(--warning);
+}
+
+.workflow-claim__review-checks li[data-tone="error"] > svg {
+  color: var(--danger);
+}
+
+.workflow-claim__review-checks span,
+.workflow-claim__review-checks strong,
+.workflow-claim__review-checks small {
+  min-width: 0;
+  display: block;
+}
+
+.workflow-claim__review-checks strong {
+  color: var(--text-soft);
+  font-size: 0.6875rem;
+  font-weight: 620;
+}
+
+.workflow-claim__review-checks small {
+  overflow: hidden;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.5625rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-claim__review-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0 1rem 1rem auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  padding: 0.25rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  font-weight: 620;
+}
+
+.workflow-claim__approval-decision {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 0.018);
+  padding: 0.875rem;
+  transition:
+    border-color 180ms var(--ease-out-quart),
+    background-color 180ms var(--ease-out-quart);
+}
+
+.workflow-claim__approval-decision[data-ready="true"] {
+  border-color: oklch(0.76 0.13 155 / 0.3);
+  background: oklch(0.76 0.13 155 / 0.045);
+}
+
+.workflow-claim__approval-decision-copy {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.workflow-claim__approval-decision-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 0.625rem;
+  color: var(--subtle);
+}
+
+.workflow-claim__approval-decision[data-ready="true"]
+  .workflow-claim__approval-decision-icon {
+  border-color: oklch(0.76 0.13 155 / 0.28);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.workflow-claim__approval-decision-copy > div {
+  min-width: 0;
+}
+
+.workflow-claim__approval-decision-copy strong,
+.workflow-claim__approval-decision-copy small {
+  display: block;
+}
+
+.workflow-claim__approval-decision-copy strong {
+  color: var(--text-soft);
+  font-size: 0.75rem;
+  font-weight: 620;
+}
+
+.workflow-claim__approval-decision-copy small {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.625rem;
+  line-height: 1.45;
+}
+
+.workflow-claim__approval-decision .workflow-claim__approval-submit {
+  min-height: 2.75rem;
+  height: auto;
+}
+
 .workflow-claim__approved {
   min-width: 0;
   display: flex;
@@ -7715,6 +8217,45 @@ body:has(.liquid-slate-page) .network-pill[data-state="available"] b {
     width: auto;
     grid-column: 2;
     justify-self: start;
+  }
+
+  .workflow-claim__section-heading,
+  .workflow-claim__review-identity {
+    align-items: flex-start;
+  }
+
+  .workflow-claim__section-heading {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .workflow-claim__candidate-list,
+  .workflow-claim__review-grid,
+  .workflow-claim__review-checks,
+  .workflow-claim__approval-decision {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-claim__review-identity {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .workflow-claim__review-verdict {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .workflow-claim__review-field {
+    min-height: 0;
+    border-right: 0 !important;
+  }
+
+  .workflow-claim__review-field--transaction {
+    grid-column: auto;
+  }
+
+  .workflow-claim__approval-decision .workflow-claim__approval-submit {
+    width: 100%;
   }
 
   .workflow-claim__proof-row {
@@ -15334,6 +15875,88 @@ body:has(.home-page) .footer-deployment {
 
 .bounty-detail-page .workflow-claim__approval-detection small {
   color: rgb(228 228 228 / 0.38);
+}
+
+.bounty-detail-page
+  :is(
+    .workflow-claim__candidates,
+    .workflow-claim__review,
+    .workflow-claim__approval-decision
+  ) {
+  border-color: rgb(228 228 228 / 0.1);
+  background: rgb(5 7 8 / 0.38);
+}
+
+.bounty-detail-page .workflow-claim__review[data-verdict="verified"] {
+  border-color: rgb(93 216 143 / 0.24);
+  background:
+    linear-gradient(135deg, rgb(93 216 143 / 0.045), transparent 42%),
+    rgb(5 7 8 / 0.4);
+}
+
+.bounty-detail-page
+  :is(
+    .workflow-claim__candidate,
+    .workflow-claim__review-checks li,
+    .workflow-claim__approval-decision-icon,
+    .workflow-claim__candidate-index
+  ) {
+  border-color: rgb(228 228 228 / 0.1);
+  background: rgb(228 228 228 / 0.018);
+}
+
+.bounty-detail-page .workflow-claim__candidate[data-selected="true"],
+.bounty-detail-page .workflow-claim__approval-decision[data-ready="true"] {
+  border-color: rgb(93 216 143 / 0.24);
+  background: rgb(93 216 143 / 0.045);
+}
+
+.bounty-detail-page
+  :is(
+    .workflow-claim__review-grid,
+    .workflow-claim__review-field,
+    .workflow-claim__review-checks
+  ) {
+  border-color: rgb(228 228 228 / 0.09);
+}
+
+.bounty-detail-page
+  :is(
+    .workflow-claim__section-heading h4,
+    .workflow-claim__candidate-copy strong,
+    .workflow-claim__review-identity h4,
+    .workflow-claim__review-field > strong,
+    .workflow-claim__review-field > a,
+    .workflow-claim__review-checks strong,
+    .workflow-claim__approval-decision-copy strong
+  ) {
+  color: rgb(228 228 228 / 0.78);
+}
+
+.bounty-detail-page
+  :is(
+    .workflow-claim__section-heading span,
+    .workflow-claim__review-identity > div > span,
+    .workflow-claim__review-field > span
+  ) {
+  color: rgb(228 228 228 / 0.3);
+}
+
+.bounty-detail-page
+  :is(
+    .workflow-claim__section-heading small,
+    .workflow-claim__candidate-copy small,
+    .workflow-claim__review-identity p,
+    .workflow-claim__review-field > small,
+    .workflow-claim__review-checks small,
+    .workflow-claim__approval-decision-copy small
+  ) {
+  color: rgb(228 228 228 / 0.38);
+}
+
+.bounty-detail-page .workflow-claim__review-field .copy-value {
+  border-color: rgb(228 228 228 / 0.1);
+  background: rgb(2 4 5 / 0.36);
 }
 
 .bounty-detail-page .workflow-settlement {

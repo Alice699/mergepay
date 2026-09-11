@@ -49,7 +49,8 @@ actions remain available as idempotent fallbacks.
 | Capability | What MergePay provides |
 | --- | --- |
 | Verified contributor | GitHub OAuth binds the public PR author to a specific Rialo receiving wallet. |
-| Exact escrow | The sponsor reviews the claim and funds the committed RLO amount onchain. |
+| Sponsor claim review | The app exposes the contributor identity, payout wallet, exact terms, claim PDA, and Rialo Scan transaction, then rechecks the live public PR author ID before approval. |
+| Exact escrow | The sponsor approves one reviewed claim and funds the committed RLO amount onchain. |
 | Native automation | Rialo `AFTER` timers keep merge polling and deadline settlement alive after funding. |
 | Fail-closed proof | Empty, mixed, malformed, or failed REX reports cannot release escrow. |
 | Live interface | Workflow state refreshes in place, transactions surface through notifications, wallet history is paginated, and terminal workflows expose shareable paid/refunded receipts. |
@@ -63,7 +64,7 @@ actions remain available as idempotent fallbacks.
 
 1. **Publish** — the sponsor commits a public repository, pull request, reward, and deadline.
 2. **Claim** — the contributor signs in with GitHub and links the verified PR identity to a Rialo wallet.
-3. **Approve** — the sponsor checks the exact identity, wallet, and bounty terms before accepting the claim.
+3. **Approve** — the sponsor reviews the exact identity, wallet, bounty terms, and transaction proof. Multiple matching claims require an explicit choice, and the public PR author ID is checked again before signing.
 4. **Fund** — MergePay prepares the workflow account, transfers the exact RLO escrow, and arms native settlement.
 5. **Verify** — Rialo REX validators query GitHub's compact merged-status endpoint.
 6. **Settle** — unanimous HTTP `204` pays the contributor; reaching the deadline first refunds the sponsor. The decoded terminal state becomes a receipt with the exact amount and destination.
@@ -123,8 +124,9 @@ scripts/                     Repeatable deployment and verification utilities
 | External proof | Rialo REX + GitHub REST API | Validator-attested public pull-request merge signal. |
 
 The workflow PDA stores the immutable bounty terms and terminal state. Contributor
-claims use separate contributor-derived PDAs; the sponsor page discovers the confirmed
-claim from onchain workflow history and the sponsor approves it before funding. See
+claims use separate contributor-derived PDAs; the sponsor page discovers confirmed
+claims from onchain workflow history, requires an explicit selection when several match,
+and rechecks the selected public PR author before the sponsor approves it for funding. See
 [Architecture](docs/ARCHITECTURE.md) for account layouts, state
 transitions, callback ABI details, and retry behavior.
 

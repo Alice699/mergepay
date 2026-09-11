@@ -90,18 +90,32 @@ the PDA identity and weaken sponsor ownership. MergePay uses two linked records 
 2. The contributor signs in with GitHub, the web API matches the authenticated numeric
    user ID to the public PR author, and the contributor signs `request_claim` from a
    separate wallet. That creates a contributor-derived claim PDA.
-3. The sponsor page finds the confirmed `request_claim` transaction in the main
-   workflow history, derives its contributor claim PDA, and validates the linked account.
-   The sponsor then signs `accept_claim`; the program compares target, sponsor,
-   repository, PR, amount, deadline, and GitHub login and numeric GitHub user ID before
-   copying the contributor wallet into the main PDA.
-4. Funding is rejected until the beneficiary is assigned, so the approved wallet cannot
+3. The sponsor page finds confirmed `request_claim` transactions in the main
+   workflow history, derives their contributor claim PDAs, and validates every linked
+   account. One valid result opens automatically; multiple valid results require an
+   explicit sponsor selection. The review shows the contributor identity, payout wallet,
+   PR target, amount, deadline, claim PDA, and source transaction.
+4. Before enabling approval, the web app fetches the public PR again and compares its
+   stable numeric GitHub author ID with the claim. `use-accept-claim` repeats this check
+   and decodes the selected Rialo account again immediately before wallet signing. A
+   missing GitHub response or identity mismatch fails closed.
+5. The sponsor signs `accept_claim`; the program compares target, sponsor, repository,
+   PR, amount, deadline, and the recorded GitHub identity before copying the contributor
+   wallet into the main PDA.
+6. Funding is rejected until the beneficiary is assigned, so the approved wallet cannot
    be changed after escrow begins.
 
-The browser's GitHub step requires OAuth identity binding. The access token is exchanged
-server-side and is never placed in the browser session. The current scope is public
+The contributor's claim-creation step requires OAuth identity binding. The access token
+is exchanged server-side and is never placed in the browser session. The sponsor review
+uses the public PR record and does not receive that token. The current scope is public
 repositories and read-only identity access; private repositories and repository write
 access remain future work.
+
+The sponsor-side public GitHub recheck is an application safety gate, not a new onchain
+oracle assertion. A direct program caller can bypass web UI policy; the program remains
+responsible for sponsor authority, PDA ownership, term equality, and beneficiary-lock
+invariants. Moving the live author assertion into the protocol would require a new
+validator-attested input and a contract deployment.
 
 ## Public bounty discovery
 
