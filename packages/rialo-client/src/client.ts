@@ -110,6 +110,8 @@ export interface MergePaySettlementPage {
   nextBefore: string | null;
   hasMore: boolean;
   scannedTransactions: number;
+  incomplete: boolean;
+  readErrors: number;
 }
 
 export interface MergePaySettlementPageOptions {
@@ -122,11 +124,11 @@ interface TimedPromise<T> {
   promise: Promise<T>;
 }
 
-const SETTLEMENT_SOURCE_PAGE_SIZE = 12;
-const SETTLEMENT_MAX_SCAN_PAGES = 1;
+const SETTLEMENT_SOURCE_PAGE_SIZE = 24;
+const SETTLEMENT_MAX_SCAN_PAGES = 2;
 const CLAIM_DISCOVERY_PAGE_SIZE = 12;
 const REQUEST_CLAIM_TARGET_OFFSET = 4 + 32;
-const TRANSACTION_CACHE_TTL_MS = 30_000;
+const TRANSACTION_CACHE_TTL_MS = 5 * 60_000;
 const WORKFLOW_CACHE_TTL_MS = 5_000;
 const MAX_READ_CACHE_ENTRIES = 256;
 
@@ -389,11 +391,12 @@ export class MergePayClient {
     let nextBefore: string | null = null;
     let hasMore = false;
     let scannedTransactions = 0;
+    let readErrors = 0;
 
-    // Settlement history is derived from wallet signatures, so an unbounded
-    // search makes an empty page surprisingly expensive. Read a small recent
-    // window and let the cursor-driven Next button continue older history.
-    // This keeps the first load bounded while preserving older history.
+    // Settlement history is derived from wallet signatures. Scan up to two
+    // full Rialo pages so ordinary wallet traffic does not push a verified
+    // receipt out of the first result, then expose the exact raw cursor for
+    // older history. The bound keeps an empty account read predictable.
     for (
       let pageNumber = 0;
       pageNumber < SETTLEMENT_MAX_SCAN_PAGES;
@@ -411,11 +414,24 @@ export class MergePayClient {
       }
 
       const pageSignatures = signatures.slice(0, SETTLEMENT_SOURCE_PAGE_SIZE);
-      const activity = await this.decodeWalletActivity(pageSignatures);
+      const activityBatch = await this.decodeWalletActivityBatch(pageSignatures);
+      const activity = activityBatch.items;
+      readErrors += activityBatch.unreadableTransactions;
       scannedTransactions += pageSignatures.length;
-      const candidates = await Promise.all(
-        activity.map((item) => this.decodeWalletSettlement(address, item)),
+      const candidateResults = await Promise.all(
+        activity.map(async (item) => {
+          try {
+            return {
+              candidate: await this.decodeWalletSettlement(address, item),
+              failed: false,
+            };
+          } catch {
+            return { candidate: null, failed: true };
+          }
+        }),
       );
+      readErrors += candidateResults.filter((result) => result.failed).length;
+      const candidates = candidateResults.map((result) => result.candidate);
 
       let pageComplete = true;
       for (const [index, candidate] of candidates.entries()) {
@@ -449,6 +465,8 @@ export class MergePayClient {
       nextBefore: hasMore ? nextBefore : null,
       hasMore: Boolean(hasMore && nextBefore),
       scannedTransactions,
+      incomplete: readErrors > 0,
+      readErrors,
     };
   }
 
@@ -553,6 +571,15 @@ export class MergePayClient {
   private async decodeWalletActivity(
     signatures: Awaited<ReturnType<MergePayRpcClient["getSignaturesForAddress"]>>,
   ): Promise<MergePayActivityItem[]> {
+    return (await this.decodeWalletActivityBatch(signatures)).items;
+  }
+
+  private async decodeWalletActivityBatch(
+    signatures: Awaited<ReturnType<MergePayRpcClient["getSignaturesForAddress"]>>,
+  ): Promise<{
+    items: MergePayActivityItem[];
+    unreadableTransactions: number;
+  }> {
     const records = await Promise.all(
       signatures.map(async (signatureInfo) => ({
         signatureInfo,
@@ -560,28 +587,34 @@ export class MergePayClient {
       })),
     );
 
-    return records.map(({ signatureInfo, transaction }) => {
-      const mergePayInstruction = transaction
-        ? findMergePayInstruction(transaction, this.programId)
-        : null;
-      const error = signatureInfo.err ?? transaction?.meta.err ?? null;
+    return {
+      items: records.map(({ signatureInfo, transaction }) => {
+        const mergePayInstruction = transaction
+          ? findMergePayInstruction(transaction, this.programId)
+          : null;
+        const error = signatureInfo.err ?? transaction?.meta.err ?? null;
 
-      return {
-        signature: signatureInfo.signature,
-        blockHeight: signatureInfo.blockHeight,
-        blockTime: signatureInfo.blockTime ?? transaction?.blockTime ?? null,
-        status: error ? "failed" : "confirmed",
-        error,
-        action: mergePayInstruction?.action ?? "network",
-        workflowAddress: mergePayInstruction?.workflowAddress ?? null,
-        relatedWorkflowAddress:
-          mergePayInstruction?.relatedWorkflowAddress ?? null,
-        workflowSlug: mergePayInstruction?.workflowSlug ?? null,
-        workflowPayer: mergePayInstruction?.workflowPayer ?? null,
-        legacyInstruction: mergePayInstruction?.legacyInstruction ?? false,
-        feeKelvin: transaction?.meta.fee ?? null,
-      };
-    });
+        return {
+          signature: signatureInfo.signature,
+          blockHeight: signatureInfo.blockHeight,
+          blockTime: signatureInfo.blockTime ?? transaction?.blockTime ?? null,
+          status: error ? "failed" : "confirmed",
+          error,
+          action: mergePayInstruction?.action ?? "network",
+          workflowAddress: mergePayInstruction?.workflowAddress ?? null,
+          relatedWorkflowAddress:
+            mergePayInstruction?.relatedWorkflowAddress ?? null,
+          workflowSlug: mergePayInstruction?.workflowSlug ?? null,
+          workflowPayer: mergePayInstruction?.workflowPayer ?? null,
+          legacyInstruction: mergePayInstruction?.legacyInstruction ?? false,
+          feeKelvin: transaction?.meta.fee ?? null,
+        };
+      }),
+      unreadableTransactions: records.reduce(
+        (count, record) => count + (record.transaction ? 0 : 1),
+        0,
+      ),
+    };
   }
 
   private async decodeWalletSettlement(
@@ -663,7 +696,21 @@ export class MergePayClient {
     const cached = this.transactionCache.get(signature);
     if (cached && cached.expiresAt > now) return cached.promise;
 
-    const promise = this.getTransaction(signature).catch(() => null);
+    let promise: Promise<MergePayTransactionResponse | null>;
+    promise = Promise.resolve()
+      .then(() => this.getTransaction(signature))
+      .then((transaction) => {
+        if (!transaction) {
+          const current = this.transactionCache.get(signature);
+          if (current?.promise === promise) this.transactionCache.delete(signature);
+        }
+        return transaction;
+      })
+      .catch(() => {
+        const current = this.transactionCache.get(signature);
+        if (current?.promise === promise) this.transactionCache.delete(signature);
+        return null;
+      });
     this.transactionCache.set(signature, {
       promise,
       expiresAt: now + TRANSACTION_CACHE_TTL_MS,

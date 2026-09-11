@@ -34,12 +34,12 @@ export default function SettlementsPage() {
             <div className="ledger-scope__icon" aria-hidden="true">
               <ReceiptText size={20} strokeWidth={1.6} />
             </div>
-            <span><i aria-hidden="true" /> Auto-refresh</span>
+            <span><i aria-hidden="true" /> Background sync</span>
           </div>
           <div className="ledger-scope__body">
             <span>TERMINAL STATES</span>
             <strong>Receipts to share</strong>
-            <small>Connected wallet · Rialo DevNet</small>
+            <small>Connected wallet / Rialo DevNet</small>
           </div>
         </div>
       </div>

@@ -645,6 +645,8 @@ test("projects terminal workflow state into paid and refunded wallet settlements
   assert.equal(paidPage.items[0]?.outcome, "paid");
   assert.equal(paidPage.items[0]?.role, "sponsor");
   assert.equal(paidPage.items[0]?.workflowSlug, slug);
+  assert.equal(paidPage.incomplete, false);
+  assert.equal(paidPage.readErrors, 0);
 
   const claimInstruction = buildRequestClaimInstruction({
     programId: MERGEPAY_PROGRAM_ID,
@@ -690,20 +692,97 @@ test("projects terminal workflow state into paid and refunded wallet settlements
   assert.equal(refundedPage.items[0]?.role, "beneficiary");
   assert.equal(refundedPage.items[0]?.workflowAddress, workflowPda);
   assert.equal(refundedPage.items[0]?.workflowSlug, null);
+  assert.equal(refundedPage.incomplete, false);
+  assert.equal(refundedPage.readErrors, 0);
+});
+
+test("retries a transiently unavailable settlement transaction", async () => {
+  const fundInstruction = buildFundInstruction({
+    programId: MERGEPAY_PROGRAM_ID,
+    payer,
+    workflowSlug: slug,
+  });
+  const transaction = {
+    blockHeight: 22n,
+    blockTime: 1_787_941_102n,
+    transaction: {
+      signatures: ["recovering-signature"],
+      validFrom: 1_787_941_000_000n,
+      message: {
+        accountKeys: [payer, workflowPda, MERGEPAY_PROGRAM_ID],
+        instructions: [
+          {
+            programIdIndex: 2,
+            accounts: [0, 1],
+            data: Buffer.from(fundInstruction.data).toString("base64"),
+          },
+        ],
+      },
+    },
+    meta: { fee: 100n },
+  };
+  let transactionReads = 0;
+  const client = new MergePayClient({
+    rpc: {
+      getSignaturesForAddressPage: async () => [
+        {
+          signature: "recovering-signature",
+          blockHeight: 22n,
+          blockTime: 1_787_941_102n,
+        },
+      ],
+      getTransaction: async () => {
+        transactionReads += 1;
+        return transactionReads === 1 ? null : transaction;
+      },
+    },
+  });
+  client.getWorkflowByAddress = async () => ({
+    address: workflowPda,
+    state: {
+      sponsor: payer,
+      beneficiary,
+      claimRequest: false,
+      funded: true,
+      mergeConfirmed: true,
+      paid: true,
+      refunded: false,
+      githubOwner: "microsoft",
+      githubRepo: "vscode",
+      pullNumber: 332677n,
+      amountKelvin: 1_000_000n,
+    },
+  });
+
+  const interrupted = await client.getWalletSettlementPage(payer, { limit: 1 });
+  assert.equal(interrupted.items.length, 0);
+  assert.equal(interrupted.incomplete, true);
+  assert.equal(interrupted.readErrors, 1);
+
+  const recovered = await client.getWalletSettlementPage(payer, { limit: 1 });
+  assert.equal(recovered.items[0]?.outcome, "paid");
+  assert.equal(recovered.incomplete, false);
+  assert.equal(recovered.readErrors, 0);
+  assert.equal(transactionReads, 2);
 });
 
 test("bounds settlement discovery and exposes older history through the cursor", async () => {
   const requests = [];
-  const firstPage = Array.from({ length: 13 }, (_, index) => ({
+  const firstPage = Array.from({ length: 25 }, (_, index) => ({
     signature: `recent-${index}`,
-    blockHeight: BigInt(100 - index),
+    blockHeight: BigInt(200 - index),
     blockTime: 1_787_941_100n - BigInt(index),
+  }));
+  const secondPage = Array.from({ length: 25 }, (_, index) => ({
+    signature: `older-${index}`,
+    blockHeight: BigInt(100 - index),
+    blockTime: 1_787_941_000n - BigInt(index),
   }));
   const client = new MergePayClient({
     rpc: {
       getSignaturesForAddressPage: async (address, limit, before) => {
         requests.push({ address, limit, before });
-        return firstPage;
+        return before ? secondPage : firstPage;
       },
       getTransaction: async () => null,
     },
@@ -712,11 +791,14 @@ test("bounds settlement discovery and exposes older history through the cursor",
   const page = await client.getWalletSettlementPage(payer, { limit: 6 });
 
   assert.equal(page.items.length, 0);
-  assert.equal(page.scannedTransactions, 12);
+  assert.equal(page.scannedTransactions, 48);
   assert.equal(page.hasMore, true);
-  assert.equal(page.nextBefore, "recent-11");
+  assert.equal(page.nextBefore, "older-23");
+  assert.equal(page.incomplete, true);
+  assert.equal(page.readErrors, 48);
   assert.deepEqual(requests, [
-    { address: payer, limit: 13, before: undefined },
+    { address: payer, limit: 25, before: undefined },
+    { address: payer, limit: 25, before: "recent-23" },
   ]);
 });
 

@@ -31,7 +31,10 @@ import { routes } from "@/lib/constants";
 import { TransactionProof } from "@/components/ui/transaction-proof";
 
 const SETTLEMENT_PAGE_SIZE = 6;
-const SETTLEMENT_REFRESH_INTERVAL_MS = 10_000;
+const SETTLEMENT_REFRESH_INTERVAL_MS = 45_000;
+const SETTLEMENT_REFRESH_MIN_GAP_MS = 15_000;
+
+type SettlementLoadMode = "initial" | "page" | "refresh";
 
 type SettlementState = {
   status: "idle" | "loading" | "ready" | "error";
@@ -39,6 +42,7 @@ type SettlementState = {
   error: Error | null;
   pageIndex: number;
   lastChecked: number | null;
+  refreshing: boolean;
 };
 
 const initialState: SettlementState = {
@@ -47,7 +51,44 @@ const initialState: SettlementState = {
   error: null,
   pageIndex: 0,
   lastChecked: null,
+  refreshing: false,
 };
+
+function isSettlementBusy(state: SettlementState): boolean {
+  return state.status === "loading" || state.refreshing;
+}
+
+function stabilizeLatestSettlementPage(
+  previous: MergePaySettlementPage,
+  incoming: MergePaySettlementPage,
+): MergePaySettlementPage {
+  if (!incoming.incomplete) return incoming;
+
+  const verifiedByWorkflow = new Map(
+    previous.items.map((item) => [item.workflowAddress, item]),
+  );
+  for (const item of incoming.items) {
+    verifiedByWorkflow.set(item.workflowAddress, item);
+  }
+
+  const items = [...verifiedByWorkflow.values()]
+    .sort((left, right) => {
+      if (left.blockHeight === right.blockHeight) return 0;
+      return left.blockHeight > right.blockHeight ? -1 : 1;
+    });
+  const nextBefore = incoming.nextBefore ?? previous.nextBefore;
+
+  return {
+    ...incoming,
+    items,
+    nextBefore,
+    hasMore: Boolean(nextBefore && (incoming.hasMore || previous.hasMore)),
+    scannedTransactions: Math.max(
+      incoming.scannedTransactions,
+      previous.scannedTransactions,
+    ),
+  };
+}
 
 export function SettlementActivityFeed() {
   const wallet = useWallet();
@@ -55,7 +96,11 @@ export function SettlementActivityFeed() {
   const [state, setState] = useState<SettlementState>(initialState);
   const [loadingPageIndex, setLoadingPageIndex] = useState<number | null>(null);
   const requestRef = useRef(0);
+  const activeRequestRef = useRef(false);
+  const initializedAddressRef = useRef<string | null>(null);
+  const lastRefreshStartedRef = useRef(0);
   const stateRef = useRef(state);
+  const walletAddressRef = useRef(wallet.address);
   const pageCursorsRef = useRef<Array<string | undefined>>([undefined]);
 
   useEffect(() => {
@@ -64,31 +109,47 @@ export function SettlementActivityFeed() {
 
   const loadSettlements = useCallback(
     async ({
+      address,
       before,
-      clearItems = false,
+      mode,
       pageIndex,
     }: {
+      address: string;
       before?: string;
-      clearItems?: boolean;
+      mode: SettlementLoadMode;
       pageIndex: number;
     }) => {
-      if (!wallet.address || network.rpcStatus !== "available") return;
+      if (activeRequestRef.current || walletAddressRef.current !== address) return;
 
       const requestId = ++requestRef.current;
-      setLoadingPageIndex(pageIndex);
+      activeRequestRef.current = true;
+      lastRefreshStartedRef.current = Date.now();
+      setLoadingPageIndex(mode === "page" ? pageIndex : null);
       setState((current) => ({
         ...current,
-        status: "loading",
-        page: clearItems ? null : current.page,
+        status: mode === "refresh" && current.page ? "ready" : "loading",
+        page: mode === "initial" ? null : current.page,
         error: null,
+        refreshing: mode === "refresh" && current.page !== null,
       }));
 
       try {
-        const page = await network.client.getWalletSettlementPage(wallet.address, {
+        const incomingPage = await network.client.getWalletSettlementPage(address, {
           limit: SETTLEMENT_PAGE_SIZE,
           ...(before ? { before } : {}),
         });
-        if (requestId !== requestRef.current) return;
+        if (
+          requestId !== requestRef.current ||
+          walletAddressRef.current !== address
+        ) return;
+
+        const current = stateRef.current;
+        const page = mode === "refresh" &&
+          pageIndex === 0 &&
+          current.pageIndex === 0 &&
+          current.page
+          ? stabilizeLatestSettlementPage(current.page, incomingPage)
+          : incomingPage;
 
         if (page.hasMore && page.nextBefore) {
           pageCursorsRef.current[pageIndex + 1] = page.nextBefore;
@@ -102,52 +163,98 @@ export function SettlementActivityFeed() {
           error: null,
           pageIndex,
           lastChecked: Date.now(),
+          refreshing: false,
         });
-        setLoadingPageIndex(null);
       } catch (cause) {
-        if (requestId !== requestRef.current) return;
-        setState({
-          status: "error",
-          page: null,
-          error: cause instanceof Error ? cause : new Error(String(cause)),
-          pageIndex,
-          lastChecked: null,
-        });
-        setLoadingPageIndex(null);
+        if (
+          requestId !== requestRef.current ||
+          walletAddressRef.current !== address
+        ) return;
+
+        const error = cause instanceof Error ? cause : new Error(String(cause));
+        setState((current) => current.page
+          ? {
+              ...current,
+              status: "ready",
+              error,
+              refreshing: false,
+            }
+          : {
+              status: "error",
+              page: null,
+              error,
+              pageIndex,
+              lastChecked: null,
+              refreshing: false,
+            });
+      } finally {
+        if (requestId === requestRef.current) {
+          activeRequestRef.current = false;
+          setLoadingPageIndex(null);
+        }
       }
     },
-    [network.client, network.rpcStatus, wallet.address],
+    [network.client],
   );
 
   useEffect(() => {
+    walletAddressRef.current = wallet.address;
     requestRef.current += 1;
+    activeRequestRef.current = false;
+    initializedAddressRef.current = null;
+    lastRefreshStartedRef.current = 0;
     pageCursorsRef.current = [undefined];
-
     const timer = window.setTimeout(() => {
-      if (!wallet.address || network.rpcStatus !== "available") {
-        setLoadingPageIndex(null);
-        setState(initialState);
-        return;
-      }
-      void loadSettlements({ clearItems: true, pageIndex: 0 });
+      setLoadingPageIndex(null);
+      setState(initialState);
     }, 0);
 
-    return () => {
-      window.clearTimeout(timer);
-      requestRef.current += 1;
-    };
-  }, [loadSettlements, network.rpcStatus, wallet.address]);
+    return () => window.clearTimeout(timer);
+  }, [wallet.address]);
 
   useEffect(() => {
     if (!wallet.address || network.rpcStatus !== "available") return;
 
+    const address = wallet.address;
+    const firstLoadForWallet = initializedAddressRef.current !== address;
+    initializedAddressRef.current = address;
+
+    const timer = window.setTimeout(() => {
+      void loadSettlements({
+        address,
+        mode: firstLoadForWallet ? "initial" : "refresh",
+        pageIndex: 0,
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadSettlements, network.rpcStatus, wallet.address]);
+
+  useEffect(() => () => {
+    requestRef.current += 1;
+    activeRequestRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (!wallet.address || network.rpcStatus !== "available") return;
+    const address = wallet.address;
+
     const refreshLatest = () => {
+      const current = stateRef.current;
       if (
         document.visibilityState === "visible" &&
-        stateRef.current.pageIndex === 0 &&
-        stateRef.current.status !== "loading"
+        current.pageIndex === 0 &&
+        current.status !== "loading" &&
+        !current.refreshing &&
+        !activeRequestRef.current &&
+        Date.now() - lastRefreshStartedRef.current >=
+          SETTLEMENT_REFRESH_MIN_GAP_MS
       ) {
-        void loadSettlements({ clearItems: false, pageIndex: 0 });
+        void loadSettlements({
+          address,
+          mode: current.page ? "refresh" : "initial",
+          pageIndex: 0,
+        });
       }
     };
 
@@ -166,23 +273,43 @@ export function SettlementActivityFeed() {
   }, [loadSettlements, network.rpcStatus, wallet.address]);
 
   function refreshSettlements() {
+    if (!wallet.address || network.rpcStatus !== "available") return;
     pageCursorsRef.current = [undefined];
-    void loadSettlements({ clearItems: true, pageIndex: 0 });
+    void loadSettlements({
+      address: wallet.address,
+      mode: state.page && state.pageIndex === 0 ? "refresh" : state.page ? "page" : "initial",
+      pageIndex: 0,
+    });
   }
 
   function showPreviousPage() {
-    if (state.pageIndex === 0 || state.status === "loading") return;
+    if (!wallet.address || state.pageIndex === 0 || isSettlementBusy(state)) return;
     const pageIndex = state.pageIndex - 1;
     const before = pageCursorsRef.current[pageIndex];
-    void loadSettlements({ ...(before ? { before } : {}), pageIndex });
+    void loadSettlements({
+      address: wallet.address,
+      ...(before ? { before } : {}),
+      mode: "page",
+      pageIndex,
+    });
   }
 
   function showNextPage() {
     const page = state.page;
-    if (!page?.hasMore || !page.nextBefore || state.status === "loading") return;
+    if (
+      !wallet.address ||
+      !page?.hasMore ||
+      !page.nextBefore ||
+      isSettlementBusy(state)
+    ) return;
     const pageIndex = state.pageIndex + 1;
     pageCursorsRef.current[pageIndex] = page.nextBefore;
-    void loadSettlements({ before: page.nextBefore, pageIndex });
+    void loadSettlements({
+      address: wallet.address,
+      before: page.nextBefore,
+      mode: "page",
+      pageIndex,
+    });
   }
 
   const sourceLabel = wallet.source === "embedded"
@@ -190,10 +317,45 @@ export function SettlementActivityFeed() {
     : wallet.walletName ?? "Connected wallet";
   const page = state.page;
   const items = page?.items ?? [];
+  const isBusy = isSettlementBusy(state);
+  const syncStatus = !wallet.address
+    ? "idle"
+    : state.refreshing || state.status === "loading"
+      ? "syncing"
+      : network.rpcStatus !== "available"
+        ? "offline"
+        : state.error || page?.incomplete
+          ? "partial"
+          : "live";
+  const syncLabel = syncStatus === "syncing"
+    ? "Syncing"
+    : syncStatus === "offline"
+      ? "Connection paused"
+      : syncStatus === "partial"
+        ? "Partial read"
+        : syncStatus === "live"
+          ? "Live sync"
+          : "Wallet required";
+  const syncNotice = page && network.rpcStatus !== "available"
+    ? {
+        title: "Showing the last verified receipts",
+        description: "Rialo DevNet is temporarily unavailable. Existing proof stays visible and will reconcile when the connection recovers.",
+      }
+    : page && state.error
+      ? {
+          title: "Latest sync was interrupted",
+          description: "The previous verified result is preserved. Retry when the RPC connection is stable; no receipt has been removed.",
+        }
+      : page?.incomplete
+        ? {
+            title: "Some chain records need another pass",
+            description: `${page.readErrors} ${page.readErrors === 1 ? "record did" : "records did"} not return a complete response. Verified receipts remain visible while the next sync reconciles the gap.`,
+          }
+        : null;
 
   return (
     <section
-      aria-busy={state.status === "loading"}
+      aria-busy={isBusy}
       aria-labelledby="settlement-activity-title"
       className="settlement-activity"
     >
@@ -208,17 +370,17 @@ export function SettlementActivityFeed() {
           </p>
         </div>
         <div className="settlement-activity__header-actions">
-          <span className="settlement-live-indicator">
-            <i aria-hidden="true" /> Live watch
+          <span className="settlement-live-indicator" data-status={syncStatus}>
+            <i aria-hidden="true" /> {syncLabel}
           </span>
           <button
             aria-label="Refresh settlement history"
             className="activity-refresh"
-            data-loading={state.status === "loading"}
+            data-loading={isBusy}
             disabled={
               !wallet.address ||
               network.rpcStatus !== "available" ||
-              state.status === "loading"
+              isBusy
             }
             onClick={refreshSettlements}
             type="button"
@@ -245,6 +407,13 @@ export function SettlementActivityFeed() {
         </div>
       ) : null}
 
+      {syncNotice ? (
+        <div className="settlement-activity__sync-notice" role="status">
+          <AlertCircle aria-hidden="true" size={16} strokeWidth={1.8} />
+          <p><strong>{syncNotice.title}</strong> {syncNotice.description}</p>
+        </div>
+      ) : null}
+
       {!wallet.address ? (
         <SettlementEmptyState
           details={["Paid to the contributor", "Refunded to the sponsor"]}
@@ -254,7 +423,7 @@ export function SettlementActivityFeed() {
           description="Open the wallet control in the header. Once connected, this page will find paid and refunded bounties associated with that address."
           action={<button className="button button--dark" onClick={requestWalletControlOpen} type="button">Open wallet</button>}
         />
-      ) : network.rpcStatus !== "available" ? (
+      ) : !page && network.rpcStatus !== "available" ? (
         <SettlementEmptyState
           details={["Wallet connection preserved", "No placeholder outcomes"]}
           eyebrow="CONNECTION PENDING"
@@ -265,7 +434,7 @@ export function SettlementActivityFeed() {
         />
       ) : state.status === "loading" && items.length === 0 ? (
         <SettlementLoadingState />
-      ) : state.status === "error" ? (
+      ) : state.status === "error" && !page ? (
         <SettlementEmptyState
           details={["Workflow state is re-read", "Retry keeps the wallet scope"]}
           eyebrow="READ INTERRUPTED"
@@ -273,6 +442,16 @@ export function SettlementActivityFeed() {
           title="Settlement history could not be read"
           description={state.error?.message || "Rialo did not return a usable settlement response."}
           action={<button className="button button--dark" onClick={refreshSettlements} type="button">Try again</button>}
+          tone="error"
+        />
+      ) : page?.incomplete && items.length === 0 ? (
+        <SettlementEmptyState
+          details={["Verified results are preserved", "Missing records are retried"]}
+          eyebrow="PARTIAL CHAIN READ"
+          icon={<AlertCircle aria-hidden="true" size={20} strokeWidth={1.7} />}
+          title="Settlement history needs another pass"
+          description="Rialo returned an incomplete response for this transaction window, so MergePay will not label it as an empty history. Retry to reconcile the missing records."
+          action={<button className="button button--dark" onClick={refreshSettlements} type="button">Retry verification</button>}
           tone="error"
         />
       ) : items.length === 0 ? (
@@ -307,7 +486,7 @@ export function SettlementActivityFeed() {
             <div>
               <span className="panel-label">VERIFIED ONCHAIN</span>
               <strong>{items.length} {items.length === 1 ? "settlement" : "settlements"}</strong>
-              <small>{state.lastChecked ? `Checked ${formatCheckedTime(state.lastChecked)}` : "Checking now"}</small>
+              <small>{state.lastChecked ? `Last verified ${formatCheckedTime(state.lastChecked)}` : "Checking now"}</small>
             </div>
             <div className="settlement-activity__legend" aria-label="Settlement outcomes">
               <span data-outcome="paid"><i aria-hidden="true" /> Paid</span>
@@ -320,7 +499,7 @@ export function SettlementActivityFeed() {
           <SettlementPagination
             count={items.length}
             hasNext={Boolean(page?.hasMore)}
-            loading={false}
+            loading={isBusy}
             loadingPageIndex={loadingPageIndex}
             onNext={showNextPage}
             onPrevious={showPreviousPage}
@@ -437,7 +616,7 @@ function SettlementPagination({
       <div aria-live="polite">
         <span>PAGE</span>
         <strong>{String(pageNumber).padStart(2, "0")}</strong>
-        <small>{count} shown · newest first</small>
+        <small>{count} shown / newest first</small>
       </div>
       <button disabled={!hasNext || loading} onClick={onNext} type="button">
         Next
@@ -511,7 +690,7 @@ function SettlementPageLoadingState({ count }: Readonly<{ count: number }>) {
       </div>
       <div className="settlement-activity__page-loading-label">
         <span aria-hidden="true" />
-        Loading the next settlement page…
+        Loading the next settlement page...
       </div>
     </div>
   );

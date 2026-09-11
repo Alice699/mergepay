@@ -658,7 +658,12 @@ test("keeps paid and refunded history wallet-scoped and terminal-only", async ()
   assert.match(settlementFeed, /getWalletSettlementPage/);
   assert.match(settlementFeed, /Paid and refunded bounties/);
   assert.match(settlementFeed, /SETTLEMENT_PAGE_SIZE = 6/);
-  assert.match(settlementFeed, /SETTLEMENT_REFRESH_INTERVAL_MS = 10_000/);
+  assert.match(settlementFeed, /SETTLEMENT_REFRESH_INTERVAL_MS = 45_000/);
+  assert.match(settlementFeed, /SETTLEMENT_REFRESH_MIN_GAP_MS = 15_000/);
+  assert.match(settlementFeed, /stabilizeLatestSettlementPage/);
+  assert.match(settlementFeed, /refreshing: boolean/);
+  assert.match(settlementFeed, /Showing the last verified receipts/);
+  assert.match(settlementFeed, /page\?\.incomplete/);
   assert.match(settlementFeed, /SettlementPageLoadingState/);
   assert.match(settlementFeed, /loadingPageIndex/);
   assert.match(settlementFeed, /View receipt/);
@@ -671,6 +676,9 @@ test("keeps paid and refunded history wallet-scoped and terminal-only", async ()
   assert.match(client, /workflow\.state\.refunded/);
   assert.match(client, /relatedWorkflowAddress/);
   assert.match(client, /address === workflow\.state\.beneficiary/);
+  assert.match(client, /SETTLEMENT_SOURCE_PAGE_SIZE = 24/);
+  assert.match(client, /SETTLEMENT_MAX_SCAN_PAGES = 2/);
+  assert.match(client, /readErrors/);
   assert.match(styles, /\.settlement-activity__row/);
   assert.match(styles, /\.settlement-activity__pagination/);
   assert.match(styles, /\.settlement-activity__empty/);
