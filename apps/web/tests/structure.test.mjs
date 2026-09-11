@@ -135,6 +135,8 @@ test("keeps the polished application shell and local typography", async () => {
   assert.match(header, /network-pill/);
   assert.match(footer, /Live deployment/);
   assert.match(footer, /Inspect verified activity/);
+  assert.match(footer, /marketplaceDeployment\.programId/);
+  assert.doesNotMatch(footer, /marketplaceArtifact/);
 
   const favicon = await readFile(
     new URL("public/favicon.svg", webRoot),

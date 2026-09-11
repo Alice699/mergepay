@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { BookOpen, GitPullRequest, Scale } from "lucide-react";
 import { BrandMark } from "@/components/ui/brand-mark";
-import { devnetDeployment } from "@/lib/deployment";
+import { marketplaceDeployment } from "@/lib/deployment";
 
 export function SiteFooter() {
-  const marketplaceProgramId = devnetDeployment.marketplaceArtifact.programId;
+  const marketplaceProgramId = marketplaceDeployment.programId;
 
   return (
     <footer className="site-footer">
