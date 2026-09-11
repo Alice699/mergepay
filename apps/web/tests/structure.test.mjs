@@ -179,6 +179,10 @@ test("keeps the settlement robot scene purposeful, bounded, and accessible", asy
   assert.match(styles, /--home-void: #0b0b0b/);
   assert.match(styles, /--home-slate: #2b4559/);
   assert.match(styles, /--home-mist: #e4e4e4/);
+  assert.match(
+    styles,
+    /body:has\(\.home-page\) \.site-footer \.brand-mark__pay/,
+  );
 });
 
 test("uses semantic symbols without directional arrow UI", async () => {

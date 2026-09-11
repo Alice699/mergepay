@@ -10615,11 +10615,13 @@ body:has(.home-page)::before {
   background: linear-gradient(90deg, transparent, rgb(228 228 228 / 0.16), transparent);
 }
 
-.site-header--home .brand-mark__pay {
+.site-header--home .brand-mark__pay,
+body:has(.home-page) .site-footer .brand-mark__pay {
   color: rgb(228 228 228 / 0.64);
 }
 
-.site-header--home .brand-mark__terminal {
+.site-header--home .brand-mark__terminal,
+body:has(.home-page) .site-footer .brand-mark__terminal {
   background: #e4e4e4;
 }
 
