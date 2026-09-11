@@ -170,6 +170,28 @@ test("keeps the settlement robot scene purposeful, bounded, and accessible", asy
   assert.match(scene, /chestAssembly\.add\(rialoMark\)/);
   assert.match(scene, /robotRoot\.scale\.setScalar\(0\.9\)/);
   assert.match(scene, /const setBlink/);
+  assert.match(scene, /leftOuterArm/);
+  assert.match(scene, /rightOuterArm/);
+  assert.match(scene, /GREETING_CYCLE_SECONDS = 8\.1/);
+  assert.match(scene, /handlePointerEnter/);
+  assert.match(scene, /eyeFocusX/);
+  assert.match(scene, /type EyeRig/);
+  assert.match(scene, /"feminine"/);
+  assert.match(scene, /"masculine"/);
+  assert.match(scene, /OLED_EYE_FRAGMENT_SHADER/);
+  assert.match(scene, /THREE\.ShaderMaterial/);
+  assert.match(scene, /uGaze/);
+  assert.doesNotMatch(scene, /eyeRimMaterial|pupilMaterial/);
+  assert.match(scene, /THREE\.TubeGeometry/);
+  assert.doesNotMatch(scene, /eyelashGeometry/);
+  assert.match(scene, /ambientFloor/);
+  assert.match(scene, /leftFloorRipple/);
+  assert.match(scene, /rightFloorRipple/);
+  assert.doesNotMatch(scene, /const stage =/);
+  assert.match(scene, /mount\.dataset\.greeting/);
+  assert.match(scene, /merge-core__greeting-bubble/);
+  assert.match(scene, /Grialo!/);
+  assert.doesNotMatch(scene, /tokenGroup|fallback-token/);
   assert.match(scene, /THREE\.PCFSoftShadowMap/);
   assert.match(scene, /prefers-reduced-motion/);
   assert.match(scene, /IntersectionObserver/);
@@ -179,6 +201,7 @@ test("keeps the settlement robot scene purposeful, bounded, and accessible", asy
   assert.match(styles, /--home-void: #0b0b0b/);
   assert.match(styles, /--home-slate: #2b4559/);
   assert.match(styles, /--home-mist: #e4e4e4/);
+  assert.match(styles, /\.merge-core__greeting/);
   assert.match(
     styles,
     /body:has\(\.home-page\) \.site-footer \.brand-mark__pay/,

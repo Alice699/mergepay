@@ -7,15 +7,26 @@ import type {
   Material,
   Mesh,
   MeshPhysicalMaterial,
+  Texture,
+  Vector2,
   Vector3,
   WebGLRenderer,
 } from "three";
 
+type EyeRig = {
+  gaze: Vector2;
+  root: Group;
+};
+
 type RobotRig = {
   chest: MeshPhysicalMaterial;
-  eyes: [Mesh, Mesh];
+  eyes: [EyeRig, EyeRig];
   head: Group;
+  mouth: Group;
+  root: Group;
 };
+
+type RobotPersona = "feminine" | "masculine";
 
 type ArmRig = {
   elbow: Mesh;
@@ -28,6 +39,39 @@ type ArmRig = {
 const VOID_ECLIPSE = 0x0b0b0b;
 const MIDNIGHT_SLATE = 0x2b4559;
 const SILVER_MIST = 0xe4e4e4;
+const GREETING_CYCLE_SECONDS = 8.1;
+const OLED_EYE_VERTEX_SHADER = `
+  varying vec2 vUv;
+
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const OLED_EYE_FRAGMENT_SHADER = `
+  uniform vec2 uGaze;
+  varying vec2 vUv;
+
+  void main() {
+    vec2 point = (vUv - 0.5) * 2.0;
+    float distanceFromCenter = length(point);
+    float core = 1.0 - smoothstep(0.72, 0.86, distanceFromCenter);
+    float halo = (1.0 - smoothstep(0.78, 1.0, distanceFromCenter)) * 0.24;
+    vec2 gaze = uGaze * 0.34;
+    float focus = 1.0 - smoothstep(0.08, 0.78, length(point - gaze));
+    vec2 sheenOrigin = vec2(-0.3, 0.24) + gaze * 0.42;
+    float sheen = 1.0 - smoothstep(0.025, 0.13, length(point - sheenOrigin));
+    vec3 deepSlate = vec3(0.29, 0.48, 0.57);
+    vec3 softMist = vec3(0.68, 0.82, 0.87);
+    float luminance = clamp(0.28 + focus * 0.48 + vUv.y * 0.12, 0.0, 1.0);
+    vec3 color = mix(deepSlate, softMist, luminance);
+    color += sheen * vec3(0.25, 0.3, 0.32);
+    float alpha = max(core * 0.96, halo);
+
+    if (alpha < 0.012) discard;
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
 
 function createRoundedPanelGeometry(
   THREE: typeof import("three"),
@@ -166,7 +210,6 @@ export function MergeCoreScene() {
         return;
       }
 
-      mount.dataset.renderState = "ready";
       renderer.setClearColor(VOID_ECLIPSE, 0);
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -183,6 +226,7 @@ export function MergeCoreScene() {
 
       const geometries: BufferGeometry[] = [];
       const materials: Material[] = [];
+      const textures: Texture[] = [];
       const trackGeometry = <T extends BufferGeometry>(geometry: T) => {
         geometries.push(geometry);
         return geometry;
@@ -190,6 +234,10 @@ export function MergeCoreScene() {
       const trackMaterial = <T extends Material>(material: T) => {
         materials.push(material);
         return material;
+      };
+      const trackTexture = <T extends Texture>(texture: T) => {
+        textures.push(texture);
+        return texture;
       };
 
       scene.add(new THREE.HemisphereLight(SILVER_MIST, VOID_ECLIPSE, 1.5));
@@ -203,7 +251,7 @@ export function MergeCoreScene() {
       slateLight.position.set(1.8, -1.4, 3.4);
       scene.add(slateLight);
 
-      // One clear character moment: two purpose-built robots complete a handoff.
+      // One clear character moment: two purpose-built robots greet the visitor.
       const robotRoot = new THREE.Group();
       robotRoot.position.y = 0.08;
       robotRoot.scale.setScalar(0.9);
@@ -247,14 +295,14 @@ export function MergeCoreScene() {
           transparent: true,
         }),
       );
-      const eyeMaterial = trackMaterial(
-        new THREE.MeshStandardMaterial({
-          color: SILVER_MIST,
-          emissive: SILVER_MIST,
-          emissiveIntensity: 2.8,
-          roughness: 0.14,
+      const faceLineMaterial = trackMaterial(
+        new THREE.MeshBasicMaterial({
+          color: 0x9fb7c1,
+          opacity: 0.86,
+          transparent: true,
         }),
       );
+      faceLineMaterial.toneMapped = false;
       const slateInset = trackMaterial(
         new THREE.MeshPhysicalMaterial({
           clearcoat: 0.9,
@@ -285,8 +333,26 @@ export function MergeCoreScene() {
       const footGeometry = trackGeometry(
         createRoundedPanelGeometry(THREE, 0.31, 0.15, 0.065, 0.46),
       );
-      const eyeGeometry = trackGeometry(
-        new THREE.SphereGeometry(0.057, 20, 14),
+      const eyeDisplayGeometry = trackGeometry(
+        new THREE.PlaneGeometry(0.2, 0.1),
+      );
+      const mouthCurve = new THREE.CatmullRomCurve3(
+        [
+          new THREE.Vector3(-0.073, 0.012, 0),
+          new THREE.Vector3(-0.039, -0.014, 0),
+          new THREE.Vector3(0, -0.023, 0),
+          new THREE.Vector3(0.039, -0.014, 0),
+          new THREE.Vector3(0.073, 0.012, 0),
+        ],
+        false,
+        "catmullrom",
+        0.48,
+      );
+      const mouthGeometry = trackGeometry(
+        new THREE.TubeGeometry(mouthCurve, 28, 0.0055, 8, false),
+      );
+      const mouthEndGeometry = trackGeometry(
+        new THREE.SphereGeometry(0.0056, 12, 8),
       );
       const neckGeometry = trackGeometry(
         new THREE.CylinderGeometry(0.115, 0.14, 0.21, 28),
@@ -302,6 +368,7 @@ export function MergeCoreScene() {
         chestBase: MeshPhysicalMaterial,
         markMaterial: MeshPhysicalMaterial,
         inward: -1 | 1,
+        persona: RobotPersona,
       ): RobotRig => {
         const robot = new THREE.Group();
         robot.position.x = x;
@@ -322,13 +389,54 @@ export function MergeCoreScene() {
         visor.position.z = 0.273;
         head.add(visor);
 
-        const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        leftEye.position.set(-0.17, 0.005, 0.312);
-        leftEye.scale.set(1.28, 0.62, 0.34);
-        head.add(leftEye);
-        const rightEye = leftEye.clone();
-        rightEye.position.x = 0.17;
-        head.add(rightEye);
+        const createEye = (side: -1 | 1): EyeRig => {
+          const eyeRoot = new THREE.Group();
+          eyeRoot.position.set(side * 0.17, 0.014, 0.37);
+          eyeRoot.rotation.z = persona === "feminine" ? side * 0.048 : 0;
+          head.add(eyeRoot);
+
+          const gaze = new THREE.Vector2();
+          const displayMaterial = trackMaterial(
+            new THREE.ShaderMaterial({
+              blending: THREE.NormalBlending,
+              depthWrite: false,
+              fragmentShader: OLED_EYE_FRAGMENT_SHADER,
+              transparent: true,
+              uniforms: { uGaze: { value: gaze } },
+              vertexShader: OLED_EYE_VERTEX_SHADER,
+            }),
+          );
+          displayMaterial.toneMapped = false;
+          const display = new THREE.Mesh(eyeDisplayGeometry, displayMaterial);
+          display.scale.set(
+            persona === "feminine" ? 0.98 : 0.84,
+            persona === "feminine" ? 0.88 : 0.98,
+            1,
+          );
+          display.renderOrder = 6;
+          eyeRoot.add(display);
+
+          return { gaze, root: eyeRoot };
+        };
+
+        const leftEye = createEye(-1);
+        const rightEye = createEye(1);
+
+        const mouth = new THREE.Group();
+        mouth.position.set(0, -0.105, 0.356);
+        mouth.scale.x = persona === "feminine" ? 0.96 : 0.9;
+        mouth.renderOrder = 4;
+        const mouthLine = new THREE.Mesh(mouthGeometry, faceLineMaterial);
+        mouth.add(mouthLine);
+        for (const side of [-1, 1] as const) {
+          const mouthEnd = new THREE.Mesh(
+            mouthEndGeometry,
+            faceLineMaterial,
+          );
+          mouthEnd.position.set(side * 0.073, 0.012, 0);
+          mouth.add(mouthEnd);
+        }
+        head.add(mouth);
 
         const neck = new THREE.Mesh(neckGeometry, jointMaterial);
         neck.position.set(0, -0.015, -0.02);
@@ -375,7 +483,7 @@ export function MergeCoreScene() {
           robot.add(foot);
         }
 
-        return { chest, eyes: [leftEye, rightEye], head };
+        return { chest, eyes: [leftEye, rightEye], head, mouth, root: robot };
       };
 
       const leftRobot = createRobot(
@@ -384,6 +492,7 @@ export function MergeCoreScene() {
         mistShell,
         slateInset,
         1,
+        "feminine",
       );
       const rightRobot = createRobot(
         1.14,
@@ -391,6 +500,7 @@ export function MergeCoreScene() {
         slateInset,
         mistShell,
         -1,
+        "masculine",
       );
 
       const limbGeometry = trackGeometry(
@@ -445,107 +555,159 @@ export function MergeCoreScene() {
         placeLimb(arm.lower, elbow, hand, 0.09);
       };
 
-      positionArm(
-        leftOuterArm,
-        new THREE.Vector3(-1.64, -0.37, 0.02),
-        new THREE.Vector3(-1.75, -0.75, 0.12),
-        new THREE.Vector3(-1.66, -1.06, 0.23),
+      const floorTextureCanvas = document.createElement("canvas");
+      floorTextureCanvas.width = 256;
+      floorTextureCanvas.height = 256;
+      const floorTextureContext = floorTextureCanvas.getContext("2d");
+      if (floorTextureContext) {
+        const gradient = floorTextureContext.createRadialGradient(
+          128,
+          128,
+          4,
+          128,
+          128,
+          124,
+        );
+        gradient.addColorStop(0, "rgba(91, 126, 146, 0.34)");
+        gradient.addColorStop(0.42, "rgba(55, 86, 105, 0.2)");
+        gradient.addColorStop(0.72, "rgba(43, 69, 89, 0.08)");
+        gradient.addColorStop(1, "rgba(43, 69, 89, 0)");
+        floorTextureContext.fillStyle = gradient;
+        floorTextureContext.fillRect(0, 0, 256, 256);
+      }
+      const floorTexture = trackTexture(
+        new THREE.CanvasTexture(floorTextureCanvas),
       );
-      positionArm(
-        rightOuterArm,
-        new THREE.Vector3(1.64, -0.37, 0.02),
-        new THREE.Vector3(1.75, -0.75, 0.12),
-        new THREE.Vector3(1.66, -1.06, 0.23),
-      );
+      floorTexture.colorSpace = THREE.SRGBColorSpace;
+      floorTexture.generateMipmaps = false;
+      floorTexture.minFilter = THREE.LinearFilter;
+      floorTexture.magFilter = THREE.LinearFilter;
 
-      const tokenGroup = new THREE.Group();
-      tokenGroup.position.set(0, -0.39, 0.48);
-      robotRoot.add(tokenGroup);
-      const tokenMaterial = trackMaterial(
-        new THREE.MeshPhysicalMaterial({
-          clearcoat: 1,
-          clearcoatRoughness: 0.07,
-          color: SILVER_MIST,
-          emissive: SILVER_MIST,
-          emissiveIntensity: 0.28,
-          metalness: 0.74,
-          roughness: 0.11,
+      const ambientFloorMaterial = trackMaterial(
+        new THREE.MeshBasicMaterial({
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          map: floorTexture,
+          opacity: 0.78,
+          transparent: true,
         }),
       );
-      const token = new THREE.Mesh(
-        trackGeometry(
-          createRoundedPanelGeometry(THREE, 0.34, 0.34, 0.105, 0.13),
-        ),
-        tokenMaterial,
+      ambientFloorMaterial.toneMapped = false;
+      const ambientFloor = new THREE.Mesh(
+        trackGeometry(new THREE.PlaneGeometry(5.35, 2.7)),
+        ambientFloorMaterial,
       );
-      token.castShadow = true;
-      tokenGroup.add(token);
-      const tokenInset = new THREE.Mesh(
-        trackGeometry(
-          createRoundedPanelGeometry(THREE, 0.15, 0.15, 0.045, 0.02),
-        ),
-        slateInset,
-      );
-      tokenInset.position.z = 0.08;
-      tokenGroup.add(tokenInset);
+      ambientFloor.position.set(0, -1.872, -0.08);
+      ambientFloor.rotation.x = -Math.PI / 2;
+      ambientFloor.renderOrder = 0;
+      robotRoot.add(ambientFloor);
 
-      const tokenHalo = new THREE.Mesh(
-        trackGeometry(new THREE.TorusGeometry(0.43, 0.008, 8, 72)),
+      const shadowCatcher = new THREE.Mesh(
+        trackGeometry(new THREE.PlaneGeometry(5.2, 2.75)),
         trackMaterial(
+          new THREE.ShadowMaterial({ color: VOID_ECLIPSE, opacity: 0.34 }),
+        ),
+      );
+      shadowCatcher.position.set(0, -1.866, -0.06);
+      shadowCatcher.rotation.x = -Math.PI / 2;
+      shadowCatcher.receiveShadow = true;
+      shadowCatcher.renderOrder = 1;
+      robotRoot.add(shadowCatcher);
+
+      const floorRingMaterial = trackMaterial(
+        new THREE.MeshBasicMaterial({
+          blending: THREE.AdditiveBlending,
+          color: 0x7894a3,
+          depthWrite: false,
+          opacity: 0.12,
+          side: THREE.DoubleSide,
+          transparent: true,
+        }),
+      );
+      floorRingMaterial.toneMapped = false;
+      const floorRing = new THREE.Mesh(
+        trackGeometry(new THREE.RingGeometry(2.25, 2.27, 128)),
+        floorRingMaterial,
+      );
+      floorRing.position.set(0, -1.858, -0.04);
+      floorRing.rotation.x = -Math.PI / 2;
+      floorRing.renderOrder = 2;
+      robotRoot.add(floorRing);
+
+      const rippleGeometry = trackGeometry(
+        new THREE.RingGeometry(0.34, 0.37, 80),
+      );
+      const createRipple = (x: number) => {
+        const material = trackMaterial(
           new THREE.MeshBasicMaterial({
-            color: SILVER_MIST,
-            opacity: 0.22,
+            blending: THREE.AdditiveBlending,
+            color: 0xb7d0da,
+            depthWrite: false,
+            opacity: 0,
+            side: THREE.DoubleSide,
             transparent: true,
           }),
-        ),
-      );
-      tokenHalo.position.z = -0.06;
-      tokenGroup.add(tokenHalo);
+        );
+        material.toneMapped = false;
+        const ripple = new THREE.Mesh(rippleGeometry, material);
+        ripple.position.set(x, -1.85, 0.06);
+        ripple.rotation.x = -Math.PI / 2;
+        ripple.scale.setScalar(0.72);
+        ripple.renderOrder = 3;
+        robotRoot.add(ripple);
+        return { material, ripple };
+      };
+      const leftFloorRipple = createRipple(-1.14);
+      const rightFloorRipple = createRipple(1.14);
 
-      const stage = new THREE.Mesh(
-        trackGeometry(new THREE.CylinderGeometry(2.45, 2.62, 0.09, 80)),
-        trackMaterial(
-          new THREE.MeshPhysicalMaterial({
-            color: VOID_ECLIPSE,
-            metalness: 0.32,
-            opacity: 0.74,
-            roughness: 0.66,
-            transparent: true,
-          }),
-        ),
-      );
-      stage.position.set(0, -1.91, -0.12);
-      stage.receiveShadow = true;
-      robotRoot.add(stage);
+      const leftInnerShoulder = new THREE.Vector3();
+      const leftInnerElbow = new THREE.Vector3();
+      const leftInnerHand = new THREE.Vector3();
+      const rightInnerShoulder = new THREE.Vector3();
+      const rightInnerElbow = new THREE.Vector3();
+      const rightInnerHand = new THREE.Vector3();
+      const leftWaveShoulder = new THREE.Vector3();
+      const leftWaveElbow = new THREE.Vector3();
+      const leftWaveHand = new THREE.Vector3();
+      const rightWaveShoulder = new THREE.Vector3();
+      const rightWaveElbow = new THREE.Vector3();
+      const rightWaveHand = new THREE.Vector3();
 
-      const coreLight = new THREE.PointLight(SILVER_MIST, 1.2, 3.4, 2);
-      coreLight.position.copy(tokenGroup.position);
-      robotRoot.add(coreLight);
-
-      const leftShoulder = new THREE.Vector3();
-      const leftElbow = new THREE.Vector3();
-      const leftHand = new THREE.Vector3();
-      const rightShoulder = new THREE.Vector3();
-      const rightElbow = new THREE.Vector3();
-      const rightHand = new THREE.Vector3();
-
-      const setBlink = (robot: RobotRig, elapsed: number, offset: number) => {
+      const setBlink = (
+        robot: RobotRig,
+        elapsed: number,
+        offset: number,
+        warmth = 0,
+        gazeX = 0,
+        gazeY = 0,
+      ) => {
         const phase = (elapsed + offset) % 5.4;
         const blink =
           phase < 0.16
             ? 1 - Math.sin((phase / 0.16) * Math.PI) * 0.82
             : 1;
-        for (const eye of robot.eyes) {
-          eye.scale.set(1.28, 0.62 * blink, 0.34);
-        }
+        const smile = smoothStep(warmth);
+        robot.eyes.forEach((eye) => {
+          eye.root.position.y = 0.012 + smile * 0.009;
+          eye.root.scale.set(
+            1 + smile * 0.035,
+            Math.max(0.08, blink * (1 - smile * 0.15)),
+            1,
+          );
+          eye.gaze.set(gazeX * 10, gazeY * 12);
+        });
       };
 
       const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
       let reducedMotion = motionQuery.matches;
       let inViewport = true;
       let frameId = 0;
+      let animationOrigin = performance.now();
       let targetX = 0;
       let targetY = 0;
+      let eyeFocusX = 0;
+      let eyeFocusY = 0;
+      let lastPointerGreeting = Number.NEGATIVE_INFINITY;
 
       const resize = () => {
         const { width, height } = mount.getBoundingClientRect();
@@ -558,63 +720,189 @@ export function MergeCoreScene() {
         camera.aspect = width / height;
         camera.position.z = width < 640 ? 8.8 : 7.8;
         camera.updateProjectionMatrix();
-        if (reducedMotion) renderFrame(2.85);
+        if (reducedMotion) renderFrame(1.9);
       };
 
       const renderFrame = (elapsed: number) => {
-        const cycle = (elapsed % 7.6) / 7.6;
-        const approach = smoothStep((cycle - 0.14) / 0.2);
-        const release = smoothStep((cycle - 0.72) / 0.16);
-        const contact = approach * (1 - release);
-        const energy = smoothStep((contact - 0.36) / 0.64);
+        const cycle = elapsed % GREETING_CYCLE_SECONDS;
+        const waveEnvelope = (start: number, end: number) =>
+          smoothStep((cycle - start) / 0.52) *
+          (1 - smoothStep((cycle - (end - 0.52)) / 0.52));
+        const leftGreeting = waveEnvelope(0.68, 3.88);
+        const rightGreeting = waveEnvelope(0.88, 4.08);
+        const leftWaveProgress = smoothStep((cycle - 0.68) / 3.2);
+        const rightWaveProgress = smoothStep((cycle - 0.88) / 3.2);
+        const leftWave =
+          Math.sin(Math.max(0, cycle - 0.68) * Math.PI * 1.9) *
+          leftGreeting *
+          (1 - leftWaveProgress * 0.26);
+        const rightWave =
+          Math.sin(Math.max(0, cycle - 0.88) * Math.PI * 1.84) *
+          rightGreeting *
+          (1 - rightWaveProgress * 0.26);
         const microMotion = Math.sin(elapsed * 0.72);
+        const leftBreath = Math.sin(elapsed * 0.92) * 0.008;
+        const rightBreath = Math.sin(elapsed * 0.84 + 1.4) * 0.008;
+        const leftHeadIdle = Math.sin(elapsed * 0.46) * 0.006;
+        const rightHeadIdle = Math.sin(elapsed * 0.41 + 1.4) * 0.006;
+        const floorBreath = 0.5 + Math.sin(elapsed * 0.62) * 0.5;
+        const getRippleState = (start: number) => {
+          const rawPhase = (cycle - start) / 1.55;
+          const phase = Math.min(1, Math.max(0, rawPhase));
+          const energy =
+            rawPhase >= 0 && rawPhase <= 1
+              ? Math.sin(phase * Math.PI)
+              : 0;
+          return { energy, phase };
+        };
+        const leftRippleState = getRippleState(0.54);
+        const rightRippleState = getRippleState(0.76);
 
-        leftShoulder.set(-0.67, -0.37, 0.1);
-        leftElbow.set(
-          -0.53 + contact * 0.09,
-          -0.69 + contact * 0.13,
-          0.25,
+        ambientFloorMaterial.opacity = 0.72 + floorBreath * 0.12;
+        floorRingMaterial.opacity = 0.075 + floorBreath * 0.045;
+        leftFloorRipple.ripple.scale.setScalar(
+          0.72 + leftRippleState.phase * 1.45,
         );
-        leftHand.set(
-          -0.58 + contact * 0.34,
-          -0.54 + contact * 0.12,
-          0.43,
+        rightFloorRipple.ripple.scale.setScalar(
+          0.72 + rightRippleState.phase * 1.45,
         );
-        rightShoulder.set(0.67, -0.37, 0.1);
-        rightElbow.set(
-          0.53 - contact * 0.09,
-          -0.69 + contact * 0.13,
-          0.25,
+        leftFloorRipple.material.opacity = leftRippleState.energy * 0.24;
+        rightFloorRipple.material.opacity = rightRippleState.energy * 0.24;
+
+        leftRobot.root.position.y = leftBreath;
+        rightRobot.root.position.y = rightBreath;
+
+        leftInnerShoulder.set(-0.67, -0.37 + leftBreath, 0.1);
+        leftInnerElbow.set(
+          -0.55,
+          -0.72 + leftBreath + microMotion * 0.008,
+          0.2,
         );
-        rightHand.set(
-          0.58 - contact * 0.34,
-          -0.54 + contact * 0.12,
-          0.43,
+        leftInnerHand.set(
+          -0.49,
+          -1.04 + leftBreath + microMotion * 0.012,
+          0.27,
         );
-        positionArm(leftInnerArm, leftShoulder, leftElbow, leftHand);
-        positionArm(rightInnerArm, rightShoulder, rightElbow, rightHand);
+        rightInnerShoulder.set(0.67, -0.37 + rightBreath, 0.1);
+        rightInnerElbow.set(
+          0.55,
+          -0.72 + rightBreath - microMotion * 0.008,
+          0.2,
+        );
+        rightInnerHand.set(
+          0.49,
+          -1.04 + rightBreath - microMotion * 0.012,
+          0.27,
+        );
+        positionArm(
+          leftInnerArm,
+          leftInnerShoulder,
+          leftInnerElbow,
+          leftInnerHand,
+        );
+        positionArm(
+          rightInnerArm,
+          rightInnerShoulder,
+          rightInnerElbow,
+          rightInnerHand,
+        );
+
+        leftWaveShoulder.set(-1.64, -0.37 + leftBreath, 0.02);
+        leftWaveElbow.set(
+          -1.75 - leftGreeting * (0.12 + leftWave * 0.018),
+          -0.75 +
+            leftBreath +
+            leftGreeting * (0.69 + Math.abs(leftWave) * 0.014),
+          0.12 + leftGreeting * (0.12 + leftWave * 0.018),
+        );
+        leftWaveHand.set(
+          -1.66 + leftGreeting * (-0.09 + leftWave * 0.15),
+          -1.06 +
+            leftBreath +
+            leftGreeting * (1.58 + Math.abs(leftWave) * 0.025),
+          0.23 + leftGreeting * (0.17 + leftWave * 0.025),
+        );
+        rightWaveShoulder.set(1.64, -0.37 + rightBreath, 0.02);
+        rightWaveElbow.set(
+          1.75 + rightGreeting * (0.12 + rightWave * 0.018),
+          -0.75 +
+            rightBreath +
+            rightGreeting * (0.69 + Math.abs(rightWave) * 0.014),
+          0.12 + rightGreeting * (0.12 + rightWave * 0.018),
+        );
+        rightWaveHand.set(
+          1.66 + rightGreeting * (0.09 - rightWave * 0.15),
+          -1.06 +
+            rightBreath +
+            rightGreeting * (1.58 + Math.abs(rightWave) * 0.025),
+          0.23 + rightGreeting * (0.17 - rightWave * 0.025),
+        );
+        positionArm(
+          leftOuterArm,
+          leftWaveShoulder,
+          leftWaveElbow,
+          leftWaveHand,
+        );
+        positionArm(
+          rightOuterArm,
+          rightWaveShoulder,
+          rightWaveElbow,
+          rightWaveHand,
+        );
+        leftOuterArm.hand.rotation.z =
+          leftGreeting * (-0.18 + leftWave * 0.48);
+        rightOuterArm.hand.rotation.z =
+          rightGreeting * (0.18 - rightWave * 0.48);
 
         leftRobot.head.rotation.z =
-          -0.018 - contact * 0.032 + microMotion * 0.006;
+          -0.018 + leftGreeting * 0.04 + leftWave * 0.008 + leftHeadIdle;
         rightRobot.head.rotation.z =
-          0.018 + contact * 0.032 - microMotion * 0.006;
-        leftRobot.head.rotation.y = 0.08 + contact * 0.055;
-        rightRobot.head.rotation.y = -0.08 - contact * 0.055;
-        setBlink(leftRobot, elapsed, 0);
-        setBlink(rightRobot, elapsed, 1.65);
+          0.018 - rightGreeting * 0.04 - rightWave * 0.008 + rightHeadIdle;
+        leftRobot.head.position.y =
+          0.46 + leftGreeting * 0.018 + Math.abs(leftWave) * 0.006;
+        rightRobot.head.position.y =
+          0.46 + rightGreeting * 0.018 + Math.abs(rightWave) * 0.006;
+        leftRobot.head.rotation.x = leftGreeting * 0.026;
+        rightRobot.head.rotation.x = rightGreeting * 0.026;
+        leftRobot.head.rotation.y = 0.08 * (1 - leftGreeting * 0.78);
+        rightRobot.head.rotation.y = -0.08 * (1 - rightGreeting * 0.78);
+        eyeFocusX += (targetX * 0.022 - eyeFocusX) * 0.055;
+        eyeFocusY += (-targetY * 0.014 - eyeFocusY) * 0.055;
+        setBlink(
+          leftRobot,
+          elapsed,
+          0,
+          leftGreeting,
+          eyeFocusX,
+          eyeFocusY,
+        );
+        setBlink(
+          rightRobot,
+          elapsed,
+          1.65,
+          rightGreeting,
+          eyeFocusX,
+          eyeFocusY,
+        );
 
-        tokenGroup.position.y = -0.39 + energy * 0.055;
-        tokenGroup.rotation.y = elapsed * 0.22;
-        tokenGroup.rotation.z = Math.sin(elapsed * 0.34) * 0.045;
-        const tokenScale = 0.94 + energy * 0.1;
-        tokenGroup.scale.setScalar(tokenScale);
-        tokenMaterial.emissiveIntensity = 0.28 + energy * 1.35;
-        tokenHalo.rotation.z = elapsed * 0.08;
-        tokenHalo.scale.setScalar(0.94 + energy * 0.22);
-        coreLight.position.copy(tokenGroup.position);
-        coreLight.intensity = 1.1 + energy * 5.6;
-        leftRobot.chest.emissiveIntensity = 0.08 + energy * 0.42;
-        rightRobot.chest.emissiveIntensity = 0.08 + energy * 0.42;
+        const leftVoice =
+          leftGreeting * (0.18 + Math.abs(Math.sin(elapsed * 8.4)) * 0.22);
+        const rightVoice =
+          rightGreeting * (0.18 + Math.abs(Math.sin(elapsed * 8.1)) * 0.22);
+        leftRobot.mouth.scale.y = 0.9 + leftVoice * 0.32;
+        rightRobot.mouth.scale.y = 0.9 + rightVoice * 0.32;
+        leftRobot.mouth.rotation.z = leftWave * 0.009;
+        rightRobot.mouth.rotation.z = -rightWave * 0.009;
+        leftRobot.chest.emissiveIntensity =
+          0.08 + leftGreeting * 0.13 + leftVoice * 0.09;
+        rightRobot.chest.emissiveIntensity =
+          0.08 + rightGreeting * 0.13 + rightVoice * 0.09;
+
+        const greetingState =
+          cycle >= 1.24 && cycle < 3.18 ? "visible" : "hidden";
+        if (mount.dataset.greeting !== greetingState) {
+          mount.dataset.greeting = greetingState;
+        }
 
         robotRoot.rotation.y +=
           (targetX * 0.065 - robotRoot.rotation.y) * 0.04;
@@ -632,7 +920,7 @@ export function MergeCoreScene() {
       const animate = (time: number) => {
         frameId = 0;
         if (!inViewport || document.hidden || reducedMotion) return;
-        renderFrame(time / 1000);
+        renderFrame((time - animationOrigin) / 1000);
         frameId = window.requestAnimationFrame(animate);
       };
 
@@ -645,6 +933,17 @@ export function MergeCoreScene() {
         const bounds = mount.getBoundingClientRect();
         targetX = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
         targetY = ((event.clientY - bounds.top) / bounds.height) * 2 - 1;
+      };
+      const handlePointerEnter = () => {
+        if (reducedMotion) return;
+        const now = performance.now();
+        const cycle = ((now - animationOrigin) / 1000) % GREETING_CYCLE_SECONDS;
+        const greetingIsApproaching = cycle < 4.18;
+        if (greetingIsApproaching || now - lastPointerGreeting < 4_500) return;
+
+        animationOrigin = now - 200;
+        lastPointerGreeting = now;
+        mount.dataset.greeting = "hidden";
       };
       const handlePointerLeave = () => {
         targetX = 0;
@@ -663,8 +962,10 @@ export function MergeCoreScene() {
         reducedMotion = event.matches;
         if (reducedMotion) {
           stop();
-          renderFrame(2.85);
+          renderFrame(1.9);
         } else {
+          animationOrigin = performance.now();
+          mount.dataset.greeting = "hidden";
           start();
         }
       };
@@ -687,6 +988,9 @@ export function MergeCoreScene() {
       mount.addEventListener("pointermove", handlePointerMove, {
         passive: true,
       });
+      mount.addEventListener("pointerenter", handlePointerEnter, {
+        passive: true,
+      });
       mount.addEventListener("pointerleave", handlePointerLeave, {
         passive: true,
       });
@@ -698,14 +1002,16 @@ export function MergeCoreScene() {
       motionQuery.addEventListener("change", handleMotionChange);
 
       resize();
-      if (reducedMotion) renderFrame(2.85);
-      else start();
+      renderFrame(reducedMotion ? 1.9 : 0);
+      mount.dataset.renderState = "ready";
+      if (!reducedMotion) start();
 
       cleanupScene = () => {
         stop();
         resizeObserver.disconnect();
         viewportObserver?.disconnect();
         mount.removeEventListener("pointermove", handlePointerMove);
+        mount.removeEventListener("pointerenter", handlePointerEnter);
         mount.removeEventListener("pointerleave", handlePointerLeave);
         renderer.domElement.removeEventListener(
           "webglcontextlost",
@@ -715,6 +1021,7 @@ export function MergeCoreScene() {
         motionQuery.removeEventListener("change", handleMotionChange);
         geometries.forEach((geometry) => geometry.dispose());
         materials.forEach((material) => material.dispose());
+        textures.forEach((texture) => texture.dispose());
         renderer.dispose();
         renderer.domElement.remove();
       };
@@ -758,6 +1065,7 @@ export function MergeCoreScene() {
     <div
       aria-hidden="true"
       className="merge-core"
+      data-greeting="hidden"
       data-render-state="loading"
       ref={sceneRef}
     >
@@ -767,6 +1075,7 @@ export function MergeCoreScene() {
           <i className="merge-core__fallback-head">
             <b />
             <b />
+            <span className="merge-core__fallback-mouth" />
           </i>
           <i className="merge-core__fallback-body" />
           <i className="merge-core__fallback-arm" />
@@ -775,12 +1084,15 @@ export function MergeCoreScene() {
           <i className="merge-core__fallback-head">
             <b />
             <b />
+            <span className="merge-core__fallback-mouth" />
           </i>
           <i className="merge-core__fallback-body" />
           <i className="merge-core__fallback-arm" />
         </span>
-        <span className="merge-core__fallback-token" />
       </div>
+      <span className="merge-core__greeting">
+        <span className="merge-core__greeting-bubble">Grialo!</span>
+      </span>
     </div>
   );
 }

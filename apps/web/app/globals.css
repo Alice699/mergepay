@@ -10935,19 +10935,103 @@ body:has(.home-page) .route-transition__rail {
   opacity: 0;
 }
 
+.merge-core__greeting {
+  position: absolute;
+  z-index: 3;
+  top: 24%;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(-50%, 0.65rem, 0) scale(0.88);
+  transform-origin: center bottom;
+  transition:
+    opacity 340ms var(--ease-out-quart),
+    transform 520ms var(--ease-out-quint);
+  will-change: opacity, transform;
+}
+
+.merge-core__greeting-bubble {
+  position: relative;
+  display: block;
+  border: 1px solid rgb(255 255 255 / 0.52);
+  border-radius: 0.875rem;
+  background: linear-gradient(180deg, #f0f1f1 0%, #dfe3e2 100%);
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 0.72),
+    0 0.75rem 2rem rgb(0 0 0 / 0.3),
+    0 0 1.75rem rgb(228 228 228 / 0.08);
+  padding: 0.6rem 0.9rem 0.64rem;
+  color: #151a1c;
+  font-family: var(--font-display);
+  font-size: clamp(0.9375rem, 1.25vw, 1.0625rem);
+  font-kerning: normal;
+  font-weight: 620;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.merge-core__greeting-bubble::after {
+  position: absolute;
+  bottom: -0.4rem;
+  left: 50%;
+  width: 0.75rem;
+  height: 0.45rem;
+  background: #dfe3e2;
+  clip-path: polygon(12% 0, 88% 0, 50% 100%);
+  content: "";
+  filter: drop-shadow(0 0.2rem 0.18rem rgb(0 0 0 / 0.16));
+  transform: translateX(-50%);
+}
+
+.merge-core[data-greeting="visible"] .merge-core__greeting,
+.merge-core[data-render-state="fallback"] .merge-core__greeting {
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0) scale(1);
+}
+
 .merge-core__fallback-stage {
   position: absolute;
   display: block;
-  right: 14%;
-  bottom: 15%;
-  left: 14%;
-  height: 8%;
-  border: 1px solid rgb(228 228 228 / 0.1);
+  right: 7%;
+  bottom: 11%;
+  left: 7%;
+  height: 17%;
+  border: 0;
   border-radius: 50%;
-  background: rgb(11 11 11 / 0.78);
-  box-shadow:
-    inset 0 1px rgb(228 228 228 / 0.1),
-    0 1.5rem 4rem rgb(0 0 0 / 0.55);
+  background: radial-gradient(
+    ellipse at center,
+    rgb(98 132 151 / 0.22) 0%,
+    rgb(43 69 89 / 0.12) 42%,
+    rgb(43 69 89 / 0.035) 68%,
+    transparent 78%
+  );
+  filter: blur(0.08rem);
+}
+
+.merge-core__fallback-stage::before,
+.merge-core__fallback-stage::after {
+  position: absolute;
+  border: 1px solid rgb(167 195 207 / 0.2);
+  border-radius: 50%;
+  content: "";
+}
+
+.merge-core__fallback-stage::before {
+  inset: 28% 8%;
+  box-shadow: 0 0 1.5rem rgb(91 126 146 / 0.12);
+}
+
+.merge-core__fallback-stage::after {
+  top: 35%;
+  right: 35%;
+  bottom: 35%;
+  left: 35%;
+  border-color: rgb(183 208 218 / 0.28);
+  box-shadow: 0 0 1rem rgb(183 208 218 / 0.12);
 }
 
 .merge-core__fallback-robot {
@@ -11003,12 +11087,30 @@ body:has(.home-page) .route-transition__rail {
 .merge-core__fallback-head b {
   position: absolute;
   z-index: 1;
-  top: 47%;
-  width: 8%;
-  aspect-ratio: 1.65;
+  top: 43%;
+  width: 11%;
+  aspect-ratio: 1.55;
+  border: 0;
   border-radius: 50%;
-  background: var(--home-mist);
-  box-shadow: 0 0 0.8rem rgb(228 228 228 / 0.5);
+  background:
+    radial-gradient(
+      circle at 31% 27%,
+      rgb(234 244 246 / 0.9) 0 9%,
+      transparent 11%
+    ),
+    radial-gradient(ellipse at center, #a9c9d5 0%, #628c9e 58%, #365d6e 100%);
+  box-shadow:
+    inset 0 1px rgb(228 240 244 / 0.22),
+    0 0 0.65rem rgb(117 159 176 / 0.44);
+}
+
+.merge-core__fallback-head b::before {
+  position: absolute;
+  inset: 18% 12%;
+  border-radius: 50%;
+  background: rgb(221 237 242 / 0.16);
+  content: "";
+  filter: blur(0.05rem);
 }
 
 .merge-core__fallback-head b:first-child {
@@ -11017,6 +11119,33 @@ body:has(.home-page) .route-transition__rail {
 
 .merge-core__fallback-head b:last-child {
   right: 34%;
+}
+
+.merge-core__fallback-robot--left .merge-core__fallback-head b {
+  width: 13%;
+  aspect-ratio: 1.95;
+}
+
+.merge-core__fallback-robot--left .merge-core__fallback-head b:first-child {
+  transform: rotate(-3deg);
+}
+
+.merge-core__fallback-robot--left .merge-core__fallback-head b:last-child {
+  transform: rotate(3deg);
+}
+
+.merge-core__fallback-mouth {
+  position: absolute;
+  z-index: 1;
+  bottom: 29%;
+  left: 50%;
+  width: 12%;
+  height: 6%;
+  display: block;
+  border-bottom: 1px solid rgb(159 183 193 / 0.9);
+  border-radius: 0 0 999px 999px;
+  box-shadow: 0 0.2rem 0.45rem rgb(117 148 162 / 0.18);
+  transform: translateX(-50%);
 }
 
 .merge-core__fallback-body {
@@ -11056,38 +11185,42 @@ body:has(.home-page) .route-transition__rail {
 
 .merge-core__fallback-arm {
   top: 49%;
-  width: 45%;
+  width: 42%;
   height: 7%;
   border-radius: 999px;
 }
 
-.merge-core__fallback-robot--left .merge-core__fallback-arm {
-  right: -21%;
-  transform: rotate(-10deg);
-  transform-origin: left center;
+.merge-core__fallback-arm::after {
+  position: absolute;
+  top: 50%;
+  width: 22%;
+  aspect-ratio: 1;
+  border: 1px solid rgb(228 228 228 / 0.16);
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: inset 0 1px rgb(228 228 228 / 0.28);
+  content: "";
+  transform: translateY(-50%);
 }
 
-.merge-core__fallback-robot--right .merge-core__fallback-arm {
-  left: -21%;
-  transform: rotate(10deg);
+.merge-core__fallback-robot--left .merge-core__fallback-arm {
+  left: -20%;
+  transform: rotate(55deg);
   transform-origin: right center;
 }
 
-.merge-core__fallback-token {
-  position: absolute;
-  z-index: 2;
-  top: 53%;
-  left: 50%;
-  width: 6.5%;
-  aspect-ratio: 1;
-  display: block;
-  border: 1px solid rgb(228 228 228 / 0.72);
-  border-radius: 30%;
-  background: var(--home-mist);
-  box-shadow:
-    0 0 0 0.7rem rgb(43 69 89 / 0.18),
-    0 0 2.4rem rgb(228 228 228 / 0.32);
-  transform: translate(-50%, -50%) rotate(45deg);
+.merge-core__fallback-robot--right .merge-core__fallback-arm {
+  right: -20%;
+  transform: rotate(-55deg);
+  transform-origin: left center;
+}
+
+.merge-core__fallback-robot--left .merge-core__fallback-arm::after {
+  left: -11%;
+}
+
+.merge-core__fallback-robot--right .merge-core__fallback-arm::after {
+  right: -11%;
 }
 
 .merge-core__topline,
