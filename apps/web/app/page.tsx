@@ -143,10 +143,9 @@ export default function HomePage() {
               <span className="home-section__index">03 / EXECUTION</span>
               <p className="home-section__eyebrow">Internet-native proof</p>
             </div>
-            <h2>
-              The condition comes
-              <br />
-              to the contract.
+            <h2 className="home-section__title-lockup">
+              <span>The condition</span>
+              <span>comes to the contract.</span>
             </h2>
           </ScrollReveal>
 

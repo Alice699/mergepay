@@ -11418,16 +11418,36 @@ body:has(.home-page) .route-transition__rail {
 .home-section__headline {
   display: grid;
   grid-template-columns: minmax(15rem, 0.62fr) minmax(0, 1.38fr);
-  align-items: end;
+  align-items: start;
   gap: 4rem;
 }
 
+.home-section__headline > div {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2.25rem;
+  padding-top: 0.55rem;
+}
+
 .home-section__headline .home-section__eyebrow {
-  margin-bottom: 0;
+  margin: 0;
 }
 
 .home-section__headline h2 {
-  max-width: 50rem;
+  width: min(100%, 52rem);
+  font-size: clamp(3.25rem, 4.8vw, 5rem);
+  line-height: 0.94;
+}
+
+.home-section__title-lockup span {
+  display: block;
+  white-space: nowrap;
+}
+
+.home-section__title-lockup span:last-child {
+  color: rgb(228 228 228 / 0.46);
+  font-weight: 410;
 }
 
 .home-bento {
@@ -12023,6 +12043,14 @@ body:has(.home-page) .footer-deployment {
   .home-section__headline h2,
   .home-final__glass h2 {
     font-size: clamp(2.8rem, 13vw, 4rem);
+  }
+
+  .home-section__headline h2 {
+    max-width: 13ch;
+  }
+
+  .home-section__title-lockup span {
+    white-space: normal;
   }
 
   .home-deployment {
@@ -15796,8 +15824,13 @@ body:has(.home-page) .footer-deployment {
 }
 
 .bounty-detail-page :is(.workflow-fund__submit, .workflow-check__submit, .workflow-refund__submit) > span {
+  width: 100%;
+  justify-content: center;
   color: rgb(228 228 228 / 0.34);
   font-size: 0.5rem;
+  line-height: 1.35;
+  padding-inline: 0.5rem;
+  text-align: center;
 }
 
 .bounty-detail-page :is(.workflow-fund__submit, .workflow-check__submit, .workflow-refund__submit) .button {
@@ -16585,6 +16618,8 @@ body:has(.home-page) .footer-deployment {
 
   .bounty-detail-page :is(.workflow-fund__submit, .workflow-check__submit, .workflow-refund__submit) > span {
     justify-content: flex-start;
+    padding-inline: 0;
+    text-align: left;
   }
 
   .bounty-detail-page .workflow-claim {
