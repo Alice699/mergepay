@@ -14896,6 +14896,14 @@ body:has(.home-page) .footer-deployment {
     padding-block: 4.5rem 6rem;
   }
 
+  .ledger-page::before {
+    top: -7rem;
+    right: 0;
+    width: 100%;
+    height: 28rem;
+    filter: blur(1rem);
+  }
+
   .ledger-hero {
     min-height: auto;
   }

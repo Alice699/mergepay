@@ -15,6 +15,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspace @mergepay/web",
     "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace @mergepay/web",
     "check:program": "cargo check -p mergepay-rialo",
     "build:program": "cargo build --manifest-path programs/mergepay-rialo/artifact/Cargo.toml"
   }
