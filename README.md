@@ -59,7 +59,7 @@ actions remain available as idempotent fallbacks.
 ## How it works
 
 <p align="center">
-  <img src="docs/assets/mergepay-settlement-flow.svg" width="100%" alt="Infographic showing MergePay's create, claim, approve, fund, verify, automatic payout, and automatic refund flow" />
+  <img src="docs/assets/mergepay-settlement-flow.svg" width="100%" alt="MergePay settlement rail showing a bounty moving through contributor identity, sponsor approval, funded escrow, Rialo REX verification, retry-safe proof handling, contributor payout, or sponsor refund" />
 </p>
 
 1. **Publish** — the sponsor commits a public repository, pull request, reward, and deadline.

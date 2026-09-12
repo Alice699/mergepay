@@ -1,177 +1,159 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="760" viewBox="0 0 1600 760" role="img" aria-labelledby="title description">
-  <title id="title">MergePay autonomous settlement flow</title>
-  <desc id="description">A sponsor publishes a bounty, a contributor verifies and claims it, the sponsor approves and funds escrow, Rialo REX verifies GitHub, then MergePay automatically pays the contributor or refunds the sponsor at the deadline.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title description">
+  <title id="title">MergePay escrow settlement rail</title>
+  <desc id="description">A technical map of one MergePay bounty moving from publication through contributor claim, sponsor approval, funded escrow, and Rialo REX verification. A unanimous GitHub merge proof pays the contributor, an unconfirmed proof remains locked and retries, and the deadline refunds the sponsor.</desc>
 
   <defs>
-    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0B100F" />
-      <stop offset="0.58" stop-color="#0A100F" />
-      <stop offset="1" stop-color="#101B1A" />
-    </linearGradient>
-    <linearGradient id="seafoamGlow" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#A9DDD3" stop-opacity="0.18" />
-      <stop offset="1" stop-color="#A9DDD3" stop-opacity="0.02" />
-    </linearGradient>
-    <linearGradient id="successGlow" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#58D68D" stop-opacity="0.16" />
-      <stop offset="1" stop-color="#58D68D" stop-opacity="0.02" />
-    </linearGradient>
-    <pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse">
-      <path d="M56 0H0V56" fill="none" stroke="#DDE9E5" stroke-opacity="0.035" />
+    <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse">
+      <path d="M80 0H0V80" fill="none" stroke="#A9DDD3" stroke-opacity="0.035" />
     </pattern>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
-      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000000" flood-opacity="0.3" />
-    </filter>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M0 0 10 5 0 10Z" fill="#62807A" />
+    <pattern id="hatch" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M0 0V14" stroke="#A9DDD3" stroke-opacity="0.09" stroke-width="3" />
+    </pattern>
+    <marker id="railArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 10 5 0 10Z" fill="#A9DDD3" />
     </marker>
-    <marker id="arrowSuccess" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+    <marker id="payArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0 0 10 5 0 10Z" fill="#58D68D" />
     </marker>
     <style>
-      .eyebrow { font: 700 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 2.4px; }
-      .title { font: 700 38px Inter, "Segoe UI", Arial, sans-serif; letter-spacing: -1px; }
-      .subtitle { font: 400 18px Inter, "Segoe UI", Arial, sans-serif; }
-      .step { font: 700 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 1.6px; }
-      .cardTitle { font: 700 22px Inter, "Segoe UI", Arial, sans-serif; }
-      .cardBody { font: 400 15px Inter, "Segoe UI", Arial, sans-serif; }
-      .result { font: 700 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 1.35px; }
-      .micro { font: 600 13px Inter, "Segoe UI", Arial, sans-serif; }
+      .display { font-family: "Segoe UI Variable", "Segoe UI", Helvetica, Arial, sans-serif; font-weight: 760; letter-spacing: -1.7px; }
+      .sans { font-family: "Segoe UI Variable", "Segoe UI", Helvetica, Arial, sans-serif; }
+      .mono { font-family: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace; font-weight: 650; letter-spacing: 1.45px; }
+      .micro { font-size: 14px; }
+      .role { font-size: 15px; }
+      .station { font-size: 27px; }
+      .detail { font-size: 17px; }
     </style>
   </defs>
 
-  <rect x="1" y="1" width="1598" height="758" rx="30" fill="url(#background)" stroke="#2B3C38" stroke-width="2" />
-  <rect x="1" y="1" width="1598" height="758" rx="30" fill="url(#grid)" />
-  <circle cx="1430" cy="48" r="230" fill="#16302C" opacity="0.18" />
-  <circle cx="1570" cy="708" r="300" fill="#19352F" opacity="0.12" />
+  <path d="M24 1H1576L1599 24V876L1575 899H24L1 876V24Z" fill="#0A0F0E" stroke="#30423E" stroke-width="2" />
+  <path d="M24 1H1576L1599 24V876L1575 899H24L1 876V24Z" fill="url(#grid)" />
+  <path d="M1270 1H1576L1599 24V294L1518 375H1270Z" fill="url(#hatch)" />
 
-  <g transform="translate(72 58)">
-    <rect width="52" height="52" rx="16" fill="#E8ECEA" />
-    <path d="M16 16h20c4 0 6.5 2.9 6 7l-.8 6.5c-.5 4-3.2 6.2-7.3 6.2H18.1c-4.1 0-6.8-2.2-7.3-6.2L10 23c-.5-4.1 2-7 6-7Z" fill="#2B4559" />
-    <path d="M18.5 25h3.5M30 25h3.5" fill="none" stroke="#A9DDD3" stroke-width="3.5" stroke-linecap="round" />
+  <path d="M1 112V24L24 1H112" fill="none" stroke="#A9DDD3" stroke-width="3" />
+  <path d="M1488 899H1575L1599 876V788" fill="none" stroke="#A9DDD3" stroke-opacity="0.38" stroke-width="3" />
+
+  <g transform="translate(64 52)">
+    <path d="M0 8 8 0h34l8 8v34l-8 8H8l-8-8Z" fill="#E9EFEC" />
+    <path d="M13 14h24c4 0 6 3 5.4 7l-1 9c-.5 4.5-3 6.5-7.2 6.5H15.8c-4.2 0-6.7-2-7.2-6.5l-1-9C7 17 9 14 13 14Z" fill="#213B4D" />
+    <path d="M16 25h6m7 0h6" fill="none" stroke="#A9DDD3" stroke-width="3" stroke-linecap="round" />
+  </g>
+  <text x="132" y="65" class="mono micro" fill="#A9DDD3">MERGEPAY / SETTLEMENT MAP</text>
+  <text x="64" y="137" class="display" font-size="52" fill="#F2F6F4">Escrow has only two exits.</text>
+  <text x="66" y="176" class="sans" font-size="20" fill="#8F9D98">One committed value moves through identity, approval, public proof, and a terminal receipt.</text>
+
+  <g transform="translate(1265 54)">
+    <circle cx="8" cy="8" r="5" fill="#58D68D" />
+    <text x="27" y="13" class="mono micro" fill="#D8E1DE">RIALO DEVNET / LIVE</text>
+    <text x="0" y="52" class="sans" font-size="16" fill="#7F8E89">REX reads the public GitHub signal.</text>
+    <path d="M0 76H270" stroke="#354944" />
+    <text x="0" y="105" class="mono micro" fill="#A9DDD3">VALUE NEVER LEAVES ESCROW EARLY</text>
   </g>
 
-  <text x="144" y="77" class="eyebrow" fill="#A9DDD3">RIALO-NATIVE WORKFLOW</text>
-  <text x="144" y="112" class="title" fill="#F1F5F3">One workflow. Two terminal outcomes.</text>
-  <text x="72" y="151" class="subtitle" fill="#94A19D">MergePay keeps identity, escrow, external proof, and settlement in one auditable lifecycle.</text>
+  <path d="M64 208H1536" stroke="#2A3936" />
+  <text x="64" y="244" class="mono micro" fill="#687873">THE VALUE PATH / LEFT TO RIGHT</text>
+  <text x="1536" y="244" text-anchor="end" class="mono micro" fill="#687873">ONE WORKFLOW PDA</text>
 
-  <g transform="translate(1246 62)">
-    <rect width="282" height="40" rx="20" fill="#111A18" stroke="#334944" />
-    <circle cx="22" cy="20" r="4" fill="#58D68D" />
-    <text x="38" y="25" class="step" fill="#C9D4D0">RIALO DEVNET · LIVE PROOF</text>
+  <path d="M104 382H1450" fill="none" stroke="#293B37" stroke-width="14" stroke-linecap="square" />
+  <path d="M104 382H1450" fill="none" stroke="#A9DDD3" stroke-opacity="0.8" stroke-width="2" marker-end="url(#railArrow)" />
+
+  <g>
+    <path d="M136 382V330" stroke="#4A625D" stroke-width="2" />
+    <circle cx="136" cy="382" r="15" fill="#0A0F0E" stroke="#A9DDD3" stroke-width="3" />
+    <circle cx="136" cy="382" r="4" fill="#A9DDD3" />
+    <text x="92" y="282" class="mono role" fill="#71817C">01 / SPONSOR</text>
+    <text x="92" y="316" class="display station" fill="#EEF3F1">Publish terms</text>
+    <text x="92" y="342" class="sans detail" fill="#8E9C97">Repo, PR, reward, deadline</text>
   </g>
 
-  <g filter="url(#shadow)">
-    <g transform="translate(72 200)">
-      <rect width="250" height="176" rx="20" fill="#111816" stroke="#2A3B37" />
-      <rect width="250" height="176" rx="20" fill="url(#seafoamGlow)" />
-      <circle cx="35" cy="35" r="17" fill="#162522" stroke="#496C65" />
-      <text x="35" y="40" text-anchor="middle" class="step" fill="#A9DDD3">01</text>
-      <text x="24" y="82" class="cardTitle" fill="#F0F4F2">Publish</text>
-      <text x="24" y="112" class="cardBody" fill="#98A49F">Sponsor commits repo, PR,</text>
-      <text x="24" y="136" class="cardBody" fill="#98A49F">reward, and deadline.</text>
-      <text x="24" y="160" class="step" fill="#65736F">WORKFLOW PDA</text>
-    </g>
-
-    <g transform="translate(374 200)">
-      <rect width="250" height="176" rx="20" fill="#111816" stroke="#2A3B37" />
-      <circle cx="35" cy="35" r="17" fill="#162522" stroke="#496C65" />
-      <text x="35" y="40" text-anchor="middle" class="step" fill="#A9DDD3">02</text>
-      <text x="24" y="82" class="cardTitle" fill="#F0F4F2">Verify &amp; claim</text>
-      <text x="24" y="112" class="cardBody" fill="#98A49F">OAuth binds PR author</text>
-      <text x="24" y="136" class="cardBody" fill="#98A49F">to a payout wallet.</text>
-      <text x="24" y="160" class="step" fill="#65736F">CLAIM PDA</text>
-    </g>
-
-    <g transform="translate(676 200)">
-      <rect width="250" height="176" rx="20" fill="#111816" stroke="#2A3B37" />
-      <circle cx="35" cy="35" r="17" fill="#162522" stroke="#496C65" />
-      <text x="35" y="40" text-anchor="middle" class="step" fill="#A9DDD3">03</text>
-      <text x="24" y="82" class="cardTitle" fill="#F0F4F2">Approve</text>
-      <text x="24" y="112" class="cardBody" fill="#98A49F">Sponsor checks identity,</text>
-      <text x="24" y="136" class="cardBody" fill="#98A49F">wallet, and exact terms.</text>
-      <text x="24" y="160" class="step" fill="#65736F">BENEFICIARY LOCKED</text>
-    </g>
-
-    <g transform="translate(978 200)">
-      <rect width="250" height="176" rx="20" fill="#111816" stroke="#2A3B37" />
-      <circle cx="35" cy="35" r="17" fill="#162522" stroke="#496C65" />
-      <text x="35" y="40" text-anchor="middle" class="step" fill="#A9DDD3">04</text>
-      <text x="24" y="82" class="cardTitle" fill="#F0F4F2">Fund escrow</text>
-      <text x="24" y="112" class="cardBody" fill="#98A49F">Exact RLO is locked and</text>
-      <text x="24" y="136" class="cardBody" fill="#98A49F">native heartbeat is armed.</text>
-      <text x="24" y="160" class="step" fill="#65736F">AFTER TIMER</text>
-    </g>
-
-    <g transform="translate(1280 200)">
-      <rect width="248" height="176" rx="20" fill="#14211E" stroke="#50766E" />
-      <rect width="248" height="176" rx="20" fill="url(#seafoamGlow)" />
-      <circle cx="35" cy="35" r="17" fill="#1B302C" stroke="#659A90" />
-      <text x="35" y="40" text-anchor="middle" class="step" fill="#D4F0EA">05</text>
-      <text x="24" y="82" class="cardTitle" fill="#F0F4F2">REX verifies</text>
-      <text x="24" y="112" class="cardBody" fill="#AFC0BA">Validators query GitHub's</text>
-      <text x="24" y="136" class="cardBody" fill="#AFC0BA">compact merge endpoint.</text>
-      <text x="24" y="160" class="step" fill="#83B4AA">PUBLIC SIGNAL</text>
-    </g>
+  <g>
+    <path d="M390 382V431" stroke="#4A625D" stroke-width="2" />
+    <circle cx="390" cy="382" r="15" fill="#0A0F0E" stroke="#A9DDD3" stroke-width="3" />
+    <circle cx="390" cy="382" r="4" fill="#A9DDD3" />
+    <text x="346" y="464" class="mono role" fill="#71817C">02 / CONTRIBUTOR</text>
+    <text x="346" y="500" class="display station" fill="#EEF3F1">Bind identity</text>
+    <text x="346" y="527" class="sans detail" fill="#8E9C97">GitHub author + payout wallet</text>
   </g>
 
-  <g fill="none" stroke="#62807A" stroke-width="2" marker-end="url(#arrow)">
-    <path d="M330 288H362" />
-    <path d="M632 288H664" />
-    <path d="M934 288H966" />
-    <path d="M1236 288H1268" />
+  <g>
+    <path d="M644 382V330" stroke="#4A625D" stroke-width="2" />
+    <circle cx="644" cy="382" r="15" fill="#0A0F0E" stroke="#A9DDD3" stroke-width="3" />
+    <circle cx="644" cy="382" r="4" fill="#A9DDD3" />
+    <text x="600" y="282" class="mono role" fill="#71817C">03 / SPONSOR</text>
+    <text x="600" y="316" class="display station" fill="#EEF3F1">Lock beneficiary</text>
+    <text x="600" y="342" class="sans detail" fill="#8E9C97">Identity, wallet, exact terms</text>
   </g>
 
-  <path d="M1404 388V420H298V454M1404 420H800V454M1404 420V454" fill="none" stroke="#405853" stroke-width="2" />
-  <circle cx="1404" cy="420" r="5" fill="#A9DDD3" />
-  <path d="M298 444V454" stroke="#58D68D" stroke-width="2" marker-end="url(#arrowSuccess)" />
-  <path d="M800 444V454" stroke="#62807A" stroke-width="2" marker-end="url(#arrow)" />
-  <path d="M1404 444V454" stroke="#A9DDD3" stroke-width="2" marker-end="url(#arrow)" />
-
-  <g filter="url(#shadow)">
-    <g transform="translate(72 468)">
-      <rect width="452" height="174" rx="20" fill="#101A17" stroke="#2F6748" />
-      <rect width="452" height="174" rx="20" fill="url(#successGlow)" />
-      <circle cx="34" cy="34" r="13" fill="#153322" stroke="#58D68D" />
-      <path d="m28 34 4 4 8-9" fill="none" stroke="#72E5A2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-      <text x="58" y="39" class="step" fill="#72E5A2">UNANIMOUS HTTP 204</text>
-      <text x="24" y="85" class="cardTitle" fill="#F0F4F2">Merged proof confirmed</text>
-      <text x="24" y="115" class="cardBody" fill="#9EAEA8">Reactive callback releases the exact escrow.</text>
-      <rect x="24" y="132" width="204" height="28" rx="14" fill="#173C27" stroke="#347A4D" />
-      <text x="126" y="151" text-anchor="middle" class="result" fill="#72E5A2">PAY CONTRIBUTOR</text>
-    </g>
-
-    <g transform="translate(574 468)">
-      <rect width="452" height="174" rx="20" fill="#111816" stroke="#394642" />
-      <circle cx="34" cy="34" r="13" fill="#202925" stroke="#73807B" />
-      <path d="M29 34h10" fill="none" stroke="#A7B0AC" stroke-width="2.5" stroke-linecap="round" />
-      <text x="58" y="39" class="step" fill="#AAB4B0">404 · ERROR · DISAGREEMENT</text>
-      <text x="24" y="85" class="cardTitle" fill="#F0F4F2">No valid merge proof</text>
-      <text x="24" y="115" class="cardBody" fill="#9EAEA8">Fail closed; keep funds locked and retry.</text>
-      <rect x="24" y="132" width="238" height="28" rx="14" fill="#1A211F" stroke="#46544F" />
-      <text x="143" y="151" text-anchor="middle" class="result" fill="#B8C0BD">ESCROW STAYS LOCKED</text>
-    </g>
-
-    <g transform="translate(1076 468)">
-      <rect width="452" height="174" rx="20" fill="#111A18" stroke="#4B6D66" />
-      <rect width="452" height="174" rx="20" fill="url(#seafoamGlow)" />
-      <circle cx="34" cy="34" r="13" fill="#1A2C28" stroke="#A9DDD3" />
-      <path d="M34 26v9l6 4M34 21v2" fill="none" stroke="#C6EBE4" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" />
-      <text x="58" y="39" class="step" fill="#C6EBE4">DEADLINE REACHED FIRST</text>
-      <text x="24" y="85" class="cardTitle" fill="#F0F4F2">Automatic expiry refund</text>
-      <text x="24" y="115" class="cardBody" fill="#A8B8B2">Native heartbeat returns the exact escrow.</text>
-      <rect x="24" y="132" width="192" height="28" rx="14" fill="#19302B" stroke="#4C776E" />
-      <text x="120" y="151" text-anchor="middle" class="result" fill="#C6EBE4">REFUND SPONSOR</text>
-    </g>
+  <g>
+    <path d="M804 314H972L996 338V426L972 450H804L780 426V338Z" fill="#101A18" stroke="#A9DDD3" stroke-width="2" />
+    <path d="M780 382H804M972 382H996" stroke="#A9DDD3" stroke-width="8" />
+    <path d="M812 314V450M964 314V450" stroke="#A9DDD3" stroke-opacity="0.1" />
+    <rect x="826" y="338" width="124" height="88" fill="#0B1110" stroke="#3A514C" />
+    <path d="M861 365v-9c0-16 11-28 27-28s27 12 27 28v9M852 365h72v43h-72Z" fill="none" stroke="#A9DDD3" stroke-width="4" />
+    <circle cx="888" cy="384" r="5" fill="#A9DDD3" />
+    <path d="M888 389v9" stroke="#A9DDD3" stroke-width="4" stroke-linecap="round" />
+    <text x="888" y="478" text-anchor="middle" class="mono role" fill="#A9DDD3">04 / EXACT RLO</text>
+    <text x="888" y="514" text-anchor="middle" class="display station" fill="#EEF3F1">Fund escrow</text>
+    <text x="888" y="541" text-anchor="middle" class="sans detail" fill="#8E9C97">AFTER heartbeat armed</text>
   </g>
 
-  <g transform="translate(72 697)">
+  <g>
+    <path d="M1184 382 1244 322 1304 382 1244 442Z" fill="#10201C" stroke="#A9DDD3" stroke-width="2" />
+    <path d="M1217 382h54M1244 355v54" stroke="#A9DDD3" stroke-opacity="0.26" />
+    <circle cx="1244" cy="382" r="18" fill="#A9DDD3" />
+    <path d="m1235 382 7 7 13-16" fill="none" stroke="#102A27" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <text x="1158" y="282" class="mono role" fill="#A9DDD3">05 / RIALO REX</text>
+    <text x="1158" y="316" class="display station" fill="#EEF3F1">Verify merge</text>
+    <text x="1158" y="342" class="sans detail" fill="#8E9C97">Public GitHub signal</text>
+
+    <path d="M1327 329H1517L1530 342V422L1517 435H1327Z" fill="#0C1211" stroke="#344A45" />
+    <text x="1347" y="356" class="mono micro" fill="#6F807A">PUBLIC ENDPOINT</text>
+    <text x="1347" y="388" class="mono" font-size="15" fill="#DCE5E2">GET /pulls/{pr}/merge</text>
+    <circle cx="1349" cy="414" r="4" fill="#58D68D" />
+    <text x="1363" y="420" class="mono micro" fill="#A9DDD3">204 = MERGED</text>
+  </g>
+
+  <path d="M1305 382H1452V483H1328C1277 483 1244 458 1244 443" fill="none" stroke="#66756F" stroke-width="2" stroke-dasharray="7 8" marker-end="url(#railArrow)" />
+  <path d="M1332 452H1508L1522 466V518H1346L1332 504Z" fill="#0A0F0E" stroke="#4A5753" />
+  <text x="1353" y="478" class="mono micro" fill="#A7B0AC">NO VALID PROOF</text>
+  <text x="1353" y="502" class="sans" font-size="16" fill="#7F8C88">Hold escrow. Retry.</text>
+
+  <circle cx="1244" cy="563" r="7" fill="#A9DDD3" />
+  <path d="M1244 442V563H382V610" fill="none" stroke="#58D68D" stroke-width="2" marker-end="url(#payArrow)" />
+  <path d="M1244 563H1218V610" fill="none" stroke="#A9DDD3" stroke-width="2" marker-end="url(#railArrow)" />
+  <rect x="454" y="548" width="228" height="30" fill="#0A0F0E" />
+  <text x="568" y="569" text-anchor="middle" class="mono micro" fill="#58D68D">HTTP 204 / UNANIMOUS</text>
+  <rect x="1016" y="548" width="174" height="30" fill="#0A0F0E" />
+  <text x="1103" y="569" text-anchor="middle" class="mono micro" fill="#A9DDD3">DEADLINE FIRST</text>
+
+  <g>
+    <path d="M64 626H690L714 650V790L690 814H64Z" fill="#0E1915" stroke="#397855" stroke-width="2" />
+    <path d="M64 626H78V814H64Z" fill="#58D68D" />
+    <text x="103" y="664" class="mono micro" fill="#58D68D">TERMINAL 01 / MERGED</text>
+    <text x="101" y="750" class="display" font-size="72" fill="#EEF4F1">PAY</text>
+    <text x="267" y="708" class="display" font-size="25" fill="#DCE5E1">Contributor receives escrow</text>
+    <text x="267" y="742" class="sans detail" fill="#8FA099">Exact amount. Locked destination.</text>
+    <text x="267" y="771" class="sans detail" fill="#8FA099">Terminal transaction becomes the receipt.</text>
+    <path d="M623 692h48v48M671 692l-66 66" fill="none" stroke="#58D68D" stroke-width="4" />
+  </g>
+
+  <g>
+    <path d="M886 650 910 626H1536V814H910L886 790Z" fill="#101918" stroke="#54756F" stroke-width="2" />
+    <path d="M1522 626H1536V814H1522Z" fill="#A9DDD3" />
+    <text x="925" y="664" class="mono micro" fill="#A9DDD3">TERMINAL 02 / EXPIRED</text>
+    <text x="923" y="750" class="display" font-size="72" fill="#EEF4F1">REFUND</text>
+    <text x="1217" y="708" class="display" font-size="25" fill="#DCE5E1">Sponsor recovers escrow</text>
+    <text x="1217" y="742" class="sans detail" fill="#8FA099">Deadline reached before proof.</text>
+    <text x="1217" y="771" class="sans detail" fill="#8FA099">No operator or payout server.</text>
+  </g>
+
+  <g transform="translate(64 854)">
     <circle cx="5" cy="5" r="5" fill="#58D68D" />
-    <text x="22" y="10" class="micro" fill="#97A49F">No keeper</text>
-    <circle cx="132" cy="5" r="5" fill="#58D68D" />
-    <text x="149" y="10" class="micro" fill="#97A49F">No webhook payout backend</text>
-    <circle cx="373" cy="5" r="5" fill="#58D68D" />
-    <text x="390" y="10" class="micro" fill="#97A49F">No trusted payout signer</text>
+    <text x="22" y="10" class="mono micro" fill="#7D8D87">NO KEEPER</text>
+    <circle cx="184" cy="5" r="5" fill="#58D68D" />
+    <text x="201" y="10" class="mono micro" fill="#7D8D87">NO WEBHOOK PAYOUT</text>
+    <circle cx="441" cy="5" r="5" fill="#58D68D" />
+    <text x="458" y="10" class="mono micro" fill="#7D8D87">NO TRUSTED SIGNER</text>
   </g>
-  <text x="1528" y="707" text-anchor="end" class="eyebrow" fill="#5F716C">MERGEPAY · DEVNET</text>
+  <text x="1536" y="864" text-anchor="end" class="mono micro" fill="#687873">MERGEPAY / RIALO DEVNET</text>
 </svg>
