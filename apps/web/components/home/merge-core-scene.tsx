@@ -41,6 +41,7 @@ const VOID_ECLIPSE = 0x0b0b0b;
 const MIDNIGHT_SLATE = 0x2b4559;
 const SILVER_MIST = 0xe4e4e4;
 const GREETING_CYCLE_SECONDS = 8.1;
+const FRAME_INTERVAL_MS = 1000 / 60;
 const OLED_EYE_VERTEX_SHADER = `
   varying vec2 vUv;
 
@@ -121,7 +122,7 @@ const OLED_EYE_FRAGMENT_SHADER = `
 `;
 
 function createRoundedPanelGeometry(
-  THREE: typeof import("three"),
+  THREE: typeof import("./three-runtime"),
   width: number,
   height: number,
   radius: number,
@@ -158,10 +159,10 @@ function createRoundedPanelGeometry(
 
   const geometry = new THREE.ExtrudeGeometry(shape, {
     bevelEnabled: true,
-    bevelSegments: 4,
+    bevelSegments: 3,
     bevelSize: 0.035,
     bevelThickness: 0.035,
-    curveSegments: 16,
+    curveSegments: 12,
     depth,
     steps: 1,
   });
@@ -169,7 +170,7 @@ function createRoundedPanelGeometry(
   return geometry;
 }
 
-function createRialoMarkGeometry(THREE: typeof import("three")) {
+function createRialoMarkGeometry(THREE: typeof import("./three-runtime")) {
   const shape = new THREE.Shape();
   const scale = 0.00105;
   const x = (value: number) => (value - 200) * scale;
@@ -202,10 +203,10 @@ function createRialoMarkGeometry(THREE: typeof import("three")) {
 
   const geometry = new THREE.ExtrudeGeometry(shape, {
     bevelEnabled: true,
-    bevelSegments: 3,
+    bevelSegments: 2,
     bevelSize: 0.004,
     bevelThickness: 0.004,
-    curveSegments: 18,
+    curveSegments: 14,
     depth: 0.018,
     steps: 1,
   });
@@ -242,7 +243,7 @@ export function MergeCoreScene() {
     let disposed = false;
     let cleanupScene: (() => void) | undefined;
     const initializeScene = async () => {
-      const THREE = await import("three");
+      const THREE = await import("./three-runtime");
       if (disposed) return;
 
       let renderer: WebGLRenderer;
@@ -291,7 +292,8 @@ export function MergeCoreScene() {
       const keyLight = new THREE.DirectionalLight(SILVER_MIST, 3.2);
       keyLight.position.set(-3.8, 4.5, 5.2);
       keyLight.castShadow = true;
-      keyLight.shadow.mapSize.set(1024, 1024);
+      const shadowMapSize = mount.clientWidth < 768 ? 512 : 1024;
+      keyLight.shadow.mapSize.set(shadowMapSize, shadowMapSize);
       keyLight.shadow.bias = -0.0002;
       scene.add(keyLight);
       const slateLight = new THREE.PointLight(MIDNIGHT_SLATE, 18, 9, 2);
@@ -396,16 +398,16 @@ export function MergeCoreScene() {
         0.48,
       );
       const mouthGeometry = trackGeometry(
-        new THREE.TubeGeometry(mouthCurve, 28, 0.0055, 8, false),
+        new THREE.TubeGeometry(mouthCurve, 20, 0.0055, 6, false),
       );
       const mouthEndGeometry = trackGeometry(
-        new THREE.SphereGeometry(0.0056, 12, 8),
+        new THREE.SphereGeometry(0.0056, 8, 6),
       );
       const neckGeometry = trackGeometry(
-        new THREE.CylinderGeometry(0.115, 0.14, 0.21, 28),
+        new THREE.CylinderGeometry(0.115, 0.14, 0.21, 20),
       );
       const legGeometry = trackGeometry(
-        new THREE.CapsuleGeometry(0.102, 0.31, 6, 16),
+        new THREE.CapsuleGeometry(0.102, 0.31, 5, 12),
       );
       const rialoMarkGeometry = trackGeometry(createRialoMarkGeometry(THREE));
 
@@ -556,10 +558,10 @@ export function MergeCoreScene() {
       );
 
       const limbGeometry = trackGeometry(
-        new THREE.CylinderGeometry(1, 1, 1, 24),
+        new THREE.CylinderGeometry(1, 1, 1, 16),
       );
       const jointGeometry = trackGeometry(
-        new THREE.SphereGeometry(1, 22, 16),
+        new THREE.SphereGeometry(1, 16, 12),
       );
       const createArm = (shell: MeshPhysicalMaterial): ArmRig => {
         const shoulder = new THREE.Mesh(jointGeometry, jointMaterial);
@@ -678,7 +680,7 @@ export function MergeCoreScene() {
       );
       floorRingMaterial.toneMapped = false;
       const floorRing = new THREE.Mesh(
-        trackGeometry(new THREE.RingGeometry(2.25, 2.27, 128)),
+        trackGeometry(new THREE.RingGeometry(2.25, 2.27, 72)),
         floorRingMaterial,
       );
       floorRing.position.set(0, -1.858, -0.04);
@@ -687,7 +689,7 @@ export function MergeCoreScene() {
       robotRoot.add(floorRing);
 
       const rippleGeometry = trackGeometry(
-        new THREE.RingGeometry(0.34, 0.37, 80),
+        new THREE.RingGeometry(0.34, 0.37, 48),
       );
       const createRipple = (x: number) => {
         const material = trackMaterial(
@@ -755,6 +757,7 @@ export function MergeCoreScene() {
       let reducedMotion = motionQuery.matches;
       let inViewport = true;
       let frameId = 0;
+      let lastRenderAt = 0;
       let animationOrigin = performance.now();
       let targetX = 0;
       let targetY = 0;
@@ -765,7 +768,7 @@ export function MergeCoreScene() {
       const resize = () => {
         const { width, height } = mount.getBoundingClientRect();
         if (width < 1 || height < 1) return;
-        const pixelRatioLimit = width < 640 ? 1.35 : 1.75;
+        const pixelRatioLimit = width < 640 ? 1.25 : width < 1024 ? 1.4 : 1.5;
         renderer.setPixelRatio(
           Math.min(window.devicePixelRatio || 1, pixelRatioLimit),
         );
@@ -973,7 +976,14 @@ export function MergeCoreScene() {
       const animate = (time: number) => {
         frameId = 0;
         if (!inViewport || document.hidden || reducedMotion) return;
-        renderFrame((time - animationOrigin) / 1000);
+        const elapsedSinceRender = time - lastRenderAt;
+        if (lastRenderAt === 0 || elapsedSinceRender >= FRAME_INTERVAL_MS) {
+          lastRenderAt =
+            lastRenderAt === 0
+              ? time
+              : time - (elapsedSinceRender % FRAME_INTERVAL_MS);
+          renderFrame((time - animationOrigin) / 1000);
+        }
         frameId = window.requestAnimationFrame(animate);
       };
 
@@ -1080,17 +1090,59 @@ export function MergeCoreScene() {
       };
     };
 
+    const idleWindow = window as Window & {
+      cancelIdleCallback?: (handle: number) => void;
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions,
+      ) => number;
+    };
+    let bootstrapStarted = false;
     let bootstrapTimer = 0;
+    let bootstrapIdleCallback = 0;
     let bootstrapObserver: IntersectionObserver | undefined;
+    const startScene = () => {
+      if (bootstrapStarted || disposed) return;
+      bootstrapStarted = true;
+      if (bootstrapTimer) window.clearTimeout(bootstrapTimer);
+      if (bootstrapIdleCallback) {
+        idleWindow.cancelIdleCallback?.(bootstrapIdleCallback);
+      }
+      bootstrapTimer = 0;
+      bootstrapIdleCallback = 0;
+      void initializeScene().catch(() => {
+        if (!disposed) mount.dataset.renderState = "fallback";
+      });
+    };
     const queueScene = () => {
-      if (bootstrapTimer || disposed) return;
+      if (
+        bootstrapStarted ||
+        bootstrapTimer ||
+        bootstrapIdleCallback ||
+        disposed
+      ) {
+        return;
+      }
+      if (idleWindow.requestIdleCallback) {
+        bootstrapIdleCallback = idleWindow.requestIdleCallback(
+          () => {
+            bootstrapIdleCallback = 0;
+            startScene();
+          },
+          { timeout: 900 },
+        );
+        return;
+      }
       bootstrapTimer = window.setTimeout(() => {
         bootstrapTimer = 0;
-        void initializeScene().catch(() => {
-          if (!disposed) mount.dataset.renderState = "fallback";
-        });
-      }, 80);
+        startScene();
+      }, 240);
     };
+    const prioritizeScene = () => startScene();
+    mount.addEventListener("pointerenter", prioritizeScene, {
+      once: true,
+      passive: true,
+    });
 
     if ("IntersectionObserver" in window) {
       bootstrapObserver = new IntersectionObserver(
@@ -1109,6 +1161,10 @@ export function MergeCoreScene() {
     return () => {
       disposed = true;
       if (bootstrapTimer) window.clearTimeout(bootstrapTimer);
+      if (bootstrapIdleCallback) {
+        idleWindow.cancelIdleCallback?.(bootstrapIdleCallback);
+      }
+      mount.removeEventListener("pointerenter", prioritizeScene);
       bootstrapObserver?.disconnect();
       cleanupScene?.();
     };

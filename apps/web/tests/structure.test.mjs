@@ -125,7 +125,9 @@ test("keeps the polished application shell and local typography", async () => {
 
   assert.match(layout, /@fontsource-variable\/sora/);
   assert.match(layout, /@fontsource-variable\/bricolage-grotesque/);
-  assert.match(layout, /@fontsource\/ibm-plex-mono/);
+  assert.match(layout, /@fontsource\/ibm-plex-mono\/latin-400\.css/);
+  assert.match(layout, /@fontsource\/ibm-plex-mono\/latin-500\.css/);
+  assert.match(layout, /@fontsource\/ibm-plex-mono\/latin-600\.css/);
   assert.match(layout, /RouteTransition/);
   assert.match(layout, /favicon\.svg/);
   assert.match(header, /BrandMark/);
@@ -179,6 +181,8 @@ test("keeps the settlement robot scene purposeful, bounded, and accessible", asy
   assert.match(scene, /"feminine"/);
   assert.match(scene, /"masculine"/);
   assert.match(scene, /OLED_EYE_FRAGMENT_SHADER/);
+  assert.match(scene, /import\("\.\/three-runtime"\)/);
+  assert.doesNotMatch(scene, /import\("three"\)/);
   assert.match(scene, /THREE\.ShaderMaterial/);
   assert.match(scene, /uExpression/);
   assert.match(scene, /uGaze/);
@@ -200,10 +204,14 @@ test("keeps the settlement robot scene purposeful, bounded, and accessible", asy
   assert.match(scene, /THREE\.PCFSoftShadowMap/);
   assert.match(scene, /prefers-reduced-motion/);
   assert.match(scene, /IntersectionObserver/);
+  assert.match(scene, /requestIdleCallback/);
+  assert.match(scene, /FRAME_INTERVAL_MS/);
+  assert.match(scene, /pixelRatioLimit/);
   assert.match(scene, /visibilitychange/);
   assert.match(scene, /renderer\.dispose\(\)/);
   assert.doesNotMatch(scene, /Math\.random|new THREE\.Points\(/);
   assert.match(styles, /--home-void: #0b0b0b/);
+  assert.match(styles, /content-visibility: auto/);
   assert.match(styles, /--home-slate: #2b4559/);
   assert.match(styles, /--home-mist: #e4e4e4/);
   assert.match(styles, /\.merge-core__greeting/);

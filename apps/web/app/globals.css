@@ -11381,6 +11381,8 @@ body:has(.home-page) .route-transition__rail {
 }
 
 .home-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 58rem;
   padding-block: 10rem;
 }
 
@@ -11571,6 +11573,7 @@ body:has(.home-page) .route-transition__rail {
 }
 
 .home-intelligence {
+  contain-intrinsic-size: auto 74rem;
   border-top: 1px solid rgb(228 228 228 / 0.08);
   background:
     linear-gradient(180deg, rgb(43 69 89 / 0.08), transparent 28%),
@@ -11831,6 +11834,8 @@ body:has(.home-page) .route-transition__rail {
 }
 
 .home-final {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 35rem;
   padding-block: 0 5rem;
 }
 
