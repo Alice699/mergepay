@@ -10,6 +10,7 @@
     "predev": "npm run build:client",
     "dev": "npm run dev --workspace @mergepay/web",
     "build": "npm run build:client && npm run build:web",
+    "build:vercel": "npm run build:client && npm run build:vercel --workspace @mergepay/web",
     "build:web": "npm run build --workspace @mergepay/web",
     "build:client": "npm run build --workspace @mergepay/rialo-client",
     "typecheck": "npm run typecheck --workspaces --if-present",

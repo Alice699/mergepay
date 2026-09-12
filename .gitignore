@@ -3,6 +3,7 @@
 /deployments/artifacts/
 **/node_modules/
 **/dist/
+**/.output/
 **/.vinext/
 **/.next/
 **/.wrangler/
@@ -21,3 +22,6 @@ soul.md
 memory.md
 list1.md
 tugas 1 .md
+
+# Local Vercel project metadata. Environment files are covered above.
+.vercel/
