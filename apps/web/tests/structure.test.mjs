@@ -180,7 +180,12 @@ test("keeps the settlement robot scene purposeful, bounded, and accessible", asy
   assert.match(scene, /"masculine"/);
   assert.match(scene, /OLED_EYE_FRAGMENT_SHADER/);
   assert.match(scene, /THREE\.ShaderMaterial/);
+  assert.match(scene, /uExpression/);
   assert.match(scene, /uGaze/);
+  assert.match(scene, /uPersona/);
+  assert.match(scene, /irisRadius/);
+  assert.match(scene, /keyLight/);
+  assert.match(scene, /fillLight/);
   assert.doesNotMatch(scene, /eyeRimMaterial|pupilMaterial/);
   assert.match(scene, /THREE\.TubeGeometry/);
   assert.doesNotMatch(scene, /eyelashGeometry/);

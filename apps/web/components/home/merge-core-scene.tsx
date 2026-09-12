@@ -14,6 +14,7 @@ import type {
 } from "three";
 
 type EyeRig = {
+  expression: { value: number };
   gaze: Vector2;
   root: Group;
 };
@@ -49,24 +50,70 @@ const OLED_EYE_VERTEX_SHADER = `
   }
 `;
 const OLED_EYE_FRAGMENT_SHADER = `
+  uniform float uExpression;
   uniform vec2 uGaze;
+  uniform float uPersona;
   varying vec2 vUv;
 
   void main() {
     vec2 point = (vUv - 0.5) * 2.0;
-    float distanceFromCenter = length(point);
-    float core = 1.0 - smoothstep(0.72, 0.86, distanceFromCenter);
-    float halo = (1.0 - smoothstep(0.78, 1.0, distanceFromCenter)) * 0.24;
-    vec2 gaze = uGaze * 0.34;
-    float focus = 1.0 - smoothstep(0.08, 0.78, length(point - gaze));
-    vec2 sheenOrigin = vec2(-0.3, 0.24) + gaze * 0.42;
-    float sheen = 1.0 - smoothstep(0.025, 0.13, length(point - sheenOrigin));
-    vec3 deepSlate = vec3(0.29, 0.48, 0.57);
-    vec3 softMist = vec3(0.68, 0.82, 0.87);
-    float luminance = clamp(0.28 + focus * 0.48 + vUv.y * 0.12, 0.0, 1.0);
-    vec3 color = mix(deepSlate, softMist, luminance);
-    color += sheen * vec3(0.25, 0.3, 0.32);
-    float alpha = max(core * 0.96, halo);
+    float expression = smoothstep(0.0, 1.0, uExpression);
+    float eyeWidth = mix(0.88, 0.94, uPersona);
+    float eyeHeight = mix(0.62, 0.58, uPersona);
+    float horizontalCurve = mix(2.2, 2.0, uPersona);
+    vec2 eyePoint = vec2(point.x / eyeWidth, point.y / eyeHeight);
+    float eyeContour =
+      pow(abs(eyePoint.x), horizontalCurve) +
+      pow(abs(eyePoint.y), 2.0);
+    float eye = 1.0 - smoothstep(0.84, 1.0, eyeContour);
+    float aura = 1.0 - smoothstep(0.94, 1.28, eyeContour);
+    float lowerLift = expression * 0.1 * (
+      1.0 - smoothstep(0.18, 0.94, abs(point.x))
+    );
+    float lowerLid = smoothstep(-0.58 + lowerLift, -0.51 + lowerLift, point.y);
+    eye *= lowerLid;
+    aura *= smoothstep(-0.68 + lowerLift, -0.53 + lowerLift, point.y);
+
+    vec2 gaze = uGaze * vec2(0.34, 0.27);
+    vec2 irisPoint = point - gaze;
+    float irisRadius = length(irisPoint * vec2(mix(0.98, 0.92, uPersona), 1.0));
+    float iris = (1.0 - smoothstep(0.45, 0.515, irisRadius)) * eye;
+    float irisLight = 1.0 - smoothstep(0.075, 0.45, irisRadius);
+    float irisRing = 1.0 - smoothstep(0.02, 0.072, abs(irisRadius - 0.365));
+    float pupil = (1.0 - smoothstep(0.155, 0.215, irisRadius)) * iris;
+
+    vec3 iceShadow = vec3(0.27, 0.43, 0.5);
+    vec3 iceLight = vec3(0.58, 0.73, 0.78);
+    vec3 color = mix(
+      iceShadow,
+      iceLight,
+      clamp(0.5 + point.y * 0.26 + expression * 0.06, 0.0, 1.0)
+    );
+    vec3 irisOuter = vec3(0.065, 0.2, 0.27);
+    vec3 irisInner = vec3(0.36, 0.7, 0.79);
+    vec3 irisColor = mix(irisOuter, irisInner, irisLight);
+    irisColor += irisRing * vec3(0.1, 0.2, 0.22);
+    color = mix(color, irisColor, iris);
+    color = mix(color, vec3(0.012, 0.026, 0.032), pupil * 0.98);
+
+    float keyLight = 1.0 - smoothstep(
+      0.052,
+      0.105,
+      length(irisPoint - vec2(-0.14, 0.18))
+    );
+    float fillLight = 1.0 - smoothstep(
+      0.022,
+      0.048,
+      length(irisPoint - vec2(0.16, -0.14))
+    );
+    color += keyLight * iris * vec3(0.78, 0.9, 0.93);
+    color += fillLight * iris * vec3(0.48, 0.69, 0.75);
+
+    float upperShade = smoothstep(-0.02, 0.56, point.y) * eye;
+    float innerRim = smoothstep(0.68, 0.96, eyeContour) * eye;
+    color = mix(color, vec3(0.2, 0.38, 0.46), upperShade * 0.34);
+    color = mix(color, vec3(0.25, 0.45, 0.53), innerRim * 0.18);
+    float alpha = max(eye * 0.97, aura * 0.12);
 
     if (alpha < 0.012) discard;
     gl_FragColor = vec4(color, alpha);
@@ -334,7 +381,7 @@ export function MergeCoreScene() {
         createRoundedPanelGeometry(THREE, 0.31, 0.15, 0.065, 0.46),
       );
       const eyeDisplayGeometry = trackGeometry(
-        new THREE.PlaneGeometry(0.2, 0.1),
+        new THREE.PlaneGeometry(0.235, 0.155),
       );
       const mouthCurve = new THREE.CatmullRomCurve3(
         [
@@ -391,10 +438,11 @@ export function MergeCoreScene() {
 
         const createEye = (side: -1 | 1): EyeRig => {
           const eyeRoot = new THREE.Group();
-          eyeRoot.position.set(side * 0.17, 0.014, 0.37);
-          eyeRoot.rotation.z = persona === "feminine" ? side * 0.048 : 0;
+          eyeRoot.position.set(side * 0.158, 0.014, 0.37);
+          eyeRoot.rotation.z = persona === "feminine" ? side * 0.054 : 0;
           head.add(eyeRoot);
 
+          const expression = { value: 0 };
           const gaze = new THREE.Vector2();
           const displayMaterial = trackMaterial(
             new THREE.ShaderMaterial({
@@ -402,28 +450,32 @@ export function MergeCoreScene() {
               depthWrite: false,
               fragmentShader: OLED_EYE_FRAGMENT_SHADER,
               transparent: true,
-              uniforms: { uGaze: { value: gaze } },
+              uniforms: {
+                uExpression: expression,
+                uGaze: { value: gaze },
+                uPersona: { value: persona === "feminine" ? 1 : 0 },
+              },
               vertexShader: OLED_EYE_VERTEX_SHADER,
             }),
           );
           displayMaterial.toneMapped = false;
           const display = new THREE.Mesh(eyeDisplayGeometry, displayMaterial);
           display.scale.set(
-            persona === "feminine" ? 0.98 : 0.84,
-            persona === "feminine" ? 0.88 : 0.98,
+            persona === "feminine" ? 1.02 : 0.9,
+            persona === "feminine" ? 0.94 : 1.04,
             1,
           );
           display.renderOrder = 6;
           eyeRoot.add(display);
 
-          return { gaze, root: eyeRoot };
+          return { expression, gaze, root: eyeRoot };
         };
 
         const leftEye = createEye(-1);
         const rightEye = createEye(1);
 
         const mouth = new THREE.Group();
-        mouth.position.set(0, -0.105, 0.356);
+        mouth.position.set(0, -0.093, 0.356);
         mouth.scale.x = persona === "feminine" ? 0.96 : 0.9;
         mouth.renderOrder = 4;
         const mouthLine = new THREE.Mesh(mouthGeometry, faceLineMaterial);
@@ -688,10 +740,11 @@ export function MergeCoreScene() {
             : 1;
         const smile = smoothStep(warmth);
         robot.eyes.forEach((eye) => {
+          eye.expression.value = smile;
           eye.root.position.y = 0.012 + smile * 0.009;
           eye.root.scale.set(
             1 + smile * 0.035,
-            Math.max(0.08, blink * (1 - smile * 0.15)),
+            Math.max(0.08, blink * (1 - smile * 0.07)),
             1,
           );
           eye.gaze.set(gazeX * 10, gazeY * 12);
