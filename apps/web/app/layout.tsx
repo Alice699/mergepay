@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol =
     requestHeaders.get("x-forwarded-proto") ??
     (host?.startsWith("localhost") ? "http" : "https");
-  const imageUrl = host ? `${protocol}://${host}/og.png` : null;
+  const imageUrl = host ? `${protocol}://${host}/og-mergepay-v2.png` : null;
 
   return {
     title: { default: title, template: "%s | MergePay" },
@@ -44,7 +44,7 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: "MergePay",
       type: "website",
       ...(imageUrl
-        ? { images: [{ url: imageUrl, width: 1731, height: 909, alt: title }] }
+        ? { images: [{ url: imageUrl, width: 1733, height: 907, alt: title }] }
         : {}),
     },
     twitter: {
