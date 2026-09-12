@@ -602,6 +602,7 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(workflowDetail, /findClaimRequests/);
   assert.match(workflowDetail, /setSubmittedClaim/);
   assert.match(workflowDetail, /claimApprovalPending/);
+  assert.match(workflowDetail, /awaitingSponsorFunding/);
   assert.match(workflowDetail, /Waiting for sponsor funding/);
   assert.match(workflowDetail, /workflow-claim--observer/);
   assert.match(workflowDetail, /visibilitychange/);
@@ -610,6 +611,8 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(workflowDetail, /settlementReceiptHref/);
   assert.match(workflowDetail, /View receipt/);
   assert.match(workflowHook, /state\.workflow/);
+  assert.match(workflowHook, /requestSequence/);
+  assert.match(workflowHook, /current\.requestId > requestId/);
   assert.match(receiptPage, /SettlementReceipt/);
   assert.match(settlementReceipt, /getWorkflowByAddress/);
   assert.match(settlementReceipt, /deriveWorkflowPda/);

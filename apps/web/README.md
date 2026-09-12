@@ -57,8 +57,9 @@ and persisted lifecycle flags. Created workflows expose a sponsor-only Fund boun
 action. Before opening wallet approval, that action re-reads the workflow, rejects
 wrong-wallet, expired, already-funded, paid, or refunded states, and verifies that the
 live sponsor balance covers the exact bounty amount plus fee headroom. The detail view
-re-reads Rialo after executed confirmation, polls active funded workflows, and checks
-again when the page regains focus. Funding atomically prepares workflow storage and
+re-reads Rialo after executed confirmation, keeps polling through claim approval,
+sponsor funding, and active settlement, and checks again when the page regains focus.
+Funding atomically prepares workflow storage and
 locks escrow, then the native heartbeat polls the public GitHub merge-status endpoint
 and handles deadline refund without an expiring GitHub App token. Funded workflows
 also expose a sponsor-only immediate-check fallback, follow its official workflow

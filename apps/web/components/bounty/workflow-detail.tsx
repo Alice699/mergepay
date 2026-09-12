@@ -486,6 +486,13 @@ export function WorkflowDetail({
   const liveSettlementActive = Boolean(
     workflow?.state.funded && !workflow.state.paid && !workflow.state.refunded,
   );
+  const awaitingSponsorFunding = Boolean(
+    workflow &&
+      workflow.state.beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY &&
+      !workflow.state.funded &&
+      !workflow.state.paid &&
+      !workflow.state.refunded,
+  );
   const claimApprovalPending = Boolean(
     resolvedClaimWorkflow &&
       workflow &&
@@ -495,7 +502,10 @@ export function WorkflowDetail({
       !workflow.state.refunded,
   );
   const shouldPollWorkflow = Boolean(
-    pendingStateSignature || liveSettlementActive || claimApprovalPending,
+    pendingStateSignature ||
+      claimApprovalPending ||
+      awaitingSponsorFunding ||
+      liveSettlementActive,
   );
 
   useEffect(() => {
@@ -665,6 +675,7 @@ export function WorkflowDetail({
         pendingStateSignature &&
         !liveSettlementActive &&
         !claimApprovalPending &&
+        !awaitingSponsorFunding &&
         reads >= MAX_PENDING_TRANSACTION_READS
       ) {
         window.clearInterval(interval);
@@ -685,7 +696,13 @@ export function WorkflowDetail({
       window.removeEventListener("focus", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, [claimApprovalPending, liveSettlementActive, pendingStateSignature, shouldPollWorkflow]);
+  }, [
+    awaitingSponsorFunding,
+    claimApprovalPending,
+    liveSettlementActive,
+    pendingStateSignature,
+    shouldPollWorkflow,
+  ]);
 
   useEffect(() => {
     if (!workflow) return;

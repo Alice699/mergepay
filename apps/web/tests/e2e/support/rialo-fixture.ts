@@ -18,6 +18,7 @@ const BASE58_ALPHABET =
 const PAGE_TRANSITION_DELAY_MS = 350;
 
 type RpcScenario = "empty" | "activity" | "settlements";
+type WorkflowLifecycleState = "approved" | "funded" | "paid";
 
 interface JsonRpcRequest {
   id?: string | number | null;
@@ -41,6 +42,14 @@ interface SettlementRecord {
 
 export interface RpcMockController {
   failNextSignatureRead: () => void;
+}
+
+export interface WorkflowLifecycleRpcController {
+  slug: string;
+  sponsor: string;
+  workflowAddress: string;
+  getWorkflowReadCount: () => number;
+  setState: (state: WorkflowLifecycleState) => void;
 }
 
 export async function installMockWallet(page: Page): Promise<void> {
@@ -252,6 +261,70 @@ export async function installRialoRpcMock(
   };
 }
 
+export async function installWorkflowLifecycleRpcMock(
+  page: Page,
+): Promise<WorkflowLifecycleRpcController> {
+  const slug = "f".repeat(64);
+  const sponsor = MOCK_WALLET_ADDRESS;
+  const workflowAddress = deriveWorkflowPda(
+    MERGEPAY_PROGRAM_ID,
+    sponsor,
+    slug,
+  ).address;
+  let lifecycleState: WorkflowLifecycleState = "approved";
+  let workflowReadCount = 0;
+
+  await page.route("**/api/rialo", async (route) => {
+    const request = route.request().postDataJSON() as JsonRpcRequest;
+    const firstParam = request.params?.[0] ?? {};
+
+    if (request.method === "getHealth") {
+      await fulfillResult(route, request, "ok");
+      return;
+    }
+
+    if (request.method === "getAccountInfo") {
+      const address =
+        typeof firstParam.address === "string" ? firstParam.address : "";
+      if (address !== workflowAddress) {
+        await fulfillResult(route, request, { value: null });
+        return;
+      }
+
+      workflowReadCount += 1;
+      const stateForRead = lifecycleState;
+      if (workflowReadCount > 1) await delay(3_000);
+      await fulfillResult(route, request, {
+        value: createWorkflowLifecycleAccount(stateForRead),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: request.id ?? null,
+        error: {
+          code: -32601,
+          message: `Unexpected workflow E2E RPC method: ${request.method}`,
+        },
+      }),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
+
+  return {
+    slug,
+    sponsor,
+    workflowAddress,
+    getWorkflowReadCount: () => workflowReadCount,
+    setState: (state) => {
+      lifecycleState = state;
+    },
+  };
+}
+
 function createSettlementRecords(): SettlementRecord[] {
   return Array.from({ length: 7 }, (_, index) => {
     const slug = (index + 1).toString(16).padStart(64, "0");
@@ -323,6 +396,42 @@ function createSettlementRecords(): SettlementRecord[] {
       },
     };
   });
+}
+
+function createWorkflowLifecycleAccount(
+  state: WorkflowLifecycleState,
+): Record<string, unknown> {
+  const funded = state === "funded" || state === "paid";
+  const paid = state === "paid";
+  const writer = new BincodeWriter();
+  writer
+    .writeU64(1n)
+    .writeFixedArray(PublicKey.fromString(MOCK_WALLET_ADDRESS).toBytes(), 32)
+    .writeFixedArray(PublicKey.fromString(BENEFICIARY_ADDRESS).toBytes(), 32)
+    .writeString("Alice699")
+    .writeString("mergepay-live-lifecycle")
+    .writeU64(7n)
+    .writeU64(1_000_000_000n)
+    .writeU64(2_000_000_000_000n)
+    .writeBool(funded)
+    .writeBool(paid)
+    .writeBool(paid)
+    .writeBool(false)
+    .writeU64(paid ? 2n : 0n)
+    .writeBool(false)
+    .writeFixedArray(new Uint8Array(32), 32)
+    .writeString("biawakLamat")
+    .writeU64(136351960n);
+  const accountBytes = writer.toBytes();
+
+  return {
+    kelvin: funded ? "2500000" : "1002500000",
+    owner: MERGEPAY_PROGRAM_ID,
+    data: [Buffer.from(accountBytes).toString("base64"), "base64"],
+    executable: false,
+    rentEpoch: "0",
+    space: String(accountBytes.length),
+  };
 }
 
 function createSignatureRecord(seed: number, height: number): SignatureRecord {
