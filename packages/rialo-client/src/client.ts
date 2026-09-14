@@ -6,6 +6,7 @@ import {
   MERGEPAY_UNASSIGNED_BENEFICIARY,
 } from "./constants.js";
 import { decodeWorkflowAccount } from "./accounts/index.js";
+import { classifyWorkflowLifecycle } from "./lifecycle.js";
 import {
   buildCheckMergeInstruction,
   buildAcceptClaimInstruction,
@@ -896,22 +897,25 @@ function publicBountyStatus(
   state: DecodedMergePayWorkflow["state"],
   now: bigint,
 ): MergePayPublicBountyStatus | null {
+  const lifecycle = classifyWorkflowLifecycle(state);
   if (
-    !state.initialized ||
     !/^[A-Za-z0-9._-]{1,100}$/.test(state.githubOwner) ||
     !/^[A-Za-z0-9._-]{1,100}$/.test(state.githubRepo) ||
     state.pullNumber <= 0n ||
     state.amountKelvin <= 0n ||
     state.deadlineUnixMs <= now ||
-    state.paid ||
-    state.refunded
+    lifecycle === "uninitialized" ||
+    lifecycle === "claim_request" ||
+    lifecycle === "paid" ||
+    lifecycle === "refunded" ||
+    lifecycle === "invalid"
   ) {
     return null;
   }
-  if (state.mergeConfirmed) return "merge_confirmed";
-  if (state.funded) return "funded";
-  if (state.beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY) return "claimed";
-  return "open";
+  if (lifecycle === "merge_confirmed") return "merge_confirmed";
+  if (lifecycle === "funded") return "funded";
+  if (lifecycle === "claimed") return "claimed";
+  return lifecycle === "created" ? "open" : null;
 }
 
 function decodeInstructionDataCandidates(data: string): Uint8Array[] {

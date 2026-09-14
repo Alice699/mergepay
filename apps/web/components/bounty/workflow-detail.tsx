@@ -2,6 +2,7 @@
 
 import {
   MERGEPAY_UNASSIGNED_BENEFICIARY,
+  isWorkflowSnapshotProgression,
   type DecodedMergePayWorkflow,
   type MergePayClaimRequest,
 } from "@mergepay/rialo-client";
@@ -444,10 +445,11 @@ export function WorkflowDetail({
     [accountHint, network.client, sponsor],
   );
 
-  const workflowRead = useWorkflow<DecodedMergePayWorkflow | null>(
+  const workflowRead = useWorkflow<DecodedMergePayWorkflow>(
     lookupKey,
     loadWorkflow,
     network.rpcStatus === "available",
+    isWorkflowSnapshotProgression,
   );
   const workflow = workflowRead.workflow;
   const claimWorkflowFromQuery = claimWorkflowHint?.trim() || null;

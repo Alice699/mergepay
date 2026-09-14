@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { runSingleFlight } from "@/lib/single-flight";
 
 export type TransactionStatus = "idle" | "pending" | "success" | "error";
 export type TransactionExecutor<TInput, TResult> = (
@@ -23,20 +24,23 @@ export function useTransaction<TInput, TResult>(
   executor: TransactionExecutor<TInput, TResult>,
 ) {
   const [state, setState] = useState<TransactionState<TResult>>(initialState);
+  const activeExecution = useRef<Promise<TResult> | null>(null);
 
   const execute = useCallback(
-    async (input: TInput): Promise<TResult> => {
-      setState({ status: "pending", result: null, error: null });
+    (input: TInput): Promise<TResult> => {
+      return runSingleFlight(activeExecution, async () => {
+        setState({ status: "pending", result: null, error: null });
 
-      try {
-        const result = await executor(input);
-        setState({ status: "success", result, error: null });
-        return result;
-      } catch (cause) {
-        const error = cause instanceof Error ? cause : new Error(String(cause));
-        setState({ status: "error", result: null, error });
-        throw error;
-      }
+        try {
+          const result = await executor(input);
+          setState({ status: "success", result, error: null });
+          return result;
+        } catch (cause) {
+          const error = cause instanceof Error ? cause : new Error(String(cause));
+          setState({ status: "error", result: null, error });
+          throw error;
+        }
+      });
     },
     [executor],
   );

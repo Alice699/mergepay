@@ -592,6 +592,10 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
     new URL("hooks/use-workflow.ts", webRoot),
     "utf8",
   );
+  const transactionHook = await readFile(
+    new URL("hooks/use-transaction.ts", webRoot),
+    "utf8",
+  );
   const adaptivePolling = await readFile(
     new URL("hooks/use-adaptive-polling.ts", webRoot),
     "utf8",
@@ -631,7 +635,12 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(workflowHook, /requestSequence/);
   assert.match(workflowHook, /requestSequence\.current !== requestId/);
   assert.match(workflowHook, /activeRequest/);
+  assert.match(workflowHook, /lastVerified/);
+  assert.match(workflowHook, /acceptsSnapshot/);
   assert.match(workflowHook, /lastUpdatedAt/);
+  assert.match(transactionHook, /activeExecution/);
+  assert.match(transactionHook, /runSingleFlight\(activeExecution/);
+  assert.match(workflowDetail, /isWorkflowSnapshotProgression/);
   assert.match(adaptivePolling, /pageCanPoll/);
   assert.match(adaptivePolling, /failureCount/);
   assert.match(receiptPage, /SettlementReceipt/);

@@ -18,7 +18,17 @@ const BASE58_ALPHABET =
 const PAGE_TRANSITION_DELAY_MS = 350;
 
 type RpcScenario = "empty" | "activity" | "settlements";
-type WorkflowLifecycleState = "approved" | "funded" | "paid";
+export type WorkflowLifecycleState =
+  | "approved"
+  | "funded"
+  | "paid"
+  | "refunded";
+
+interface PlannedWorkflowRead {
+  delayMs: number;
+  errorMessage: string | null;
+  state: WorkflowLifecycleState | null;
+}
 
 interface JsonRpcRequest {
   id?: string | number | null;
@@ -48,7 +58,12 @@ export interface WorkflowLifecycleRpcController {
   slug: string;
   sponsor: string;
   workflowAddress: string;
+  failNextWorkflowRead: (message?: string) => void;
   getWorkflowReadCount: () => number;
+  queueWorkflowRead: (
+    state: WorkflowLifecycleState,
+    delayMs?: number,
+  ) => void;
   setState: (state: WorkflowLifecycleState) => void;
 }
 
@@ -273,6 +288,7 @@ export async function installWorkflowLifecycleRpcMock(
   ).address;
   let lifecycleState: WorkflowLifecycleState = "approved";
   let workflowReadCount = 0;
+  const plannedWorkflowReads: PlannedWorkflowRead[] = [];
 
   await page.route("**/api/rialo", async (route) => {
     const request = route.request().postDataJSON() as JsonRpcRequest;
@@ -292,8 +308,24 @@ export async function installWorkflowLifecycleRpcMock(
       }
 
       workflowReadCount += 1;
-      const stateForRead = lifecycleState;
-      if (workflowReadCount > 1) await delay(3_000);
+      const plannedRead = plannedWorkflowReads.shift();
+      const stateForRead = plannedRead?.state ?? lifecycleState;
+      if (plannedRead?.delayMs) await delay(plannedRead.delayMs);
+      if (plannedRead?.errorMessage) {
+        await route.fulfill({
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: request.id ?? null,
+            error: {
+              code: -32098,
+              message: plannedRead.errorMessage,
+            },
+          }),
+          contentType: "application/json",
+          status: 200,
+        });
+        return;
+      }
       await fulfillResult(route, request, {
         value: createWorkflowLifecycleAccount(stateForRead),
       });
@@ -318,7 +350,17 @@ export async function installWorkflowLifecycleRpcMock(
     slug,
     sponsor,
     workflowAddress,
+    failNextWorkflowRead: (message = "The deterministic RPC read timed out.") => {
+      plannedWorkflowReads.push({
+        delayMs: 0,
+        errorMessage: message,
+        state: null,
+      });
+    },
     getWorkflowReadCount: () => workflowReadCount,
+    queueWorkflowRead: (state, delayMs = 0) => {
+      plannedWorkflowReads.push({ delayMs, errorMessage: null, state });
+    },
     setState: (state) => {
       lifecycleState = state;
     },
@@ -401,8 +443,9 @@ function createSettlementRecords(): SettlementRecord[] {
 function createWorkflowLifecycleAccount(
   state: WorkflowLifecycleState,
 ): Record<string, unknown> {
-  const funded = state === "funded" || state === "paid";
+  const funded = state === "funded" || state === "paid" || state === "refunded";
   const paid = state === "paid";
+  const refunded = state === "refunded";
   const writer = new BincodeWriter();
   writer
     .writeU64(1n)
@@ -416,7 +459,7 @@ function createWorkflowLifecycleAccount(
     .writeBool(funded)
     .writeBool(paid)
     .writeBool(paid)
-    .writeBool(false)
+    .writeBool(refunded)
     .writeU64(paid ? 2n : 0n)
     .writeBool(false)
     .writeFixedArray(new Uint8Array(32), 32)

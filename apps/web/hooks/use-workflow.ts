@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type WorkflowLoadStatus = "idle" | "loading" | "success" | "error";
-export type WorkflowLoader<TWorkflow> = (slug: string) => Promise<TWorkflow>;
+export type WorkflowLoader<TWorkflow> = (
+  slug: string,
+) => Promise<TWorkflow | null>;
+export type WorkflowSnapshotGuard<TWorkflow> = (
+  previous: TWorkflow | null,
+  incoming: TWorkflow,
+) => boolean;
 
 export interface WorkflowLoadState<TWorkflow> {
   status: WorkflowLoadStatus;
@@ -24,6 +30,7 @@ export function useWorkflow<TWorkflow>(
   slug: string | null,
   loader: WorkflowLoader<TWorkflow>,
   enabled = true,
+  acceptsSnapshot?: WorkflowSnapshotGuard<TWorkflow>,
 ): WorkflowLoadState<TWorkflow> {
   const mounted = useRef(false);
   const requestSequence = useRef(0);
@@ -34,6 +41,11 @@ export function useWorkflow<TWorkflow>(
     promise: Promise<boolean>;
     requestId: number;
     slug: string;
+  } | null>(null);
+  const lastVerified = useRef<{
+    slug: string;
+    workflow: TWorkflow;
+    updatedAt: number;
   } | null>(null);
 
   const [state, setState] = useState<InternalWorkflowLoadState<TWorkflow>>({
@@ -93,6 +105,60 @@ export function useWorkflow<TWorkflow>(
           currentLoader.current !== loader
         ) return false;
 
+        const verified = lastVerified.current;
+        const verifiedForSlug = verified?.slug === slug ? verified : null;
+        const snapshotError = workflow === null && verifiedForSlug
+          ? new Error(
+              "The latest Rialo read omitted a previously verified workflow account.",
+            )
+          : workflow !== null &&
+              acceptsSnapshot &&
+              !acceptsSnapshot(verifiedForSlug?.workflow ?? null, workflow)
+            ? new Error(
+                "The latest Rialo read returned an older or inconsistent workflow snapshot.",
+              )
+            : null;
+        if (snapshotError) {
+          setState(
+            verifiedForSlug
+              ? {
+                  slug,
+                  requestId,
+                  status: "success",
+                  workflow: verifiedForSlug.workflow,
+                  error: snapshotError,
+                  refreshing: false,
+                  lastUpdatedAt: verifiedForSlug.updatedAt,
+                }
+              : {
+                  slug,
+                  requestId,
+                  status: "error",
+                  workflow: null,
+                  error: snapshotError,
+                  refreshing: false,
+                  lastUpdatedAt: null,
+                },
+          );
+          return false;
+        }
+
+        if (workflow === null) {
+          setState({
+            slug,
+            requestId,
+            status: "success",
+            workflow: null,
+            error: null,
+            refreshing: false,
+            lastUpdatedAt: Date.now(),
+          });
+          return false;
+        }
+
+        const updatedAt = Date.now();
+        lastVerified.current = { slug, workflow, updatedAt };
+
         setState({
           slug,
           requestId,
@@ -100,9 +166,9 @@ export function useWorkflow<TWorkflow>(
           workflow,
           error: null,
           refreshing: false,
-          lastUpdatedAt: Date.now(),
+          lastUpdatedAt: updatedAt,
         });
-        return workflow !== null;
+        return true;
       })
       .catch((cause: unknown) => {
         if (
@@ -113,29 +179,28 @@ export function useWorkflow<TWorkflow>(
         ) return false;
 
         const error = cause instanceof Error ? cause : new Error(String(cause));
-        setState((current) => {
-          if (
-            current.slug === slug &&
-            current.status === "success" &&
-            current.workflow !== null
-          ) {
-            return {
-              ...current,
-              requestId,
-              error,
-              refreshing: false,
-            };
-          }
-          return {
-            slug,
-            requestId,
-            status: "error",
-            workflow: null,
-            error,
-            refreshing: false,
-            lastUpdatedAt: null,
-          };
-        });
+        const verified = lastVerified.current;
+        setState(
+          verified?.slug === slug
+            ? {
+                slug,
+                requestId,
+                status: "success",
+                workflow: verified.workflow,
+                error,
+                refreshing: false,
+                lastUpdatedAt: verified.updatedAt,
+              }
+            : {
+                slug,
+                requestId,
+                status: "error",
+                workflow: null,
+                error,
+                refreshing: false,
+                lastUpdatedAt: null,
+              },
+        );
         return false;
       })
       .finally(() => {
@@ -146,7 +211,7 @@ export function useWorkflow<TWorkflow>(
 
     activeRequest.current = { loader, promise, requestId, slug };
     return promise;
-  }, [enabled, loader, slug]);
+  }, [acceptsSnapshot, enabled, loader, slug]);
 
   useEffect(() => {
     if (!enabled || !slug) return;

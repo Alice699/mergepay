@@ -7,6 +7,7 @@ export * from "./accounts/index.js";
 export * from "./client.js";
 export * from "./generated/mergepay.js";
 export * from "./instructions/index.js";
+export * from "./lifecycle.js";
 export * from "./pda/index.js";
 export * from "./rpc/index.js";
 export * from "./transactions/index.js";

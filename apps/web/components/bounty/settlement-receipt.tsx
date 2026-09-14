@@ -1,6 +1,9 @@
 "use client";
 
-import type { DecodedMergePayWorkflow } from "@mergepay/rialo-client";
+import {
+  isWorkflowSnapshotProgression,
+  type DecodedMergePayWorkflow,
+} from "@mergepay/rialo-client";
 import {
   Activity,
   BadgeCheck,
@@ -65,10 +68,11 @@ export function SettlementReceipt({
     [accountHint, network.client, sponsor],
   );
 
-  const workflowRead = useWorkflow<DecodedMergePayWorkflow | null>(
+  const workflowRead = useWorkflow<DecodedMergePayWorkflow>(
     lookupKey,
     loadWorkflow,
     network.rpcStatus === "available",
+    isWorkflowSnapshotProgression,
   );
   const workflow = workflowRead.workflow;
   const terminalState: TerminalState | null = workflow?.state.paid && workflow.state.mergeConfirmed
