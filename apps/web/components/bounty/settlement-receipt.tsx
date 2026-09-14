@@ -15,8 +15,9 @@ import {
   WalletCards,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
 import { CopyValue } from "@/components/ui/copy-value";
+import { useAdaptivePolling } from "@/hooks/use-adaptive-polling";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
 import { useWorkflow } from "@/hooks/use-workflow";
@@ -26,6 +27,7 @@ import { formatDeadline, formatRlo } from "@/lib/format";
 import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 
 const RECEIPT_POLL_INTERVAL_MS = 2_500;
+const RECEIPT_MAX_BACKOFF_MS = 15_000;
 
 interface SettlementReceiptProps {
   slug: string | null;
@@ -47,7 +49,6 @@ export function SettlementReceipt({
   const accountHint = workflowAddressHint?.trim() || null;
   const sponsor = sponsorHint?.trim() || (accountHint ? null : wallet.address);
   const lookupKey = accountHint || (sponsor && slug ? slug : null);
-  const [refreshToken, setRefreshToken] = useState(0);
 
   const loadWorkflow = useCallback(
     (requestedSlug: string) => {
@@ -65,9 +66,9 @@ export function SettlementReceipt({
   );
 
   const workflowRead = useWorkflow<DecodedMergePayWorkflow | null>(
-    network.rpcStatus === "available" && lookupKey ? lookupKey : null,
+    lookupKey,
     loadWorkflow,
-    refreshToken,
+    network.rpcStatus === "available",
   );
   const workflow = workflowRead.workflow;
   const terminalState: TerminalState | null = workflow?.state.paid && workflow.state.mergeConfirmed
@@ -90,28 +91,16 @@ export function SettlementReceipt({
     workflow?.state.funded && !workflow.state.paid && !workflow.state.refunded,
   );
 
-  useEffect(() => {
-    if (!settlementPending) return;
-
-    const refresh = () => {
-      if (document.visibilityState === "visible") {
-        setRefreshToken((value) => value + 1);
-      }
-    };
-    const interval = window.setInterval(refresh, RECEIPT_POLL_INTERVAL_MS);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [settlementPending]);
+  useAdaptivePolling({
+    enabled: settlementPending && network.rpcStatus === "available",
+    intervalMs: RECEIPT_POLL_INTERVAL_MS,
+    maxIntervalMs: RECEIPT_MAX_BACKOFF_MS,
+    poll: workflowRead.refresh,
+  });
 
   function refreshReceipt() {
-    setRefreshToken((value) => value + 1);
     network.refreshRpcHealth();
+    void workflowRead.refresh();
   }
 
   if (!lookupKey) {
@@ -162,11 +151,7 @@ export function SettlementReceipt({
     );
   }
 
-  if (
-    network.rpcStatus === "unavailable" ||
-    workflowRead.status === "error" ||
-    !workflow
-  ) {
+  if (!workflow) {
     const errorCopy =
       workflowRead.error?.message ??
       network.rpcError?.message ??
@@ -191,8 +176,18 @@ export function SettlementReceipt({
   if (!terminalState) {
     return (
       <PendingSettlementReceipt
+        lastUpdatedAt={workflowRead.lastUpdatedAt}
         onRefresh={refreshReceipt}
         slug={slug}
+        syncStatus={
+          network.rpcStatus === "unavailable"
+            ? "paused"
+            : workflowRead.error
+              ? "stale"
+              : workflowRead.refreshing
+                ? "syncing"
+                : "live"
+        }
         workflow={workflow}
       />
     );
@@ -348,16 +343,37 @@ function VerifiedSettlementReceipt({
 }
 
 function PendingSettlementReceipt({
+  lastUpdatedAt,
   onRefresh,
   slug,
+  syncStatus,
   workflow,
 }: Readonly<{
+  lastUpdatedAt: number | null;
   onRefresh: () => void;
   slug: string | null;
+  syncStatus: "live" | "paused" | "stale" | "syncing";
   workflow: DecodedMergePayWorkflow;
 }>) {
   const funded = workflow.state.funded;
   const workflowUrl = slug ? workflowDetailHref(slug, workflow) : routes.settlements;
+  const lastVerified = lastUpdatedAt === null
+    ? "not verified yet"
+    : new Intl.DateTimeFormat("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZoneName: "short",
+      }).format(new Date(lastUpdatedAt));
+  const syncLabel = syncStatus === "paused"
+    ? "Sync paused"
+    : syncStatus === "stale"
+      ? "Retrying read"
+      : syncStatus === "syncing"
+        ? "Syncing now"
+        : funded
+          ? "Heartbeat active"
+          : "Awaiting funding";
 
   return (
     <article
@@ -380,12 +396,20 @@ function PendingSettlementReceipt({
           </h2>
           <p>
             {funded
-              ? "The bounty remains locked while Rialo checks the merge signal and deadline. This receipt refreshes automatically while the page is visible."
+              ? syncStatus === "paused"
+                ? `The last verified state from ${lastVerified} remains visible. Live sync resumes automatically when Rialo reconnects.`
+                : syncStatus === "stale"
+                  ? `The latest read was interrupted. The verified state from ${lastVerified} is preserved while MergePay retries with backoff.`
+                  : "The bounty remains locked while Rialo checks the merge signal and deadline. This receipt refreshes automatically while the page is visible."
               : "A paid or refunded receipt can only be issued after the sponsor approves the claim and funds the workflow."}
           </p>
         </div>
-        <span className="settlement-receipt__verified" data-pending="true">
-          <i aria-hidden="true" /> {funded ? "Heartbeat active" : "Awaiting funding"}
+        <span
+          className="settlement-receipt__verified"
+          data-pending="true"
+          data-sync={syncStatus}
+        >
+          <i aria-hidden="true" /> {syncLabel}
         </span>
       </header>
 

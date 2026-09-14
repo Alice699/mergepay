@@ -28,6 +28,7 @@ import { CheckMergeAction } from "@/features/check-merge/components/check-merge-
 import type { CheckMergeResult } from "@/features/check-merge/use-check-merge";
 import { RefundBountyAction } from "@/features/refund-bounty/components/refund-bounty-action";
 import { useDeadlinePassed } from "@/hooks/use-deadline-passed";
+import { useAdaptivePolling } from "@/hooks/use-adaptive-polling";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
 import { useWorkflow } from "@/hooks/use-workflow";
@@ -96,7 +97,17 @@ function settlementReceiptHref(
 const LIVE_WORKFLOW_POLL_INTERVAL_MS = 2_500;
 const PENDING_TRANSACTION_POLL_INTERVAL_MS = 1_500;
 const CLAIM_DISCOVERY_POLL_INTERVAL_MS = 2_500;
-const MAX_PENDING_TRANSACTION_READS = 24;
+const LIVE_WORKFLOW_MAX_BACKOFF_MS = 15_000;
+
+function formatLastVerified(value: number | null): string {
+  if (value === null) return "not verified yet";
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "short",
+  }).format(new Date(value));
+}
 
 function WorkflowObserverNotice({
   label,
@@ -375,8 +386,6 @@ export function WorkflowDetail({
   const network = useNetwork();
   const wallet = useWallet();
   const accountHint = workflowAddressHint?.trim() || null;
-  const [refreshToken, setRefreshToken] = useState(0);
-  const [claimDiscoveryRefreshToken, setClaimDiscoveryRefreshToken] = useState(0);
   const [claimDiscovery, setClaimDiscovery] = useState<ClaimDiscoveryState>({
     targetAddress: null,
     status: "idle",
@@ -388,6 +397,13 @@ export function WorkflowDetail({
   const [submittedClaim, setSubmittedClaim] =
     useState<SubmittedClaimReference | null>(null);
   const announcedClaimAddress = useRef<string | null>(null);
+  const claimDiscoveryRequestSequence = useRef(0);
+  const claimDiscoveryTarget = useRef<string | null>(null);
+  const activeClaimDiscovery = useRef<{
+    promise: Promise<boolean>;
+    requestId: number;
+    targetAddress: string;
+  } | null>(null);
   const observedWorkflowState = useRef<{
     address: string;
     beneficiary: string;
@@ -403,6 +419,13 @@ export function WorkflowDetail({
           }
         : null,
     );
+
+  useEffect(() => () => {
+    claimDiscoveryTarget.current = null;
+    claimDiscoveryRequestSequence.current += 1;
+    activeClaimDiscovery.current = null;
+  }, []);
+
   const sponsor = sponsorHint?.trim() || (accountHint ? null : wallet.address);
   const lookupKey = accountHint || (sponsor ? slug : null);
 
@@ -422,9 +445,9 @@ export function WorkflowDetail({
   );
 
   const workflowRead = useWorkflow<DecodedMergePayWorkflow | null>(
-    network.rpcStatus === "available" && lookupKey ? lookupKey : null,
+    lookupKey,
     loadWorkflow,
-    refreshToken,
+    network.rpcStatus === "available",
   );
   const workflow = workflowRead.workflow;
   const claimWorkflowFromQuery = claimWorkflowHint?.trim() || null;
@@ -507,17 +530,28 @@ export function WorkflowDetail({
       awaitingSponsorFunding ||
       liveSettlementActive,
   );
+  const claimDiscoveryAddress = claimDiscoveryEligible && workflow
+    ? workflow.address
+    : null;
 
   useEffect(() => {
-    if (!claimDiscoveryEligible || !workflow) return;
+    if (claimDiscoveryTarget.current === claimDiscoveryAddress) return;
+    claimDiscoveryTarget.current = claimDiscoveryAddress;
+    claimDiscoveryRequestSequence.current += 1;
+    activeClaimDiscovery.current = null;
+  }, [claimDiscoveryAddress]);
 
-    let active = true;
-    let reading = false;
+  const discoverClaim = useCallback((): Promise<boolean> => {
+    if (!claimDiscoveryEligible || !workflow) return Promise.resolve(true);
+
     const targetWorkflow = workflow;
+    const inFlight = activeClaimDiscovery.current;
+    if (inFlight?.targetAddress === targetWorkflow.address) {
+      return inFlight.promise;
+    }
 
-    async function discoverClaim() {
-      if (reading || document.visibilityState !== "visible") return;
-      reading = true;
+    const requestId = ++claimDiscoveryRequestSequence.current;
+    const promise = (async () => {
       setClaimDiscovery((current) => {
         if (
           current.targetAddress === targetWorkflow.address &&
@@ -539,7 +573,10 @@ export function WorkflowDetail({
 
       try {
         const result = await network.client.findClaimRequests(targetWorkflow);
-        if (!active) return;
+        if (
+          claimDiscoveryRequestSequence.current !== requestId ||
+          claimDiscoveryTarget.current !== targetWorkflow.address
+        ) return false;
 
         if (result.length > 0) {
           setClaimDiscovery((current) => {
@@ -615,8 +652,12 @@ export function WorkflowDetail({
                 },
           );
         }
+        return true;
       } catch (cause) {
-        if (!active) return;
+        if (
+          claimDiscoveryRequestSequence.current !== requestId ||
+          claimDiscoveryTarget.current !== targetWorkflow.address
+        ) return false;
         setClaimDiscovery((current) =>
           current.targetAddress === targetWorkflow.address &&
           current.requests.length > 0
@@ -630,79 +671,38 @@ export function WorkflowDetail({
                 error: cause instanceof Error ? cause : new Error(String(cause)),
               },
         );
+        return false;
       } finally {
-        reading = false;
+        if (activeClaimDiscovery.current?.requestId === requestId) {
+          activeClaimDiscovery.current = null;
+        }
       }
-    }
+    })();
 
-    void discoverClaim();
-    const interval = window.setInterval(
-      discoverClaim,
-      CLAIM_DISCOVERY_POLL_INTERVAL_MS,
-    );
-    const discoverWhenVisible = () => {
-      if (document.visibilityState === "visible") void discoverClaim();
+    activeClaimDiscovery.current = {
+      promise,
+      requestId,
+      targetAddress: targetWorkflow.address,
     };
+    return promise;
+  }, [claimDiscoveryEligible, network.client, workflow]);
 
-    window.addEventListener("focus", discoverWhenVisible);
-    document.addEventListener("visibilitychange", discoverWhenVisible);
+  useAdaptivePolling({
+    enabled: claimDiscoveryEligible,
+    intervalMs: CLAIM_DISCOVERY_POLL_INTERVAL_MS,
+    leading: true,
+    maxIntervalMs: LIVE_WORKFLOW_MAX_BACKOFF_MS,
+    poll: discoverClaim,
+  });
 
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-      window.removeEventListener("focus", discoverWhenVisible);
-      document.removeEventListener("visibilitychange", discoverWhenVisible);
-    };
-  }, [
-    claimDiscoveryEligible,
-    claimDiscoveryRefreshToken,
-    network.client,
-    workflow,
-  ]);
-
-  useEffect(() => {
-    if (!shouldPollWorkflow) return;
-
-    let reads = 0;
-    const intervalMs = pendingStateSignature
+  useAdaptivePolling({
+    enabled: shouldPollWorkflow && network.rpcStatus === "available",
+    intervalMs: pendingStateSignature
       ? PENDING_TRANSACTION_POLL_INTERVAL_MS
-      : LIVE_WORKFLOW_POLL_INTERVAL_MS;
-    function refreshWorkflow() {
-      if (document.visibilityState !== "visible") return;
-      reads += 1;
-      setRefreshToken((value) => value + 1);
-      if (
-        pendingStateSignature &&
-        !liveSettlementActive &&
-        !claimApprovalPending &&
-        !awaitingSponsorFunding &&
-        reads >= MAX_PENDING_TRANSACTION_READS
-      ) {
-        window.clearInterval(interval);
-      }
-    }
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") refreshWorkflow();
-    };
-    const interval = window.setInterval(() => {
-      refreshWorkflow();
-    }, intervalMs);
-
-    window.addEventListener("focus", refreshWhenVisible);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refreshWhenVisible);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [
-    awaitingSponsorFunding,
-    claimApprovalPending,
-    liveSettlementActive,
-    pendingStateSignature,
-    shouldPollWorkflow,
-  ]);
+      : LIVE_WORKFLOW_POLL_INTERVAL_MS,
+    maxIntervalMs: LIVE_WORKFLOW_MAX_BACKOFF_MS,
+    poll: workflowRead.refresh,
+  });
 
   useEffect(() => {
     if (!workflow) return;
@@ -770,10 +770,43 @@ export function WorkflowDetail({
       : network.rpcStatus === "checking"
         ? "Checking"
         : "Unavailable";
+  const workflowIsTerminal = Boolean(
+    workflow?.state.paid || workflow?.state.refunded,
+  );
+  const syncLabel = !workflow
+    ? readLoading
+      ? "Reading"
+      : "Unavailable"
+    : network.rpcStatus === "unavailable"
+      ? "Paused"
+      : workflowRead.error
+        ? "Stale"
+        : workflowRead.refreshing
+          ? "Syncing"
+          : workflowIsTerminal
+            ? "Final"
+            : shouldPollWorkflow
+              ? "Watching"
+              : "Verified";
+  const syncGood = Boolean(
+    workflow &&
+      network.rpcStatus === "available" &&
+      !workflowRead.error,
+  );
+  const lastVerifiedLabel = formatLastVerified(workflowRead.lastUpdatedAt);
+  const sourceNote = workflow && network.rpcStatus === "unavailable"
+    ? `Showing the last verified onchain state from ${lastVerifiedLabel}. Sync resumes automatically when Rialo reconnects.`
+    : workflow && workflowRead.error
+      ? `The latest refresh failed, so the verified state from ${lastVerifiedLabel} remains visible. Automatic reads are backing off and will retry.`
+      : workflowIsTerminal
+        ? `Terminal state verified at ${lastVerifiedLabel}. Automatic polling has stopped because paid and refunded outcomes cannot change.`
+        : workflow && shouldPollWorkflow
+          ? `Last verified at ${lastVerifiedLabel}. Sync runs only while this page is visible and reconciles immediately when you return.`
+          : "Every displayed value was decoded from the current Rialo workflow account.";
 
   function retryRead() {
-    setRefreshToken((value) => value + 1);
     network.refreshRpcHealth();
+    void workflowRead.refresh();
   }
 
   function retryClaimDiscovery() {
@@ -787,7 +820,9 @@ export function WorkflowDetail({
         error: null,
       });
     }
-    setClaimDiscoveryRefreshToken((value) => value + 1);
+    claimDiscoveryRequestSequence.current += 1;
+    activeClaimDiscovery.current = null;
+    void discoverClaim();
   }
 
   function selectClaimForReview(claimAddress: string) {
@@ -812,7 +847,7 @@ export function WorkflowDetail({
   function handleFundConfirmed(signature: string) {
     const confirmedSponsor = workflow?.state.sponsor ?? sponsor;
     setConfirmedTransaction({ signature, callbackSignature: null, kind: "fund" });
-    setRefreshToken((value) => value + 1);
+    void workflowRead.refresh();
 
     const query = new URLSearchParams({ event: "fund", tx: signature });
     addWorkflowAccount(query);
@@ -827,7 +862,7 @@ export function WorkflowDetail({
       callbackSignature: result.callbackSignature,
       kind: "check",
     });
-    setRefreshToken((value) => value + 1);
+    void workflowRead.refresh();
 
     const query = new URLSearchParams({ event: "check", tx: result.signature });
     addWorkflowAccount(query);
@@ -843,7 +878,7 @@ export function WorkflowDetail({
       callbackSignature: null,
       kind: "refund",
     });
-    setRefreshToken((value) => value + 1);
+    void workflowRead.refresh();
 
     const query = new URLSearchParams({ event: "refund", tx: signature });
     addWorkflowAccount(query);
@@ -860,7 +895,7 @@ export function WorkflowDetail({
         claimAddress: result.claimWorkflowAddress,
       });
     }
-    setRefreshToken((value) => value + 1);
+    void workflowRead.refresh();
 
     const query = new URLSearchParams({
       event: "claim",
@@ -875,7 +910,7 @@ export function WorkflowDetail({
   function handleClaimAccepted(result: AcceptClaimResult) {
     const confirmedSponsor = workflow?.state.sponsor ?? sponsor;
     setConfirmedTransaction({ signature: result.signature, callbackSignature: null, kind: "accept_claim" });
-    setRefreshToken((value) => value + 1);
+    void workflowRead.refresh();
 
     const query = new URLSearchParams({ event: "accept_claim", tx: result.signature });
     addWorkflowAccount(query);
@@ -974,7 +1009,7 @@ export function WorkflowDetail({
   }
 
   return (
-    <div className="workflow-detail">
+    <div aria-busy={workflowRead.refreshing} className="workflow-detail">
       {confirmedTransaction ? (
         <section className="workflow-confirmation" data-tone={confirmationTone} aria-live="polite">
           <span className="workflow-confirmation__icon">
@@ -1029,9 +1064,10 @@ export function WorkflowDetail({
             <li><span>Network</span><strong>{network.label.replace("Rialo ", "")}</strong></li>
             <li><span>RPC</span><strong className={network.rpcStatus === "available" ? "state state--good" : "state"}>{rpcLabel}</strong></li>
             <li><span>Decoder</span><strong className={decoderGood ? "state state--good" : "state"}>{decoderLabel}</strong></li>
+            <li><span>Sync</span><strong className={syncGood ? "state state--good" : "state state--warn"}>{syncLabel}</strong></li>
             {displaySponsor ? <li><span>Sponsor</span><strong className="mono" title={displaySponsor}>{shortenAddress(displaySponsor, 6)}</strong></li> : null}
           </ul>
-          <p className="panel-note">Every value is read from Rialo. A missing account or RPC failure stays visible as a missing account or RPC failure.</p>
+          <p className="panel-note">{sourceNote}</p>
         </aside>
       </div>
     </div>

@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useAdaptivePolling } from "@/hooks/use-adaptive-polling";
 import { networkLabel } from "@/lib/config";
 import {
   expectedChainId,
@@ -39,28 +40,35 @@ export function NetworkProvider({ children }: Readonly<{ children: ReactNode }>)
         health,
         error: health === "ok" ? null : new Error(`Rialo RPC health: ${health}`),
       });
+      return health === "ok";
     } catch (cause) {
       const error = cause instanceof Error ? cause : new Error(String(cause));
       setRpcState({ status: "unavailable", health: null, error });
+      return false;
     }
   }, []);
 
+  useAdaptivePolling({
+    enabled: true,
+    intervalMs: 30_000,
+    leading: true,
+    maxIntervalMs: 120_000,
+    poll: checkRpcHealth,
+  });
+
   useEffect(() => {
-    let active = true;
-
-    const initialCheck = window.setTimeout(() => {
-      if (active) void checkRpcHealth();
-    }, 0);
-    const interval = window.setInterval(() => {
-      if (active) void checkRpcHealth();
-    }, 30_000);
-
-    return () => {
-      active = false;
-      window.clearTimeout(initialCheck);
-      window.clearInterval(interval);
+    const markOffline = () => {
+      setRpcState((current) => ({
+        status: "unavailable",
+        health: current.health,
+        error: new Error("The browser is offline."),
+      }));
     };
-  }, [checkRpcHealth]);
+
+    window.addEventListener("offline", markOffline);
+    if (navigator.onLine === false) markOffline();
+    return () => window.removeEventListener("offline", markOffline);
+  }, []);
 
   const value = useMemo<NetworkSnapshot>(
     () => ({

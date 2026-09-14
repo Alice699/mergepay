@@ -319,6 +319,10 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
     new URL("hooks/use-network.ts", webRoot),
     "utf8",
   );
+  const adaptivePolling = await readFile(
+    new URL("hooks/use-adaptive-polling.ts", webRoot),
+    "utf8",
+  );
   const walletHook = await readFile(
     new URL("hooks/use-wallet.ts", webRoot),
     "utf8",
@@ -462,6 +466,12 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(walletProvider, /sendTransaction/);
   assert.match(walletProvider, /confirm\(/);
   assert.match(networkProvider, /getHealth/);
+  assert.match(networkProvider, /useAdaptivePolling/);
+  assert.match(adaptivePolling, /visibilitychange/);
+  assert.match(adaptivePolling, /window\.addEventListener\("online"/);
+  assert.match(adaptivePolling, /window\.addEventListener\("offline"/);
+  assert.match(adaptivePolling, /Math\.pow\(2/);
+  assert.doesNotMatch(adaptivePolling, /setInterval/);
   assert.match(form, /onSubmit={handleSubmit}/);
   assert.match(form, /detailQuery/);
   assert.match(workflowDetail, /getWorkflow/);
@@ -545,7 +555,8 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(bountyFeed, /Load older listings/);
   assert.match(bountyFeed, /Shared DevNet test bounty/);
   assert.match(bountyFeed, /legacy/);
-  assert.match(bountyFeed, /visibilitychange/);
+  assert.match(bountyFeed, /useAdaptivePolling/);
+  assert.match(bountyFeed, /Showing the last verified listings/);
   assert.match(bountyFeed, /variant="empty"/);
   assert.match(marketplacePage, /readiness-panel--marketplace/);
   assert.match(marketplacePage, /liquid-slate-page ledger-page marketplace-page/);
@@ -581,6 +592,10 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
     new URL("hooks/use-workflow.ts", webRoot),
     "utf8",
   );
+  const adaptivePolling = await readFile(
+    new URL("hooks/use-adaptive-polling.ts", webRoot),
+    "utf8",
+  );
   const settlementReceipt = await readFile(
     new URL("components/bounty/settlement-receipt.tsx", webRoot),
     "utf8",
@@ -605,14 +620,20 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(workflowDetail, /awaitingSponsorFunding/);
   assert.match(workflowDetail, /Waiting for sponsor funding/);
   assert.match(workflowDetail, /workflow-claim--observer/);
-  assert.match(workflowDetail, /visibilitychange/);
+  assert.match(workflowDetail, /useAdaptivePolling/);
+  assert.match(workflowDetail, /Sync resumes automatically/);
+  assert.match(workflowDetail, /Automatic polling has stopped/);
   assert.match(workflowDetail, /publishAppNotification/);
   assert.match(workflowDetail, /Claim record address/);
   assert.match(workflowDetail, /settlementReceiptHref/);
   assert.match(workflowDetail, /View receipt/);
   assert.match(workflowHook, /state\.workflow/);
   assert.match(workflowHook, /requestSequence/);
-  assert.match(workflowHook, /current\.requestId > requestId/);
+  assert.match(workflowHook, /requestSequence\.current !== requestId/);
+  assert.match(workflowHook, /activeRequest/);
+  assert.match(workflowHook, /lastUpdatedAt/);
+  assert.match(adaptivePolling, /pageCanPoll/);
+  assert.match(adaptivePolling, /failureCount/);
   assert.match(receiptPage, /SettlementReceipt/);
   assert.match(settlementReceipt, /getWorkflowByAddress/);
   assert.match(settlementReceipt, /deriveWorkflowPda/);
@@ -624,6 +645,8 @@ test("keeps transaction feedback and terminal workflow state live", async () => 
   assert.match(settlementReceipt, /account\.kelvin/);
   assert.match(settlementReceipt, /No success is claimed until/);
   assert.match(settlementReceipt, /PROOF MISMATCH/);
+  assert.match(settlementReceipt, /useAdaptivePolling/);
+  assert.match(settlementReceipt, /last verified state/);
   assert.match(routes, /settlementReceipt/);
   assert.match(styles, /width: min\(22rem, calc\(100vw - 2rem\)\)/);
   assert.match(styles, /\.workflow-claim__record/);

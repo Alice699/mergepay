@@ -15,6 +15,7 @@ import {
   type ReactNode,
 } from "react";
 import { useNetwork } from "@/hooks/use-network";
+import { useAdaptivePolling } from "@/hooks/use-adaptive-polling";
 import { useWallet } from "@/hooks/use-wallet";
 import { routes } from "@/lib/constants";
 import { formatDeadlineDate, formatRlo, shortenAddress } from "@/lib/format";
@@ -62,10 +63,10 @@ export function OpenBountyFeed() {
   const loadingRef = useRef(false);
 
   const load = useCallback(async (append = false, preserveHistory = false) => {
-    if (network.rpcStatus !== "available" || loadingRef.current) return;
+    if (network.rpcStatus !== "available" || loadingRef.current) return true;
 
     const before = append ? cursorRef.current : null;
-    if (append && !before) return;
+    if (append && !before) return true;
 
     loadingRef.current = true;
     if (!append && !preserveHistory) cursorRef.current = null;
@@ -95,6 +96,7 @@ export function OpenBountyFeed() {
             ? Math.max(current.scannedTransactions, page.scannedTransactions)
             : page.scannedTransactions,
       }));
+      return true;
     } catch (cause) {
       const retainHistory = append || preserveHistory;
       setState((current) => ({
@@ -105,6 +107,7 @@ export function OpenBountyFeed() {
         hasMore: retainHistory ? current.hasMore : false,
         scannedTransactions: retainHistory ? current.scannedTransactions : 0,
       }));
+      return false;
     } finally {
       loadingRef.current = false;
     }
@@ -113,19 +116,15 @@ export function OpenBountyFeed() {
   useEffect(() => {
     if (network.rpcStatus !== "available") return;
     const timer = window.setTimeout(() => void load(), 0);
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void load(false, true);
-    }, 20_000);
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") void load(false, true);
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.clearTimeout(timer);
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
+    return () => window.clearTimeout(timer);
   }, [load, network.rpcStatus]);
+
+  useAdaptivePolling({
+    enabled: network.rpcStatus === "available",
+    intervalMs: 20_000,
+    maxIntervalMs: 60_000,
+    poll: () => load(false, true),
+  });
 
   const repositories = useMemo(
     () =>
@@ -290,14 +289,14 @@ export function OpenBountyFeed() {
         ) : null}
       </div>
 
-      {network.rpcStatus !== "available" ? (
+      {network.rpcStatus !== "available" && state.items.length === 0 ? (
         <FeedMessage
           title="Waiting for Rialo DevNet."
           description="The marketplace only shows verified accounts after the RPC reports a healthy connection."
           icon={<Clock3 aria-hidden="true" size={19} strokeWidth={1.7} />}
           tone="default"
         />
-      ) : state.status === "error" ? (
+      ) : state.status === "error" && state.items.length === 0 ? (
         <FeedMessage
           action={<button className="button button--dark" onClick={() => void load()} type="button">Try again</button>}
           description={state.error?.message || "Rialo did not return a usable bounty index response."}
@@ -361,10 +360,19 @@ export function OpenBountyFeed() {
       )}
 
       <div className="bounty-feed__note">
-        <span className="state state--warn">Shared DevNet</span>
+        <span className="state state--warn">
+          {network.rpcStatus !== "available"
+            ? "Sync paused"
+            : state.error
+              ? "Last verified"
+              : "Shared DevNet"}
+        </span>
         <p>
-          Listings come directly from verified workflow accounts. Invalid PDA links
-          and legacy ABI records are excluded.
+          {network.rpcStatus !== "available" && state.items.length > 0
+            ? "Showing the last verified listings. Discovery resumes automatically when Rialo reconnects."
+            : state.error && state.items.length > 0
+              ? "The latest refresh was interrupted. Existing verified listings remain visible while the next read backs off and retries."
+              : "Listings come directly from verified workflow accounts. Invalid PDA links and legacy ABI records are excluded."}
         </p>
       </div>
     </section>

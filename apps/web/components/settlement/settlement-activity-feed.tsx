@@ -23,6 +23,7 @@ import {
   type ReactNode,
 } from "react";
 import { CopyValue } from "@/components/ui/copy-value";
+import { useAdaptivePolling } from "@/hooks/use-adaptive-polling";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
 import { formatRlo } from "@/lib/format";
@@ -119,7 +120,7 @@ export function SettlementActivityFeed() {
       mode: SettlementLoadMode;
       pageIndex: number;
     }) => {
-      if (activeRequestRef.current || walletAddressRef.current !== address) return;
+      if (activeRequestRef.current || walletAddressRef.current !== address) return true;
 
       const requestId = ++requestRef.current;
       activeRequestRef.current = true;
@@ -141,7 +142,7 @@ export function SettlementActivityFeed() {
         if (
           requestId !== requestRef.current ||
           walletAddressRef.current !== address
-        ) return;
+        ) return false;
 
         const current = stateRef.current;
         const page = mode === "refresh" &&
@@ -165,11 +166,12 @@ export function SettlementActivityFeed() {
           lastChecked: Date.now(),
           refreshing: false,
         });
+        return true;
       } catch (cause) {
         if (
           requestId !== requestRef.current ||
           walletAddressRef.current !== address
-        ) return;
+        ) return false;
 
         const error = cause instanceof Error ? cause : new Error(String(cause));
         setState((current) => current.page
@@ -187,6 +189,7 @@ export function SettlementActivityFeed() {
               lastChecked: null,
               refreshing: false,
             });
+        return false;
       } finally {
         if (requestId === requestRef.current) {
           activeRequestRef.current = false;
@@ -235,42 +238,33 @@ export function SettlementActivityFeed() {
     activeRequestRef.current = false;
   }, []);
 
-  useEffect(() => {
-    if (!wallet.address || network.rpcStatus !== "available") return;
+  const refreshLatest = useCallback(() => {
     const address = wallet.address;
+    const current = stateRef.current;
+    if (
+      !address ||
+      current.pageIndex !== 0 ||
+      current.status === "loading" ||
+      current.refreshing ||
+      activeRequestRef.current ||
+      Date.now() - lastRefreshStartedRef.current <
+        SETTLEMENT_REFRESH_MIN_GAP_MS
+    ) return true;
 
-    const refreshLatest = () => {
-      const current = stateRef.current;
-      if (
-        document.visibilityState === "visible" &&
-        current.pageIndex === 0 &&
-        current.status !== "loading" &&
-        !current.refreshing &&
-        !activeRequestRef.current &&
-        Date.now() - lastRefreshStartedRef.current >=
-          SETTLEMENT_REFRESH_MIN_GAP_MS
-      ) {
-        void loadSettlements({
-          address,
-          mode: current.page ? "refresh" : "initial",
-          pageIndex: 0,
-        });
-      }
-    };
+    return loadSettlements({
+      address,
+      mode: current.page ? "refresh" : "initial",
+      pageIndex: 0,
+    });
+  }, [loadSettlements, wallet.address]);
 
-    const interval = window.setInterval(
-      refreshLatest,
-      SETTLEMENT_REFRESH_INTERVAL_MS,
-    );
-    window.addEventListener("focus", refreshLatest);
-    document.addEventListener("visibilitychange", refreshLatest);
-
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refreshLatest);
-      document.removeEventListener("visibilitychange", refreshLatest);
-    };
-  }, [loadSettlements, network.rpcStatus, wallet.address]);
+  useAdaptivePolling({
+    enabled: Boolean(wallet.address && network.rpcStatus === "available"),
+    intervalMs: SETTLEMENT_REFRESH_INTERVAL_MS,
+    maxIntervalMs: SETTLEMENT_REFRESH_INTERVAL_MS * 4,
+    poll: refreshLatest,
+    resumeMinGapMs: SETTLEMENT_REFRESH_MIN_GAP_MS,
+  });
 
   function refreshSettlements() {
     if (!wallet.address || network.rpcStatus !== "available") return;
