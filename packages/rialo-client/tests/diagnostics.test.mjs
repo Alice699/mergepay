@@ -65,7 +65,14 @@ function createInstruction(slug, deadlineUnixMs) {
   });
 }
 
-function transaction(signature, instruction, blockHeight, blockTime, err = null) {
+function transaction(
+  signature,
+  instruction,
+  blockHeight,
+  blockTime,
+  err = null,
+  logMessages = [],
+) {
   const accountKeys = instruction.accounts.map((account) =>
     account.pubkey.toString(),
   );
@@ -87,7 +94,11 @@ function transaction(signature, instruction, blockHeight, blockTime, err = null)
         ],
       },
     },
-    meta: { fee: 100n, ...(err ? { err } : {}) },
+    meta: {
+      fee: 100n,
+      ...(err ? { err } : {}),
+      ...(logMessages.length > 0 ? { logMessages } : {}),
+    },
   };
 }
 
@@ -357,4 +368,127 @@ test("marks a valid workflow when its latest activity read is incomplete", async
   assert.equal(page.items[0].finding, "read_incomplete");
   assert.equal(page.items[0].severity, "warning");
   assert.match(page.items[0].readError, /activity RPC timed out/);
+});
+
+test("distinguishes repeated inconclusive REX reports from not-merged proof", async () => {
+  const now = Date.now();
+  const nowSeconds = BigInt(Math.floor(now / 1_000));
+  const inconclusiveSlug = "7".padStart(64, "0");
+  const notMergedSlug = "8".padStart(64, "0");
+  const inconclusiveWorkflow = workflow(inconclusiveSlug, { checks: 2n });
+  const notMergedWorkflow = workflow(notMergedSlug, { checks: 1n });
+  const workflows = new Map([
+    [inconclusiveWorkflow.address, inconclusiveWorkflow],
+    [notMergedWorkflow.address, notMergedWorkflow],
+  ]);
+  const creationRecords = [inconclusiveSlug, notMergedSlug].map(
+    (slug, index) => {
+      const signature = `create-rex-${index}`;
+      const instruction = createInstruction(slug, BigInt(now + 86_400_000));
+      return {
+        address: deriveWorkflowPda(MERGEPAY_PROGRAM_ID, sponsor, slug).address,
+        signature: {
+          signature,
+          blockHeight: BigInt(80 - index),
+          blockTime: nowSeconds - BigInt(index),
+        },
+        transaction: transaction(
+          signature,
+          instruction,
+          BigInt(80 - index),
+          nowSeconds - BigInt(index),
+        ),
+      };
+    },
+  );
+  const inconclusiveCheck = buildCheckMergeInstruction({
+    payer: sponsor,
+    programId: MERGEPAY_PROGRAM_ID,
+    workflowSlug: inconclusiveSlug,
+    branchNumber: 2,
+  });
+  const notMergedCheck = buildCheckMergeInstruction({
+    payer: sponsor,
+    programId: MERGEPAY_PROGRAM_ID,
+    workflowSlug: notMergedSlug,
+    branchNumber: 1,
+  });
+  const workflowSignatures = new Map([
+    [
+      inconclusiveWorkflow.address,
+      [
+        { signature: "rex-empty", blockHeight: 91n, blockTime: nowSeconds - 5n },
+        { signature: "rex-timeout", blockHeight: 90n, blockTime: nowSeconds - 35n },
+      ],
+    ],
+    [
+      notMergedWorkflow.address,
+      [{ signature: "rex-not-merged", blockHeight: 89n, blockTime: nowSeconds - 10n }],
+    ],
+  ]);
+  const transactions = new Map(
+    creationRecords.map((record) => [record.signature.signature, record.transaction]),
+  );
+  transactions.set(
+    "rex-empty",
+    transaction(
+      "rex-empty",
+      inconclusiveCheck,
+      91n,
+      nowSeconds - 5n,
+      null,
+      ["Program log: MergePay received an empty REX report"],
+    ),
+  );
+  transactions.set(
+    "rex-timeout",
+    transaction(
+      "rex-timeout",
+      inconclusiveCheck,
+      90n,
+      nowSeconds - 35n,
+      null,
+      ["Program log: MergePay inconclusive REX error: timed out"],
+    ),
+  );
+  transactions.set(
+    "rex-not-merged",
+    transaction(
+      "rex-not-merged",
+      notMergedCheck,
+      89n,
+      nowSeconds - 10n,
+      null,
+      ["Program log: MergePay PR is not merged; escrow remains locked"],
+    ),
+  );
+
+  const client = new MergePayClient({
+    rpc: {
+      getSignaturesForAddressPage: async (address) =>
+        address === MERGEPAY_PROGRAM_ID
+          ? creationRecords.map((record) => record.signature)
+          : workflowSignatures.get(address) ?? [],
+      getTransaction: async (signature) => transactions.get(signature) ?? null,
+    },
+  });
+  client.getWorkflowByAddress = async (address) => workflows.get(address) ?? null;
+
+  const page = await client.getWorkflowDiagnosticsPage();
+  const repeated = page.items.find(
+    ({ workflowAddress }) => workflowAddress === inconclusiveWorkflow.address,
+  );
+  const negativeProof = page.items.find(
+    ({ workflowAddress }) => workflowAddress === notMergedWorkflow.address,
+  );
+
+  assert.equal(repeated?.finding, "rex_failures_repeated");
+  assert.equal(repeated?.severity, "warning");
+  assert.equal(repeated?.reliability.inconclusiveRexReports, 2);
+  assert.equal(repeated?.reliability.latestRexSignal, "inconclusive");
+  assert.equal(negativeProof?.finding, "none");
+  assert.equal(negativeProof?.severity, "healthy");
+  assert.equal(negativeProof?.reliability.notMergedRexReports, 1);
+  assert.equal(negativeProof?.reliability.latestRexSignal, "not_merged");
+  assert.match(negativeProof?.message ?? "", /not merged/i);
 });

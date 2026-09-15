@@ -61,6 +61,8 @@ export interface MergePayClientOptions {
   rpc?: MergePayRpcClient;
 }
 
+export type MergePayRexSignal = "merged" | "not_merged" | "inconclusive";
+
 export interface MergePayActivityItem {
   signature: string;
   blockHeight: bigint;
@@ -74,6 +76,7 @@ export interface MergePayActivityItem {
   workflowPayer: string | null;
   legacyInstruction: boolean;
   feeKelvin: bigint | null;
+  rexSignal: MergePayRexSignal | null;
 }
 
 export interface MergePayActivityPage {
@@ -136,6 +139,8 @@ const TRANSACTION_CACHE_TTL_MS = 5 * 60_000;
 const WORKFLOW_CACHE_TTL_MS = 5_000;
 const MAX_READ_CACHE_ENTRIES = 256;
 const DIAGNOSTIC_CHECK_REVIEW_AFTER_MS = 10 * 60_000;
+const DIAGNOSTIC_ACTIVITY_SAMPLE_SIZE = 8;
+const DIAGNOSTIC_WORKFLOW_CONCURRENCY = 4;
 
 export type MergePayPublicBountyStatus =
   | "open"
@@ -177,10 +182,24 @@ export type MergePayDiagnosticFinding =
   | "pda_mismatch"
   | "invalid_state"
   | "transaction_failed"
+  | "rex_inconclusive"
+  | "rex_failures_repeated"
   | "refund_overdue"
   | "settlement_incomplete"
   | "check_needs_review"
   | "expired_unfunded";
+
+export interface MergePayWorkflowReliability {
+  sampledTransactions: number;
+  failedTransactions: number;
+  consecutiveIssues: number;
+  recentMergeChecks: number;
+  inconclusiveRexReports: number;
+  notMergedRexReports: number;
+  mergedRexReports: number;
+  latestRexSignal: MergePayRexSignal | null;
+  lastConfirmedActivity: bigint | null;
+}
 
 export interface MergePayWorkflowDiagnostic {
   network: RialoNetwork;
@@ -196,6 +215,7 @@ export interface MergePayWorkflowDiagnostic {
   createdBlockHeight: bigint;
   createdBlockTime: bigint | null;
   latestActivity: MergePayActivityItem | null;
+  reliability: MergePayWorkflowReliability;
   readError: string | null;
 }
 
@@ -651,8 +671,10 @@ export class MergePayClient {
     let readErrors = activityBatch.unreadableTransactions;
     const seen = new Set<string>();
     const now = Date.now();
-    const diagnosticResults = await Promise.all(
-      candidates.map(async (item) => {
+    const diagnosticResults = await mapWithConcurrency(
+      candidates,
+      DIAGNOSTIC_WORKFLOW_CONCURRENCY,
+      async (item) => {
         if (seen.has(item.workflowAddress)) return null;
         seen.add(item.workflowAddress);
 
@@ -667,28 +689,19 @@ export class MergePayClient {
             item,
             workflow: null,
             latestActivity: item,
+            activitySample: [item],
             readError: null,
             now,
             pdaMatches: false,
           });
         }
 
-        const [workflowResult, activityResult] = await Promise.allSettled([
+        const [workflowResult, signaturesResult] = await Promise.allSettled([
           this.getWorkflowByAddress(item.workflowAddress),
-          this.rpc
-            .getSignaturesForAddressPage(item.workflowAddress, 1)
-            .then(async (latestSignatures) => {
-              if (latestSignatures.length === 0) {
-                return { activity: item, unreadableTransactions: 0 };
-              }
-              const latestBatch = await this.decodeWalletActivityBatch(
-                latestSignatures,
-              );
-              return {
-                activity: latestBatch.items[0] ?? item,
-                unreadableTransactions: latestBatch.unreadableTransactions,
-              };
-            }),
+          this.rpc.getSignaturesForAddressPage(
+            item.workflowAddress,
+            DIAGNOSTIC_ACTIVITY_SAMPLE_SIZE,
+          ),
         ]);
 
         let localReadErrors = 0;
@@ -705,16 +718,33 @@ export class MergePayClient {
           errors.push(errorMessage(workflowResult.reason));
         }
 
+        let activitySample: MergePayActivityItem[] = [item];
         let latestActivity: MergePayActivityItem | null = item;
-        if (activityResult.status === "fulfilled") {
-          latestActivity = activityResult.value.activity;
-          localReadErrors += activityResult.value.unreadableTransactions;
-          if (activityResult.value.unreadableTransactions > 0) {
-            errors.push("The latest workflow transaction could not be decoded.");
+        if (signaturesResult.status === "fulfilled") {
+          const lifecycle = workflow
+            ? classifyWorkflowLifecycle(workflow.state)
+            : "unavailable";
+          const sampleSize =
+            lifecycle === "funded" || lifecycle === "merge_confirmed"
+              ? DIAGNOSTIC_ACTIVITY_SAMPLE_SIZE
+              : 1;
+          const sampledSignatures = signaturesResult.value.slice(0, sampleSize);
+          if (sampledSignatures.length > 0) {
+            const activityBatch = await this.decodeWalletActivityBatch(
+              sampledSignatures,
+            );
+            activitySample = activityBatch.items;
+            latestActivity = activitySample[0] ?? item;
+            localReadErrors += activityBatch.unreadableTransactions;
+            if (activityBatch.unreadableTransactions > 0) {
+              errors.push(
+                `${activityBatch.unreadableTransactions} recent workflow transaction read${activityBatch.unreadableTransactions === 1 ? "" : "s"} could not be decoded.`,
+              );
+            }
           }
         } else {
           localReadErrors += 1;
-          errors.push(errorMessage(activityResult.reason));
+          errors.push(errorMessage(signaturesResult.reason));
         }
 
         readErrors += localReadErrors;
@@ -723,11 +753,12 @@ export class MergePayClient {
           item,
           workflow,
           latestActivity,
+          activitySample,
           readError: errors.length > 0 ? errors.join(" ") : null,
           now,
           pdaMatches: true,
         });
-      }),
+      },
     );
 
     const nextBefore =
@@ -791,6 +822,7 @@ export class MergePayClient {
           workflowPayer: mergePayInstruction?.workflowPayer ?? null,
           legacyInstruction: mergePayInstruction?.legacyInstruction ?? false,
           feeKelvin: transaction?.meta.fee ?? null,
+          rexSignal: classifyRexSignal(transaction?.meta.logMessages),
         };
       }),
       unreadableTransactions: records.reduce(
@@ -1105,6 +1137,7 @@ function createWorkflowDiagnostic({
   item,
   workflow,
   latestActivity,
+  activitySample,
   readError,
   now,
   pdaMatches,
@@ -1118,10 +1151,12 @@ function createWorkflowDiagnostic({
   };
   workflow: DecodedMergePayWorkflow | null;
   latestActivity: MergePayActivityItem | null;
+  activitySample: readonly MergePayActivityItem[];
   readError: string | null;
   now: number;
   pdaMatches: boolean;
 }): MergePayWorkflowDiagnostic {
+  const reliability = summarizeWorkflowReliability(activitySample);
   const base = {
     network,
     workflowAddress: item.workflowAddress,
@@ -1132,6 +1167,7 @@ function createWorkflowDiagnostic({
     createdBlockHeight: item.blockHeight,
     createdBlockTime: item.blockTime,
     latestActivity,
+    reliability,
     readError,
   };
 
@@ -1200,7 +1236,37 @@ function createWorkflowDiagnostic({
       lifecycle,
       severity: "warning",
       finding: "transaction_failed",
-      message: "The latest workflow transaction failed and may need another read or retry.",
+      message:
+        reliability.failedTransactions > 1
+          ? `${reliability.failedTransactions} of the ${reliability.sampledTransactions} sampled workflow transactions failed. State remains unchanged and should be reviewed.`
+          : "The latest workflow transaction failed and may need another read or retry.",
+    };
+  }
+
+  if (
+    lifecycle === "funded" &&
+    reliability.inconclusiveRexReports >= 2 &&
+    reliability.consecutiveIssues >= 2
+  ) {
+    return {
+      ...base,
+      lifecycle,
+      severity: "warning",
+      finding: "rex_failures_repeated",
+      message: `${reliability.inconclusiveRexReports} sampled REX reports were inconclusive. Escrow remains locked and the native heartbeat can retry safely.`,
+    };
+  }
+
+  if (
+    lifecycle === "funded" &&
+    reliability.latestRexSignal === "inconclusive"
+  ) {
+    return {
+      ...base,
+      lifecycle,
+      severity: "warning",
+      finding: "rex_inconclusive",
+      message: "The latest REX report was inconclusive. This is not proof that the pull request is unmerged, so escrow remains locked.",
     };
   }
 
@@ -1227,7 +1293,10 @@ function createWorkflowDiagnostic({
       lifecycle,
       severity: "warning",
       finding: "check_needs_review",
-      message: "No terminal account update followed the latest merge check within ten minutes.",
+      message:
+        reliability.latestRexSignal === "not_merged"
+          ? "The last REX proof was validly not merged, but no newer heartbeat was observed within ten minutes. Escrow remains locked."
+          : "No terminal account update followed the latest merge check within ten minutes.",
     };
   }
 
@@ -1252,8 +1321,63 @@ function createWorkflowDiagnostic({
     message:
       lifecycle === "paid" || lifecycle === "refunded"
         ? "Terminal workflow state is internally consistent."
+        : lifecycle === "funded" &&
+            reliability.latestRexSignal === "not_merged"
+          ? "The latest REX proof says the pull request is not merged. Escrow remains locked and the native heartbeat stays active."
         : "The latest verified workflow state requires no intervention.",
   };
+}
+
+function summarizeWorkflowReliability(
+  activity: readonly MergePayActivityItem[],
+): MergePayWorkflowReliability {
+  let consecutiveIssues = 0;
+  for (const item of activity) {
+    if (item.status === "failed" || item.rexSignal === "inconclusive") {
+      consecutiveIssues += 1;
+    } else {
+      break;
+    }
+  }
+
+  return {
+    sampledTransactions: activity.length,
+    failedTransactions: activity.filter(({ status }) => status === "failed").length,
+    consecutiveIssues,
+    recentMergeChecks: activity.filter(({ action }) => action === "check_merge").length,
+    inconclusiveRexReports: activity.filter(
+      ({ rexSignal }) => rexSignal === "inconclusive",
+    ).length,
+    notMergedRexReports: activity.filter(
+      ({ rexSignal }) => rexSignal === "not_merged",
+    ).length,
+    mergedRexReports: activity.filter(({ rexSignal }) => rexSignal === "merged").length,
+    latestRexSignal:
+      activity.find(({ rexSignal }) => rexSignal !== null)?.rexSignal ?? null,
+    lastConfirmedActivity:
+      activity.find(
+        ({ status, blockTime }) => status === "confirmed" && blockTime !== null,
+      )?.blockTime ?? null,
+  };
+}
+
+function classifyRexSignal(
+  logMessages: readonly string[] | undefined,
+): MergePayRexSignal | null {
+  if (!logMessages || logMessages.length === 0) return null;
+  const logs = logMessages.join("\n").toLowerCase();
+  if (logs.includes("mergepay released ")) return "merged";
+  if (logs.includes("mergepay pr is not merged")) return "not_merged";
+  if (
+    logs.includes("mergepay inconclusive rex error") ||
+    logs.includes("mergepay unserializable response") ||
+    logs.includes("mergepay received an unsupported rex output") ||
+    logs.includes("mergepay received an empty rex report") ||
+    logs.includes("mergepay rex report was not unanimous")
+  ) {
+    return "inconclusive";
+  }
+  return null;
 }
 
 function blockTimeToUnixMs(value: bigint | null): number | null {
@@ -1261,6 +1385,28 @@ function blockTimeToUnixMs(value: bigint | null): number | null {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;
   return numeric > 100_000_000_000 ? numeric : numeric * 1_000;
+}
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workers = Array.from(
+    { length: Math.min(Math.max(1, concurrency), items.length) },
+    async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(items[index] as T, index);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
 }
 
 function errorMessage(cause: unknown): string {

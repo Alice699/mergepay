@@ -1,3 +1,5 @@
+import { githubApiErrorFromResponse } from "@/lib/github-api-error";
+
 export interface GitHubClaimReviewInput {
   owner: string;
   repo: string;
@@ -64,17 +66,23 @@ export async function verifyGitHubClaimAuthor(
     cache: "no-store",
     signal: signal ?? null,
   });
-  const payload = (await response.json()) as unknown;
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw githubApiErrorFromResponse(
+      response,
+      null,
+      "GitHub contributor verification returned an unreadable response.",
+    );
+  }
 
   if (!response.ok || !isGitHubClaimReview(payload)) {
-    const message =
-      typeof payload === "object" &&
-      payload !== null &&
-      "error" in payload &&
-      typeof payload.error === "string"
-        ? payload.error
-        : "GitHub could not verify the recorded contributor.";
-    throw new Error(message);
+    throw githubApiErrorFromResponse(
+      response,
+      payload,
+      "GitHub could not verify the recorded contributor.",
+    );
   }
 
   return payload;

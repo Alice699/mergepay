@@ -5,6 +5,10 @@ import {
   fetchPublicGitHubPull,
 } from "../../lib/github-public-pull";
 import { runSingleFlight } from "../../lib/single-flight";
+import {
+  BoundedRetryError,
+  runWithBoundedRetry,
+} from "../../lib/upstream-reliability";
 
 test.describe("upstream fault boundaries", () => {
   test.describe.configure({ mode: "serial" });
@@ -27,24 +31,31 @@ test.describe("upstream fault boundaries", () => {
         fetch: async () => new Response(null, { status: 404 }),
         message: "GitHub could not find this public pull request.",
         status: 404,
+        code: "GITHUB_PULL_NOT_FOUND",
       },
       {
         fetch: async () => new Response(null, { status: 429 }),
-        message: "GitHub returned HTTP 429.",
-        status: 502,
+        message:
+          "GitHub rate limiting temporarily prevented verification. Approval remains locked; retry after the limit resets.",
+        status: 429,
+        code: "GITHUB_RATE_LIMITED",
       },
       {
         fetch: async () => {
           throw new DOMException("request aborted", "AbortError");
         },
-        message: "GitHub did not respond in time.",
-        status: 502,
+        message:
+          "GitHub did not respond before the verification timeout. Approval remains locked; try again shortly.",
+        status: 504,
+        code: "GITHUB_TIMEOUT",
       },
     ] as const;
 
     for (const scenario of scenarios) {
       globalThis.fetch = scenario.fetch as typeof fetch;
-      const error = await fetchPublicGitHubPull("Alice699", "mergepay-demo", 7)
+      const error = await fetchPublicGitHubPull("Alice699", "mergepay-demo", 7, {
+        sleep: async () => undefined,
+      })
         .then(() => null)
         .catch((cause: unknown) => cause);
 
@@ -52,8 +63,44 @@ test.describe("upstream fault boundaries", () => {
       expect(error).toMatchObject({
         message: scenario.message,
         status: scenario.status,
+        code: scenario.code,
       });
     }
+  });
+
+  test("retries one transient GitHub read and returns verified data", async () => {
+    let attempts = 0;
+    const pull = await fetchPublicGitHubPull("Alice699", "mergepay-demo", 7, {
+      sleep: async () => undefined,
+      fetch: (async () => {
+        attempts += 1;
+        if (attempts === 1) {
+          return new Response(null, {
+            status: 503,
+            headers: { "Retry-After": "0" },
+          });
+        }
+        return new Response(
+          JSON.stringify({
+            number: 7,
+            title: "Retry-safe proof",
+            state: "open",
+            html_url: "https://github.com/Alice699/mergepay-demo/pull/7",
+            merged_at: null,
+            user: {
+              id: 136351960,
+              login: "biawaklahat",
+              avatar_url: null,
+            },
+          }),
+          { status: 200 },
+        );
+      }) as typeof fetch,
+    });
+
+    expect(attempts).toBe(2);
+    expect(pull.upstream.attempts).toBe(2);
+    expect(pull.author.login).toBe("biawaklahat");
   });
 
   test("passes an upstream RPC rate limit through without fabricating data", async () => {
@@ -67,13 +114,17 @@ test.describe("upstream fault boundaries", () => {
         }),
         {
           status: 429,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": "0",
+          },
         },
       )) as typeof fetch;
 
     const response = await relayRialoRpc(rpcRequest(41));
     expect(response.status).toBe(429);
     expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-mergepay-rpc-attempts")).toBe("3");
     await expect(response.json()).resolves.toEqual({
       jsonrpc: "2.0",
       id: 41,
@@ -88,16 +139,75 @@ test.describe("upstream fault boundaries", () => {
     }) as typeof fetch;
 
     const response = await relayRialoRpc(rpcRequest(42));
-    expect(response.status).toBe(502);
+    expect(response.status).toBe(504);
     expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-mergepay-rpc-attempts")).toBe("3");
     await expect(response.json()).resolves.toEqual({
       jsonrpc: "2.0",
       id: 42,
       error: {
         code: -32098,
-        message: "MergePay could not reach the Rialo DevNet RPC.",
+        message: "The Rialo DevNet RPC did not respond before the bounded timeout.",
       },
     });
+  });
+
+  test("retries read-only RPC calls but never repeats sendTransaction", async () => {
+    process.env.RIALO_RPC_UPSTREAM_URL = "https://rialo.invalid";
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return calls === 1
+        ? new Response(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: 43,
+              error: { code: -32001, message: "temporary outage" },
+            }),
+            { status: 503, headers: { "Retry-After": "0" } },
+          )
+        : new Response(
+            JSON.stringify({ jsonrpc: "2.0", id: 43, result: "ok" }),
+            { status: 200 },
+          );
+    }) as typeof fetch;
+
+    const readResponse = await relayRialoRpc(rpcRequest(43));
+    expect(readResponse.status).toBe(200);
+    expect(readResponse.headers.get("x-mergepay-rpc-attempts")).toBe("2");
+    await expect(readResponse.json()).resolves.toMatchObject({ result: "ok" });
+
+    calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return new Response(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 44,
+          error: { code: -32001, message: "write unavailable" },
+        }),
+        { status: 503 },
+      );
+    }) as typeof fetch;
+
+    const writeResponse = await relayRialoRpc(
+      rpcRequest(44, "sendTransaction", ["signed-transaction"]),
+    );
+    expect(writeResponse.status).toBe(503);
+    expect(writeResponse.headers.get("x-mergepay-rpc-attempts")).toBe("1");
+    expect(calls).toBe(1);
+  });
+
+  test("enforces attempt timeouts even when a read ignores abort signals", async () => {
+    const error = await runWithBoundedRetry({
+      operation: async () => new Promise<never>(() => undefined),
+      maxAttempts: 2,
+      timeoutMs: 5,
+      sleep: async () => undefined,
+    }).then(() => null, (cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(BoundedRetryError);
+    expect(error).toMatchObject({ attempts: 2, timedOut: true });
   });
 
   test("coalesces rapid duplicate transaction attempts and unlocks after settlement", async () => {
@@ -134,15 +244,19 @@ test.describe("upstream fault boundaries", () => {
   });
 });
 
-function rpcRequest(id: number): Request {
+function rpcRequest(
+  id: number,
+  method = "getHealth",
+  params: unknown[] = [],
+): Request {
   return new Request("https://mergepay.invalid/api/rialo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       jsonrpc: "2.0",
       id,
-      method: "getHealth",
-      params: [],
+      method,
+      params,
     }),
   });
 }

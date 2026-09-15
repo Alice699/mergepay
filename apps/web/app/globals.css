@@ -17584,6 +17584,78 @@ body:has(.docs-page, .guide-page, .ledger-page) .footer-deployment {
   color: rgb(239 139 118 / 0.92);
 }
 
+.workflow-diagnostics__reliability {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid rgb(228 228 228 / 0.09);
+  background: rgb(5 7 8 / 0.22);
+}
+
+.workflow-diagnostics__reliability > div {
+  min-width: 0;
+  min-height: 7.5rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  gap: 0.85rem;
+  border-right: 1px solid rgb(228 228 228 / 0.09);
+  padding: 1.25rem 1.5rem;
+}
+
+.workflow-diagnostics__reliability > div:last-child {
+  border-right: 0;
+}
+
+.workflow-diagnostics__reliability-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, currentColor 24%, transparent);
+  border-radius: 0.65rem;
+  background: color-mix(in oklab, currentColor 6%, transparent);
+  color: rgb(125 225 164 / 0.76);
+}
+
+.workflow-diagnostics__reliability > div[data-tone="warning"] .workflow-diagnostics__reliability-icon {
+  color: rgb(230 180 72 / 0.82);
+}
+
+.workflow-diagnostics__reliability > div[data-tone="critical"] .workflow-diagnostics__reliability-icon {
+  color: rgb(239 139 118 / 0.86);
+}
+
+.workflow-diagnostics__reliability > div > div {
+  min-width: 0;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.workflow-diagnostics__reliability > div > div > span {
+  color: rgb(228 228 228 / 0.3);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workflow-diagnostics__reliability strong {
+  overflow: hidden;
+  color: rgb(228 228 228 / 0.76);
+  font-size: 0.78rem;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-diagnostics__reliability small {
+  color: rgb(228 228 228 / 0.35);
+  font-size: 0.6rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
 .workflow-diagnostics__tools {
   min-height: 4.5rem;
   display: flex;
@@ -18161,6 +18233,20 @@ body:has(.docs-page, .guide-page, .ledger-page) .footer-deployment {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .workflow-diagnostics__reliability {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-diagnostics__reliability > div {
+    min-height: 6.5rem;
+    border-right: 0;
+    border-bottom: 1px solid rgb(228 228 228 / 0.075);
+  }
+
+  .workflow-diagnostics__reliability > div:last-child {
+    border-bottom: 0;
+  }
+
   .workflow-diagnostics__summary > div:nth-child(2),
   .workflow-diagnostic__facts > div:nth-child(2) {
     border-right: 0;
@@ -18249,6 +18335,10 @@ body:has(.docs-page, .guide-page, .ledger-page) .footer-deployment {
   }
 
   .workflow-diagnostics__notice {
+    padding-inline: 1.15rem;
+  }
+
+  .workflow-diagnostics__reliability > div {
     padding-inline: 1.15rem;
   }
 

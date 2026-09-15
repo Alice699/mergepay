@@ -1,7 +1,31 @@
+import {
+  BoundedRetryError,
+  parseRetryAfterMs,
+  retryAfterSeconds,
+  runWithBoundedRetry,
+} from "@/lib/upstream-reliability";
+
 const DEFAULT_RIALO_DEVNET_RPC = "https://devnet.rialo.io";
 const MAX_REQUEST_BYTES = 1_000_000;
+const MAX_RESPONSE_BYTES = 2_000_000;
 const MAX_DEVNET_AIRDROP_KELVIN = 1_000_000_000;
-const UPSTREAM_TIMEOUT_MS = 20_000;
+const READ_ATTEMPT_TIMEOUT_MS = 7_000;
+const WRITE_ATTEMPT_TIMEOUT_MS = 20_000;
+const READ_MAX_ATTEMPTS = 3;
+
+const retryableStatuses = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+const retryableReadMethods = new Set([
+  "getAccountInfo",
+  "getBalance",
+  "getHealth",
+  "getMinimumBalanceForRentExemption",
+  "getRecentValidatorConfigHash",
+  "getSignaturesForAddress",
+  "getSignatureStatuses",
+  "getTransaction",
+  "getWorkflowLineage",
+]);
 
 const allowedMethods = new Set([
   "getAccountInfo",
@@ -29,14 +53,33 @@ function jsonRpcError(
   code: number,
   message: string,
   status: number,
+  extraHeaders: HeadersInit = {},
 ) {
   return Response.json(
     { jsonrpc: "2.0", id: id ?? null, error: { code, message } },
     {
       status,
-      headers: { "Cache-Control": "no-store" },
+      headers: { "Cache-Control": "no-store", ...extraHeaders },
     },
   );
+}
+
+interface UpstreamRpcResponse {
+  status: number;
+  body: string;
+  retryAfterMs: number | null;
+}
+
+function rpcTelemetryHeaders(
+  attempts: number,
+  durationMs: number,
+  failure?: "timeout" | "unavailable" | "upstream" | "invalid-response",
+): Record<string, string> {
+  return {
+    "Server-Timing": `rialo;dur=${durationMs};desc="RPC upstream"`,
+    "X-MergePay-RPC-Attempts": String(attempts),
+    ...(failure ? { "X-MergePay-RPC-Failure": failure } : {}),
+  };
 }
 
 function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
@@ -222,47 +265,126 @@ export async function POST(request: Request) {
     );
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
-
   try {
-    const upstream = await fetch(upstreamUrl, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
+    const canRetry = retryableReadMethods.has(rpcRequest.method);
+    const result = await runWithBoundedRetry<UpstreamRpcResponse>({
+      maxAttempts: canRetry ? READ_MAX_ATTEMPTS : 1,
+      timeoutMs: canRetry
+        ? READ_ATTEMPT_TIMEOUT_MS
+        : WRITE_ATTEMPT_TIMEOUT_MS,
+      baseDelayMs: 200,
+      maxDelayMs: 750,
+      signal: request.signal,
+      operation: async ({ signal }) => {
+        const upstream = await fetch(upstreamUrl, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body,
+          cache: "no-store",
+          redirect: "manual",
+          signal,
+        });
+        return {
+          status: upstream.status,
+          body: await upstream.text(),
+          retryAfterMs: parseRetryAfterMs(
+            upstream.headers.get("retry-after"),
+          ),
+        };
       },
-      body,
-      cache: "no-store",
-      redirect: "manual",
-      signal: controller.signal,
+      shouldRetry: (upstream) => ({
+        retry: canRetry && retryableStatuses.has(upstream.status),
+        ...(upstream.retryAfterMs === null
+          ? {}
+          : { delayMs: upstream.retryAfterMs }),
+      }),
     });
+    const upstream = result.value;
+    const telemetry = rpcTelemetryHeaders(
+      result.attempts,
+      result.durationMs,
+      retryableStatuses.has(upstream.status) ? "upstream" : undefined,
+    );
+
     if (upstream.status >= 300 && upstream.status < 400) {
       return jsonRpcError(
         rpcRequest.id,
         -32098,
         "The Rialo RPC relay refused an upstream redirect.",
         502,
+        telemetry,
       );
     }
-    const responseBody = await upstream.text();
+    if (new TextEncoder().encode(upstream.body).byteLength > MAX_RESPONSE_BYTES) {
+      return jsonRpcError(
+        rpcRequest.id,
+        -32098,
+        "The Rialo RPC returned an oversized response.",
+        502,
+        rpcTelemetryHeaders(
+          result.attempts,
+          result.durationMs,
+          "invalid-response",
+        ),
+      );
+    }
 
-    return new Response(responseBody, {
+    try {
+      const payload = JSON.parse(upstream.body) as unknown;
+      if (
+        typeof payload !== "object" ||
+        payload === null ||
+        Array.isArray(payload) ||
+        (!("result" in payload) && !("error" in payload))
+      ) {
+        throw new Error("invalid JSON-RPC response");
+      }
+    } catch {
+      return jsonRpcError(
+        rpcRequest.id,
+        -32098,
+        "The Rialo RPC returned an invalid JSON-RPC response.",
+        502,
+        rpcTelemetryHeaders(
+          result.attempts,
+          result.durationMs,
+          "invalid-response",
+        ),
+      );
+    }
+
+    const retryAfter = retryAfterSeconds(upstream.retryAfterMs);
+
+    return new Response(upstream.body, {
       status: upstream.status,
       headers: {
         "Cache-Control": "no-store",
-        "Content-Type":
-          upstream.headers.get("content-type") ?? "application/json",
+        "Content-Type": "application/json",
+        ...telemetry,
+        ...(retryAfter === null ? {} : { "Retry-After": String(retryAfter) }),
       },
     });
-  } catch {
+  } catch (cause) {
+    const error = cause instanceof BoundedRetryError ? cause : null;
+    const timedOut = error?.timedOut === true;
     return jsonRpcError(
       rpcRequest.id,
       -32098,
-      "MergePay could not reach the Rialo DevNet RPC.",
-      502,
+      timedOut
+        ? "The Rialo DevNet RPC did not respond before the bounded timeout."
+        : "MergePay could not reach the Rialo DevNet RPC.",
+      timedOut ? 504 : 502,
+      {
+        ...rpcTelemetryHeaders(
+          error?.attempts ?? 1,
+          error?.durationMs ?? 0,
+          timedOut ? "timeout" : "unavailable",
+        ),
+        "Retry-After": "2",
+      },
     );
-  } finally {
-    clearTimeout(timeout);
   }
 }

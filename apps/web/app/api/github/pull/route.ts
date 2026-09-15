@@ -5,11 +5,23 @@ import {
   isValidGitHubPullReference,
 } from "@/lib/github-public-pull";
 
-function json(value: unknown, status = 200) {
+function json(value: unknown, status = 200, headers: HeadersInit = {}) {
   return Response.json(value, {
     status,
-    headers: { "Cache-Control": "no-store" },
+    headers: { "Cache-Control": "no-store", ...headers },
   });
+}
+
+function githubTelemetryHeaders(
+  attempts: number,
+  durationMs: number,
+  failure?: string,
+): Record<string, string> {
+  return {
+    "Server-Timing": `github;dur=${durationMs};desc="GitHub pull proof"`,
+    "X-MergePay-GitHub-Attempts": String(attempts),
+    ...(failure ? { "X-MergePay-GitHub-Failure": failure } : {}),
+  };
 }
 
 export async function GET(request: Request) {
@@ -31,7 +43,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    const pull = await fetchPublicGitHubPull(owner, repo, number);
+    const pull = await fetchPublicGitHubPull(owner, repo, number, {
+      signal: request.signal,
+    });
     if (pull.author.id !== identity.id) {
       return json(
         { error: "The connected GitHub account did not author this pull request." },
@@ -39,25 +53,46 @@ export async function GET(request: Request) {
       );
     }
 
-    return json({
-      owner,
-      repo,
-      number: pull.number,
-      title: pull.title,
-      state: pull.state,
-      htmlUrl: pull.htmlUrl,
-      mergedAt: pull.mergedAt,
-      author: pull.author,
-      githubIdentity: {
-        id: identity.id,
-        login: identity.login,
+    return json(
+      {
+        owner,
+        repo,
+        number: pull.number,
+        title: pull.title,
+        state: pull.state,
+        htmlUrl: pull.htmlUrl,
+        mergedAt: pull.mergedAt,
+        author: pull.author,
+        githubIdentity: {
+          id: identity.id,
+          login: identity.login,
+        },
       },
-    });
+      200,
+      githubTelemetryHeaders(
+        pull.upstream.attempts,
+        pull.upstream.durationMs,
+      ),
+    );
   } catch (cause) {
     const error =
       cause instanceof GitHubPublicPullError
         ? cause
         : new GitHubPublicPullError("MergePay could not reach GitHub.", 502);
-    return json({ error: error.message }, error.status);
+    return json(
+      {
+        error: error.message,
+        code: error.code,
+        retryable: error.retryable,
+        attempts: error.attempts,
+      },
+      error.status,
+      {
+        ...githubTelemetryHeaders(error.attempts, error.durationMs, error.code),
+        ...(error.retryAfterSeconds === null
+          ? {}
+          : { "Retry-After": String(error.retryAfterSeconds) }),
+      },
+    );
   }
 }

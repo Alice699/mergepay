@@ -118,8 +118,9 @@ export function useAcceptClaim() {
         claimantGithubLogin: claim.state.claimantGithub,
       });
     } catch (cause) {
+      const detail = cause instanceof Error ? ` ${cause.message}` : "";
       throw new MergePayUiError(
-        "GitHub could not re-check the pull-request author. Approval stays locked until the public PR is available.",
+        `GitHub could not re-check the pull-request author. Approval stays locked.${detail}`,
         "CLAIM_GITHUB_REVIEW_UNAVAILABLE",
         { cause: cause instanceof Error ? cause : undefined },
       );

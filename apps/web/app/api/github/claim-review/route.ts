@@ -7,11 +7,23 @@ import {
 const GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
 const GITHUB_ID = /^\d{1,20}$/;
 
-function json(value: unknown, status = 200) {
+function json(value: unknown, status = 200, headers: HeadersInit = {}) {
   return Response.json(value, {
     status,
-    headers: { "Cache-Control": "no-store" },
+    headers: { "Cache-Control": "no-store", ...headers },
   });
+}
+
+function githubTelemetryHeaders(
+  attempts: number,
+  durationMs: number,
+  failure?: string,
+): Record<string, string> {
+  return {
+    "Server-Timing": `github;dur=${durationMs};desc="GitHub claim review"`,
+    "X-MergePay-GitHub-Attempts": String(attempts),
+    ...(failure ? { "X-MergePay-GitHub-Failure": failure } : {}),
+  };
 }
 
 export async function GET(request: Request) {
@@ -42,36 +54,59 @@ export async function GET(request: Request) {
   }
 
   try {
-    const pull = await fetchPublicGitHubPull(owner, repo, number);
+    const pull = await fetchPublicGitHubPull(owner, repo, number, {
+      signal: request.signal,
+    });
     const authorIdMatches = BigInt(pull.author.id) === claimantId;
     const recordedLoginMatches =
       pull.author.login.toLowerCase() === claimantLogin.toLowerCase();
 
-    return json({
-      target: {
-        owner: pull.owner,
-        repo: pull.repo,
-        number: pull.number,
-        title: pull.title,
-        state: pull.state,
-        htmlUrl: pull.htmlUrl,
-        mergedAt: pull.mergedAt,
+    return json(
+      {
+        target: {
+          owner: pull.owner,
+          repo: pull.repo,
+          number: pull.number,
+          title: pull.title,
+          state: pull.state,
+          htmlUrl: pull.htmlUrl,
+          mergedAt: pull.mergedAt,
+        },
+        claim: {
+          githubId: claimantId.toString(),
+          githubLogin: claimantLogin,
+        },
+        author: pull.author,
+        verification: {
+          authorIdMatches,
+          recordedLoginMatches,
+        },
       },
-      claim: {
-        githubId: claimantId.toString(),
-        githubLogin: claimantLogin,
-      },
-      author: pull.author,
-      verification: {
-        authorIdMatches,
-        recordedLoginMatches,
-      },
-    });
+      200,
+      githubTelemetryHeaders(
+        pull.upstream.attempts,
+        pull.upstream.durationMs,
+      ),
+    );
   } catch (cause) {
     const error =
       cause instanceof GitHubPublicPullError
         ? cause
         : new GitHubPublicPullError("MergePay could not verify this pull request.", 502);
-    return json({ error: error.message }, error.status);
+    return json(
+      {
+        error: error.message,
+        code: error.code,
+        retryable: error.retryable,
+        attempts: error.attempts,
+      },
+      error.status,
+      {
+        ...githubTelemetryHeaders(error.attempts, error.durationMs, error.code),
+        ...(error.retryAfterSeconds === null
+          ? {}
+          : { "Retry-After": String(error.retryAfterSeconds) }),
+      },
+    );
   }
 }

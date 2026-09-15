@@ -11,9 +11,11 @@ import {
   getGithubAppInstallationToken,
   GitHubAppTokenError,
 } from "@/lib/github-app-token";
+import { runWithBoundedRetry } from "@/lib/upstream-reliability";
 
 const MAX_REQUEST_BYTES = 2_000;
-const UPSTREAM_TIMEOUT_MS = 12_000;
+const READ_ATTEMPT_TIMEOUT_MS = 6_000;
+const READ_MAX_ATTEMPTS = 2;
 const WORKFLOW_SLUG = /^[0-9a-fA-F]{64}$/u;
 
 function json(value: unknown, status = 200) {
@@ -57,23 +59,15 @@ function packGithubRexEnvelope(
   return output;
 }
 
-async function getSecretSharingPubkeyWithTimeout(
-  rpc: RialoClient,
-) {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      rpc.getSecretSharingPubkey(),
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(
-          () => reject(new Error("Rialo secret-sharing key request timed out")),
-          UPSTREAM_TIMEOUT_MS,
-        );
-      }),
-    ]);
-  } finally {
-    if (timeout !== undefined) clearTimeout(timeout);
-  }
+async function readWithBoundedRetry<T>(operation: () => Promise<T>): Promise<T> {
+  const result = await runWithBoundedRetry({
+    operation,
+    maxAttempts: READ_MAX_ATTEMPTS,
+    timeoutMs: READ_ATTEMPT_TIMEOUT_MS,
+    baseDelayMs: 200,
+    maxDelayMs: 500,
+  });
+  return result.value;
 }
 
 /**
@@ -142,7 +136,9 @@ export async function POST(request: Request) {
       rpcUrl: upstreamUrl,
       ...(webConfig.programId ? { programId: webConfig.programId } : {}),
     });
-    const workflow = await mergePayClient.getWorkflow(sponsor, workflowSlug);
+    const workflow = await readWithBoundedRetry(() =>
+      mergePayClient.getWorkflow(sponsor, workflowSlug),
+    );
     if (
       !workflow ||
       workflow.state.sponsor !== sponsor ||
@@ -158,8 +154,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const secretSharingPubkey = await getSecretSharingPubkeyWithTimeout(
-      mergePayClient.rpc.client,
+    const secretSharingPubkey = await readWithBoundedRetry(() =>
+      getSecretSharingPubkey(mergePayClient.rpc.client),
     );
     const plaintext = new TextEncoder().encode(`Bearer ${installationToken}`);
     const authCiphertext = encryptForRex(
@@ -184,4 +180,8 @@ export async function POST(request: Request) {
       502,
     );
   }
+}
+
+function getSecretSharingPubkey(rpc: RialoClient) {
+  return rpc.getSecretSharingPubkey();
 }

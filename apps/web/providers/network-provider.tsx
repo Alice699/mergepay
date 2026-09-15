@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -26,26 +27,71 @@ export function NetworkProvider({ children }: Readonly<{ children: ReactNode }>)
     status: RpcStatus;
     health: string | null;
     error: Error | null;
-  }>({ status: "checking", health: null, error: null });
+    lastCheckedAt: number | null;
+    lastSuccessfulAt: number | null;
+    latencyMs: number | null;
+    consecutiveFailures: number;
+  }>({
+    status: "checking",
+    health: null,
+    error: null,
+    lastCheckedAt: null,
+    lastSuccessfulAt: null,
+    latencyMs: null,
+    consecutiveFailures: 0,
+  });
+  const activeRpcCheckRef = useRef<Promise<boolean> | null>(null);
 
-  const checkRpcHealth = useCallback(async (showChecking = false) => {
+  const checkRpcHealth = useCallback((showChecking = false) => {
     if (showChecking) {
-      setRpcState({ status: "checking", health: null, error: null });
+      setRpcState((current) => ({
+        ...current,
+        status: "checking",
+        error: null,
+      }));
     }
+    if (activeRpcCheckRef.current) return activeRpcCheckRef.current;
 
-    try {
-      const health = await mergePayClient.rpc.getHealth();
-      setRpcState({
-        status: health === "ok" ? "available" : "unavailable",
-        health,
-        error: health === "ok" ? null : new Error(`Rialo RPC health: ${health}`),
-      });
-      return health === "ok";
-    } catch (cause) {
-      const error = cause instanceof Error ? cause : new Error(String(cause));
-      setRpcState({ status: "unavailable", health: null, error });
-      return false;
-    }
+    const startedAt = Date.now();
+    const operation = (async () => {
+      try {
+        const health = await mergePayClient.rpc.getHealth();
+        const checkedAt = Date.now();
+        const available = health === "ok";
+        setRpcState((current) => ({
+          status: available ? "available" : "unavailable",
+          health,
+          error: available ? null : new Error(`Rialo RPC health: ${health}`),
+          lastCheckedAt: checkedAt,
+          lastSuccessfulAt: available ? checkedAt : current.lastSuccessfulAt,
+          latencyMs: checkedAt - startedAt,
+          consecutiveFailures: available
+            ? 0
+            : current.consecutiveFailures + 1,
+        }));
+        return available;
+      } catch (cause) {
+        const checkedAt = Date.now();
+        const error = cause instanceof Error ? cause : new Error(String(cause));
+        setRpcState((current) => ({
+          status: "unavailable",
+          health: null,
+          error,
+          lastCheckedAt: checkedAt,
+          lastSuccessfulAt: current.lastSuccessfulAt,
+          latencyMs: checkedAt - startedAt,
+          consecutiveFailures: current.consecutiveFailures + 1,
+        }));
+        return false;
+      }
+    })();
+    activeRpcCheckRef.current = operation;
+    void operation.finally(() => {
+      if (activeRpcCheckRef.current === operation) {
+        activeRpcCheckRef.current = null;
+      }
+    });
+    return operation;
   }, []);
 
   useAdaptivePolling({
@@ -59,9 +105,11 @@ export function NetworkProvider({ children }: Readonly<{ children: ReactNode }>)
   useEffect(() => {
     const markOffline = () => {
       setRpcState((current) => ({
+        ...current,
         status: "unavailable",
-        health: current.health,
         error: new Error("The browser is offline."),
+        lastCheckedAt: Date.now(),
+        consecutiveFailures: Math.max(1, current.consecutiveFailures),
       }));
     };
 
@@ -81,6 +129,10 @@ export function NetworkProvider({ children }: Readonly<{ children: ReactNode }>)
       rpcStatus: rpcState.status,
       rpcHealth: rpcState.health,
       rpcError: rpcState.error,
+      rpcLastCheckedAt: rpcState.lastCheckedAt,
+      rpcLastSuccessfulAt: rpcState.lastSuccessfulAt,
+      rpcLatencyMs: rpcState.latencyMs,
+      rpcConsecutiveFailures: rpcState.consecutiveFailures,
       isExpectedNetwork: chainId === expectedChainId,
       refreshRpcHealth: () => void checkRpcHealth(true),
     }),

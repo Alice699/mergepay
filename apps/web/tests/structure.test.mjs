@@ -81,6 +81,8 @@ const requiredPaths = [
   "lib/errors.ts",
   "lib/github-claim-review.ts",
   "lib/github-public-pull.ts",
+  "lib/github-api-error.ts",
+  "lib/upstream-reliability.ts",
   "lib/app-notifications.ts",
   "lib/wallet-control-events.ts",
   "lib/format.ts",
@@ -439,6 +441,10 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
     new URL("app/api/rialo/route.ts", webRoot),
     "utf8",
   );
+  const upstreamReliability = await readFile(
+    new URL("lib/upstream-reliability.ts", webRoot),
+    "utf8",
+  );
   const config = await readFile(new URL("lib/config.ts", webRoot), "utf8");
   const bountyFeed = await readFile(
     new URL("components/bounty/open-bounty-feed.tsx", webRoot),
@@ -469,6 +475,9 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(walletProvider, /confirm\(/);
   assert.match(networkProvider, /getHealth/);
   assert.match(networkProvider, /useAdaptivePolling/);
+  assert.match(networkProvider, /rpcLastSuccessfulAt/);
+  assert.match(networkProvider, /consecutiveFailures/);
+  assert.match(networkContext, /rpcLatencyMs/);
   assert.match(adaptivePolling, /visibilitychange/);
   assert.match(adaptivePolling, /window\.addEventListener\("online"/);
   assert.match(adaptivePolling, /window\.addEventListener\("offline"/);
@@ -498,6 +507,9 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(githubPublicPull, /api.github.com/);
   assert.match(githubPublicPull, /merged_at/);
   assert.match(githubPublicPull, /redirect: "manual"/);
+  assert.match(githubPublicPull, /runWithBoundedRetry/);
+  assert.match(githubPublicPull, /GITHUB_RATE_LIMITED/);
+  assert.match(githubPublicPull, /GITHUB_PULL_NOT_FOUND/);
   assert.match(githubProofRoute, /getGitHubIdentity/);
   assert.match(githubProofRoute, /pull.author.id !== identity.id/);
   assert.match(githubClaimReviewRoute, /authorIdMatches/);
@@ -551,6 +563,11 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(rpcRelay, /allowedMethods/);
   assert.match(rpcRelay, /getWorkflowLineage/);
   assert.match(rpcRelay, /getSignaturesForAddress/);
+  assert.match(rpcRelay, /retryableReadMethods/);
+  assert.match(rpcRelay, /READ_MAX_ATTEMPTS = 3/);
+  assert.match(rpcRelay, /X-MergePay-RPC-Attempts/);
+  assert.match(upstreamReliability, /class BoundedRetryError/);
+  assert.match(upstreamReliability, /maxAttempts/);
   assert.match(rpcRelay, /MAX_DEVNET_AIRDROP_KELVIN = 1_000_000_000/);
   assert.match(bountyFeed, /getPublicBountiesPage/);
   assert.match(bountyFeed, /no sponsor URL is required/);
@@ -899,6 +916,9 @@ test("keeps program diagnostics onchain, filterable, and strictly read-only", as
   assert.match(dashboard, /Age/);
   assert.match(dashboard, /Network/);
   assert.match(dashboard, /Latest error/);
+  assert.match(dashboard, /Operational reliability/);
+  assert.match(dashboard, /Last success/);
+  assert.match(dashboard, /Inconclusive REX/);
   assert.match(dashboard, /getWorkflowLineage/);
   assert.match(dashboard, /getRialoScanSearchUrl/);
   assert.match(dashboard, /TransactionProof/);
@@ -911,6 +931,9 @@ test("keeps program diagnostics onchain, filterable, and strictly read-only", as
   assert.match(client, /deriveWorkflowPda/);
   assert.match(client, /refund_overdue/);
   assert.match(client, /read_incomplete/);
+  assert.match(client, /rex_failures_repeated/);
+  assert.match(client, /classifyRexSignal/);
+  assert.match(client, /DIAGNOSTIC_ACTIVITY_SAMPLE_SIZE = 8/);
   assert.match(routes, /diagnostics: "\/diagnostics"/);
   assert.match(header, /routes\.diagnostics/);
   assert.match(styles, /Workflow diagnostics \/ program-wide reconciliation/);

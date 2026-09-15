@@ -16,6 +16,10 @@ export interface NetworkSnapshot {
   rpcStatus: RpcStatus;
   rpcHealth: string | null;
   rpcError: Error | null;
+  rpcLastCheckedAt: number | null;
+  rpcLastSuccessfulAt: number | null;
+  rpcLatencyMs: number | null;
+  rpcConsecutiveFailures: number;
   isExpectedNetwork: boolean;
   refreshRpcHealth: () => void;
 }

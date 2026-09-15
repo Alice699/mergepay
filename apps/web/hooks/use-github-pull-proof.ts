@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { githubApiErrorFromResponse } from "@/lib/github-api-error";
 
 export interface GitHubPullProof {
   owner: string;
@@ -42,9 +43,22 @@ export function useGitHubPullProof() {
         `/api/github/pull?owner=${encodeURIComponent(input.owner)}&repo=${encodeURIComponent(input.repo)}&number=${encodeURIComponent(String(input.number))}`,
         { cache: "no-store" },
       );
-      const payload = (await response.json()) as GitHubPullProof | { error?: string };
+      let payload: GitHubPullProof | { error?: string };
+      try {
+        payload = (await response.json()) as GitHubPullProof | { error?: string };
+      } catch {
+        throw githubApiErrorFromResponse(
+          response,
+          null,
+          "GitHub verification returned an unreadable response.",
+        );
+      }
       if (!response.ok || !("author" in payload)) {
-        throw new Error("error" in payload && payload.error ? payload.error : "GitHub pull request could not be verified.");
+        throw githubApiErrorFromResponse(
+          response,
+          payload,
+          "GitHub pull request could not be verified.",
+        );
       }
       setState({ status: "success", proof: payload, error: null });
       return payload;

@@ -54,7 +54,13 @@ type LifecycleFilter =
   | MergePayWorkflowLifecycle
   | "unavailable";
 type AgeFilter = "all" | "hour" | "day" | "older" | "overdue";
-type ErrorFilter = "all" | "attention" | "read" | "transaction" | "clear";
+type ErrorFilter =
+  | "all"
+  | "attention"
+  | "read"
+  | "transaction"
+  | "rex"
+  | "clear";
 
 const initialState: DashboardState = {
   status: "idle",
@@ -98,6 +104,8 @@ const findingLabels = {
   pda_mismatch: "PDA mismatch",
   invalid_state: "Invalid account state",
   transaction_failed: "Latest transaction failed",
+  rex_inconclusive: "REX response inconclusive",
+  rex_failures_repeated: "Repeated REX failures",
   refund_overdue: "Refund overdue",
   settlement_incomplete: "Settlement incomplete",
   check_needs_review: "Merge check needs review",
@@ -215,6 +223,7 @@ export function WorkflowDiagnosticsDashboard() {
           item.workflowAddress,
           item.sponsor,
           item.latestActivity?.signature ?? "",
+          item.reliability.latestRexSignal ?? "",
           item.message,
         ].join(" ").toLowerCase();
         const createdAt = blockTimeToMs(item.createdBlockTime);
@@ -255,6 +264,10 @@ export function WorkflowDiagnosticsDashboard() {
           item.finding !== "transaction_failed"
         ) return false;
         if (
+          errorFilter === "rex" &&
+          item.reliability.inconclusiveRexReports === 0
+        ) return false;
+        if (
           errorFilter === "clear" &&
           (hasAttention || item.readError !== null)
         ) return false;
@@ -284,6 +297,23 @@ export function WorkflowDiagnosticsDashboard() {
     terminal: state.items.filter(
       ({ lifecycle }) => lifecycle === "paid" || lifecycle === "refunded",
     ).length,
+    fundedAlerts: state.items.filter(
+      ({ lifecycle, severity }) =>
+        lifecycle === "funded" &&
+        (severity === "critical" || severity === "warning"),
+    ).length,
+    rexInconclusive: state.items.reduce(
+      (total, item) => total + item.reliability.inconclusiveRexReports,
+      0,
+    ),
+    rexNotMerged: state.items.reduce(
+      (total, item) => total + item.reliability.notMergedRexReports,
+      0,
+    ),
+    failedSamples: state.items.reduce(
+      (total, item) => total + item.reliability.failedTransactions,
+      0,
+    ),
   }), [state.items]);
 
   const hasFilters =
@@ -370,6 +400,46 @@ export function WorkflowDiagnosticsDashboard() {
         <DiagnosticMetric label="Terminal" tone="healthy" value={summary.terminal} />
       </div>
 
+      <div className="workflow-diagnostics__reliability" aria-label="Operational reliability">
+        <ReliabilityMetric
+          icon={<Activity aria-hidden="true" size={17} strokeWidth={1.8} />}
+          label="Rialo RPC"
+          tone={
+            network.rpcStatus === "available"
+              ? "healthy"
+              : network.rpcStatus === "checking"
+                ? "warning"
+                : "critical"
+          }
+          value={
+            network.rpcStatus === "available"
+              ? `Available${network.rpcLatencyMs === null ? "" : ` · ${network.rpcLatencyMs} ms`}`
+              : network.rpcStatus === "checking"
+                ? "Checking"
+                : "Degraded"
+          }
+          detail={
+            network.rpcLastSuccessfulAt === null
+              ? "No successful health read in this session"
+              : `Last success ${formatCheckedTime(network.rpcLastSuccessfulAt)} · ${network.rpcConsecutiveFailures} consecutive failures`
+          }
+        />
+        <ReliabilityMetric
+          icon={<Clock3 aria-hidden="true" size={17} strokeWidth={1.8} />}
+          label="Funded workflow watch"
+          tone={summary.fundedAlerts > 0 ? "critical" : "healthy"}
+          value={`${summary.fundedAlerts} ${summary.fundedAlerts === 1 ? "alert" : "alerts"}`}
+          detail={`${summary.funded} funded workflows loaded · stale checks and overdue refunds are surfaced`}
+        />
+        <ReliabilityMetric
+          icon={<GitBranch aria-hidden="true" size={17} strokeWidth={1.8} />}
+          label="REX proof samples"
+          tone={summary.rexInconclusive > 0 || summary.failedSamples > 0 ? "warning" : "healthy"}
+          value={`${summary.rexInconclusive} inconclusive`}
+          detail={`${summary.rexNotMerged} valid not-merged proofs · ${summary.failedSamples} failed transactions`}
+        />
+      </div>
+
       <div className="workflow-diagnostics__tools">
         <label className="workflow-diagnostics__search" htmlFor="diagnostic-search">
           <Search aria-hidden="true" size={15} strokeWidth={1.8} />
@@ -434,6 +504,7 @@ export function WorkflowDiagnosticsDashboard() {
             ["attention", "Needs attention"],
             ["read", "RPC/account read"],
             ["transaction", "Failed transaction"],
+            ["rex", "Inconclusive REX"],
             ["clear", "No current error"],
           ]}
         />
@@ -536,6 +607,31 @@ function DiagnosticMetric({
   );
 }
 
+function ReliabilityMetric({
+  detail,
+  icon,
+  label,
+  tone,
+  value,
+}: Readonly<{
+  detail: string;
+  icon: ReactNode;
+  label: string;
+  tone: "healthy" | "warning" | "critical";
+  value: string;
+}>) {
+  return (
+    <div data-tone={tone}>
+      <span className="workflow-diagnostics__reliability-icon">{icon}</span>
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <small>{detail}</small>
+      </div>
+    </div>
+  );
+}
+
 function DiagnosticSelect({
   label,
   onChange,
@@ -615,7 +711,11 @@ function DiagnosticRow({
         <div>
           <span>Merge checks</span>
           <strong>{state ? state.checks.toString() : "—"}</strong>
-          <small>{state ? `Deadline ${formatDeadlineCompact(state.deadlineUnixMs)}` : "Deadline unavailable"}</small>
+          <small>
+            {state
+              ? `${formatRexSignal(item.reliability.latestRexSignal)} · deadline ${formatDeadlineCompact(state.deadlineUnixMs)}`
+              : "Deadline unavailable"}
+          </small>
         </div>
       </div>
 
@@ -741,6 +841,15 @@ function mergeDiagnostics(
 
 function actionLabel(action: string): string {
   return action.replaceAll("_", " ");
+}
+
+function formatRexSignal(
+  signal: MergePayWorkflowDiagnostic["reliability"]["latestRexSignal"],
+): string {
+  if (signal === "not_merged") return "REX: not merged";
+  if (signal === "inconclusive") return "REX: inconclusive";
+  if (signal === "merged") return "REX: merged";
+  return "No sampled REX proof";
 }
 
 function blockTimeToMs(value: bigint | null): number | null {

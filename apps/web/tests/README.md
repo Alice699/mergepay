@@ -4,7 +4,9 @@
 - `structure.test.mjs` protects architectural and security boundaries.
 - `e2e/` covers wallet-aware Activity and Settlements journeys, live workflow
   payout/refund synchronization, stale and interrupted RPC reads, and upstream
-  GitHub/Rialo failure mapping in Chromium.
+  GitHub/Rialo failure mapping in Chromium. The upstream boundary also proves
+  bounded read retries, structured rate-limit/timeout errors, and that
+  `sendTransaction` is never replayed automatically.
 
 Run the deterministic browser suite from the repository root:
 
