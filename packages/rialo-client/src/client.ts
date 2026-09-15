@@ -6,7 +6,10 @@ import {
   MERGEPAY_UNASSIGNED_BENEFICIARY,
 } from "./constants.js";
 import { decodeWorkflowAccount } from "./accounts/index.js";
-import { classifyWorkflowLifecycle } from "./lifecycle.js";
+import {
+  classifyWorkflowLifecycle,
+  type MergePayWorkflowLifecycle,
+} from "./lifecycle.js";
 import {
   buildCheckMergeInstruction,
   buildAcceptClaimInstruction,
@@ -132,6 +135,7 @@ const REQUEST_CLAIM_TARGET_OFFSET = 4 + 32;
 const TRANSACTION_CACHE_TTL_MS = 5 * 60_000;
 const WORKFLOW_CACHE_TTL_MS = 5_000;
 const MAX_READ_CACHE_ENTRIES = 256;
+const DIAGNOSTIC_CHECK_REVIEW_AFTER_MS = 10 * 60_000;
 
 export type MergePayPublicBountyStatus =
   | "open"
@@ -156,6 +160,55 @@ export interface MergePayPublicBountyPage {
 }
 
 export interface MergePayPublicBountyPageOptions {
+  limit?: number;
+  before?: string;
+}
+
+export type MergePayDiagnosticSeverity =
+  | "healthy"
+  | "notice"
+  | "warning"
+  | "critical";
+
+export type MergePayDiagnosticFinding =
+  | "none"
+  | "account_unavailable"
+  | "read_incomplete"
+  | "pda_mismatch"
+  | "invalid_state"
+  | "transaction_failed"
+  | "refund_overdue"
+  | "settlement_incomplete"
+  | "check_needs_review"
+  | "expired_unfunded";
+
+export interface MergePayWorkflowDiagnostic {
+  network: RialoNetwork;
+  workflowAddress: string;
+  workflowSlug: string;
+  sponsor: string;
+  workflow: DecodedMergePayWorkflow | null;
+  lifecycle: MergePayWorkflowLifecycle | "unavailable";
+  severity: MergePayDiagnosticSeverity;
+  finding: MergePayDiagnosticFinding;
+  message: string;
+  createdSignature: string;
+  createdBlockHeight: bigint;
+  createdBlockTime: bigint | null;
+  latestActivity: MergePayActivityItem | null;
+  readError: string | null;
+}
+
+export interface MergePayDiagnosticPage {
+  items: MergePayWorkflowDiagnostic[];
+  nextBefore: string | null;
+  hasMore: boolean;
+  scannedTransactions: number;
+  incomplete: boolean;
+  readErrors: number;
+}
+
+export interface MergePayDiagnosticPageOptions {
   limit?: number;
   before?: string;
 }
@@ -569,6 +622,135 @@ export class MergePayClient {
     return openBounties.slice(0, boundedLimit);
   }
 
+  async getWorkflowDiagnosticsPage(
+    options: MergePayDiagnosticPageOptions = {},
+  ): Promise<MergePayDiagnosticPage> {
+    const pageSize = Math.min(Math.max(Math.trunc(options.limit ?? 25), 1), 25);
+    const signatures = await this.rpc.getSignaturesForAddressPage(
+      this.programId,
+      pageSize,
+      options.before,
+    );
+    const activityBatch = await this.decodeWalletActivityBatch(signatures);
+    const candidates = activityBatch.items.filter(
+      (item): item is MergePayActivityItem & {
+        action: "create_bounty";
+        workflowAddress: string;
+        workflowSlug: string;
+        workflowPayer: string;
+      } =>
+        item.action === "create_bounty" &&
+        !item.legacyInstruction &&
+        item.status === "confirmed" &&
+        item.workflowAddress !== null &&
+        item.workflowSlug !== null &&
+        item.workflowPayer !== null &&
+        isWorkflowSlugHex(item.workflowSlug),
+    );
+
+    let readErrors = activityBatch.unreadableTransactions;
+    const seen = new Set<string>();
+    const now = Date.now();
+    const diagnosticResults = await Promise.all(
+      candidates.map(async (item) => {
+        if (seen.has(item.workflowAddress)) return null;
+        seen.add(item.workflowAddress);
+
+        const expectedWorkflow = deriveWorkflowPda(
+          this.programId,
+          item.workflowPayer,
+          item.workflowSlug,
+        );
+        if (expectedWorkflow.address !== item.workflowAddress) {
+          return createWorkflowDiagnostic({
+            network: this.network,
+            item,
+            workflow: null,
+            latestActivity: item,
+            readError: null,
+            now,
+            pdaMatches: false,
+          });
+        }
+
+        const [workflowResult, activityResult] = await Promise.allSettled([
+          this.getWorkflowByAddress(item.workflowAddress),
+          this.rpc
+            .getSignaturesForAddressPage(item.workflowAddress, 1)
+            .then(async (latestSignatures) => {
+              if (latestSignatures.length === 0) {
+                return { activity: item, unreadableTransactions: 0 };
+              }
+              const latestBatch = await this.decodeWalletActivityBatch(
+                latestSignatures,
+              );
+              return {
+                activity: latestBatch.items[0] ?? item,
+                unreadableTransactions: latestBatch.unreadableTransactions,
+              };
+            }),
+        ]);
+
+        let localReadErrors = 0;
+        const errors: string[] = [];
+        let workflow: DecodedMergePayWorkflow | null = null;
+        if (workflowResult.status === "fulfilled") {
+          workflow = workflowResult.value;
+          if (workflow === null) {
+            localReadErrors += 1;
+            errors.push("The workflow account is not currently available from Rialo.");
+          }
+        } else {
+          localReadErrors += 1;
+          errors.push(errorMessage(workflowResult.reason));
+        }
+
+        let latestActivity: MergePayActivityItem | null = item;
+        if (activityResult.status === "fulfilled") {
+          latestActivity = activityResult.value.activity;
+          localReadErrors += activityResult.value.unreadableTransactions;
+          if (activityResult.value.unreadableTransactions > 0) {
+            errors.push("The latest workflow transaction could not be decoded.");
+          }
+        } else {
+          localReadErrors += 1;
+          errors.push(errorMessage(activityResult.reason));
+        }
+
+        readErrors += localReadErrors;
+        return createWorkflowDiagnostic({
+          network: this.network,
+          item,
+          workflow,
+          latestActivity,
+          readError: errors.length > 0 ? errors.join(" ") : null,
+          now,
+          pdaMatches: true,
+        });
+      }),
+    );
+
+    const nextBefore =
+      signatures.length === pageSize
+        ? signatures[signatures.length - 1]?.signature ?? null
+        : null;
+
+    return {
+      items: diagnosticResults
+        .filter(
+          (record): record is MergePayWorkflowDiagnostic => record !== null,
+        )
+        .sort((left, right) =>
+          left.createdBlockHeight < right.createdBlockHeight ? 1 : -1,
+        ),
+      nextBefore,
+      hasMore: nextBefore !== null,
+      scannedTransactions: signatures.length,
+      incomplete: readErrors > 0,
+      readErrors,
+    };
+  }
+
   private async decodeWalletActivity(
     signatures: Awaited<ReturnType<MergePayRpcClient["getSignaturesForAddress"]>>,
   ): Promise<MergePayActivityItem[]> {
@@ -916,6 +1098,173 @@ function publicBountyStatus(
   if (lifecycle === "funded") return "funded";
   if (lifecycle === "claimed") return "claimed";
   return lifecycle === "created" ? "open" : null;
+}
+
+function createWorkflowDiagnostic({
+  network,
+  item,
+  workflow,
+  latestActivity,
+  readError,
+  now,
+  pdaMatches,
+}: {
+  network: RialoNetwork;
+  item: MergePayActivityItem & {
+    action: "create_bounty";
+    workflowAddress: string;
+    workflowSlug: string;
+    workflowPayer: string;
+  };
+  workflow: DecodedMergePayWorkflow | null;
+  latestActivity: MergePayActivityItem | null;
+  readError: string | null;
+  now: number;
+  pdaMatches: boolean;
+}): MergePayWorkflowDiagnostic {
+  const base = {
+    network,
+    workflowAddress: item.workflowAddress,
+    workflowSlug: item.workflowSlug,
+    sponsor: item.workflowPayer,
+    workflow,
+    createdSignature: item.signature,
+    createdBlockHeight: item.blockHeight,
+    createdBlockTime: item.blockTime,
+    latestActivity,
+    readError,
+  };
+
+  if (!pdaMatches) {
+    return {
+      ...base,
+      lifecycle: "invalid",
+      severity: "critical",
+      finding: "pda_mismatch",
+      message: "The recorded workflow address does not match the derived program address.",
+    };
+  }
+  if (!workflow) {
+    return {
+      ...base,
+      lifecycle: "unavailable",
+      severity: "critical",
+      finding: "account_unavailable",
+      message: "The creation transaction is confirmed, but its workflow account could not be verified.",
+    };
+  }
+
+  const lifecycle = classifyWorkflowLifecycle(workflow.state);
+  if (
+    workflow.state.sponsor !== item.workflowPayer ||
+    workflow.address !== item.workflowAddress ||
+    lifecycle === "invalid" ||
+    lifecycle === "uninitialized" ||
+    lifecycle === "claim_request"
+  ) {
+    return {
+      ...base,
+      lifecycle: "invalid",
+      severity: "critical",
+      finding: "invalid_state",
+      message: "The decoded account identity or lifecycle is inconsistent with its creation proof.",
+    };
+  }
+
+  if (lifecycle === "merge_confirmed") {
+    return {
+      ...base,
+      lifecycle,
+      severity: "critical",
+      finding: "settlement_incomplete",
+      message: "Merge confirmation is recorded without a completed payout.",
+    };
+  }
+
+  if (
+    lifecycle === "funded" &&
+    workflow.state.deadlineUnixMs <= BigInt(now)
+  ) {
+    return {
+      ...base,
+      lifecycle,
+      severity: "critical",
+      finding: "refund_overdue",
+      message: "Funded escrow remains locked after the workflow deadline.",
+    };
+  }
+
+  if (latestActivity?.status === "failed") {
+    return {
+      ...base,
+      lifecycle,
+      severity: "warning",
+      finding: "transaction_failed",
+      message: "The latest workflow transaction failed and may need another read or retry.",
+    };
+  }
+
+  if (readError) {
+    return {
+      ...base,
+      lifecycle,
+      severity: "warning",
+      finding: "read_incomplete",
+      message: "The workflow account is valid, but its latest activity could not be read completely.",
+    };
+  }
+
+  const latestActivityMs = blockTimeToUnixMs(latestActivity?.blockTime ?? null);
+  if (
+    lifecycle === "funded" &&
+    workflow.state.checks > 0n &&
+    latestActivity?.action === "check_merge" &&
+    latestActivityMs !== null &&
+    now - latestActivityMs >= DIAGNOSTIC_CHECK_REVIEW_AFTER_MS
+  ) {
+    return {
+      ...base,
+      lifecycle,
+      severity: "warning",
+      finding: "check_needs_review",
+      message: "No terminal account update followed the latest merge check within ten minutes.",
+    };
+  }
+
+  if (
+    (lifecycle === "created" || lifecycle === "claimed") &&
+    workflow.state.deadlineUnixMs <= BigInt(now)
+  ) {
+    return {
+      ...base,
+      lifecycle,
+      severity: "notice",
+      finding: "expired_unfunded",
+      message: "The bounty expired before escrow funding, so no value is locked.",
+    };
+  }
+
+  return {
+    ...base,
+    lifecycle,
+    severity: "healthy",
+    finding: "none",
+    message:
+      lifecycle === "paid" || lifecycle === "refunded"
+        ? "Terminal workflow state is internally consistent."
+        : "The latest verified workflow state requires no intervention.",
+  };
+}
+
+function blockTimeToUnixMs(value: bigint | null): number | null {
+  if (value === null) return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return numeric > 100_000_000_000 ? numeric : numeric * 1_000;
+}
+
+function errorMessage(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
 }
 
 function decodeInstructionDataCandidates(data: string): Uint8Array[] {

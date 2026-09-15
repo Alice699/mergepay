@@ -13,6 +13,7 @@ const navigation = [
   { href: routes.bounties, label: "Bounties" },
   { href: routes.activity, label: "Activity" },
   { href: routes.settlements, label: "Settlements" },
+  { href: routes.diagnostics, label: "Diagnostics" },
   { href: routes.guide, label: "Guide" },
   { href: routes.docs, label: "Docs" },
 ];

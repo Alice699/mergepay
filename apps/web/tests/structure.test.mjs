@@ -12,6 +12,7 @@ const requiredPaths = [
   "app/bounties/[slug]/page.tsx",
   "app/bounties/[slug]/receipt/page.tsx",
   "app/activity/page.tsx",
+  "app/diagnostics/page.tsx",
   "app/settlements/page.tsx",
   "app/settlements/[slug]/page.tsx",
   "app/settlements/receipt/page.tsx",
@@ -40,6 +41,7 @@ const requiredPaths = [
   "components/bounty/workflow-detail.tsx",
   "components/bounty/settlement-receipt.tsx",
   "components/bounty/open-bounty-feed.tsx",
+  "components/diagnostics/workflow-diagnostics-dashboard.tsx",
   "features/create-bounty/components/create-bounty-form.tsx",
   "features/create-bounty/schema.ts",
   "features/create-bounty/use-create-bounty.ts",
@@ -862,4 +864,55 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.match(styles, /Guide \/ Liquid Slate/);
   assert.match(styles, /body:has\(\.liquid-slate-page\)/);
   assert.doesNotMatch(styles, /\.code-flow/);
+});
+
+test("keeps program diagnostics onchain, filterable, and strictly read-only", async () => {
+  const diagnosticsPage = await readFile(
+    new URL("app/diagnostics/page.tsx", webRoot),
+    "utf8",
+  );
+  const dashboard = await readFile(
+    new URL(
+      "components/diagnostics/workflow-diagnostics-dashboard.tsx",
+      webRoot,
+    ),
+    "utf8",
+  );
+  const client = await readFile(
+    new URL("../../packages/rialo-client/src/client.ts", webRoot),
+    "utf8",
+  );
+  const routes = await readFile(new URL("lib/constants.ts", webRoot), "utf8");
+  const header = await readFile(
+    new URL("components/layout/site-header.tsx", webRoot),
+    "utf8",
+  );
+  const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
+
+  assert.match(diagnosticsPage, /WorkflowDiagnosticsDashboard/);
+  assert.match(diagnosticsPage, /DevNet \/ Read only/);
+  assert.match(diagnosticsPage, /0 transactions/);
+  assert.match(dashboard, /getWorkflowDiagnosticsPage/);
+  assert.match(dashboard, /useAdaptivePolling/);
+  assert.match(dashboard, /Reconcile now/);
+  assert.match(dashboard, /Status/);
+  assert.match(dashboard, /Age/);
+  assert.match(dashboard, /Network/);
+  assert.match(dashboard, /Latest error/);
+  assert.match(dashboard, /getWorkflowLineage/);
+  assert.match(dashboard, /getRialoScanSearchUrl/);
+  assert.match(dashboard, /TransactionProof/);
+  assert.doesNotMatch(
+    dashboard,
+    /build(?:AcceptClaim|CheckMerge|CreateBounty|Fund|Refund)Instruction|submitTransaction|signAndSend/,
+  );
+  assert.match(client, /getWorkflowDiagnosticsPage/);
+  assert.match(client, /Promise\.allSettled/);
+  assert.match(client, /deriveWorkflowPda/);
+  assert.match(client, /refund_overdue/);
+  assert.match(client, /read_incomplete/);
+  assert.match(routes, /diagnostics: "\/diagnostics"/);
+  assert.match(header, /routes\.diagnostics/);
+  assert.match(styles, /Workflow diagnostics \/ program-wide reconciliation/);
+  assert.match(styles, /\.workflow-diagnostic__finding/);
 });
