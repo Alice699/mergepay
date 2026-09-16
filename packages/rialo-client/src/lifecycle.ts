@@ -89,10 +89,28 @@ export function isWorkflowSnapshotProgression(
     before.pullNumber !== after.pullNumber ||
     before.amountKelvin !== after.amountKelvin ||
     before.deadlineUnixMs !== after.deadlineUnixMs ||
+    before.expectedHeadSha !== after.expectedHeadSha ||
+    before.expectedBaseRef !== after.expectedBaseRef ||
+    before.requireCiSuccess !== after.requireCiSuccess ||
+    before.minimumApprovals !== after.minimumApprovals ||
+    before.rexBytecodeAccount !== after.rexBytecodeAccount ||
     before.claimRequest !== after.claimRequest ||
     before.claimTarget !== after.claimTarget ||
     after.nextBranchNumber < before.nextBranchNumber ||
-    after.checks < before.checks
+    after.checks < before.checks ||
+    after.proofCheckedUnixMs < before.proofCheckedUnixMs
+  ) {
+    return false;
+  }
+
+  if (
+    after.proofCheckedUnixMs === before.proofCheckedUnixMs &&
+    (after.proofStatus !== before.proofStatus ||
+      after.proofHeadSha !== before.proofHeadSha ||
+      after.proofBaseRef !== before.proofBaseRef ||
+      after.proofMergeCommitSha !== before.proofMergeCommitSha ||
+      after.proofCiSuccess !== before.proofCiSuccess ||
+      after.proofApprovals !== before.proofApprovals)
   ) {
     return false;
   }

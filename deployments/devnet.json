@@ -1,6 +1,6 @@
 {
   "network": "devnet",
-  "updatedAt": "2026-09-09",
+  "updatedAt": "2026-09-16",
   "reviewCandidate": {
     "programId": "6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB",
     "status": "fully-tested-hardened",
@@ -12,7 +12,7 @@
     "abi": "marketplace-claims-v1",
     "evidence": "docs/EVIDENCE.md"
   },
-  "autonomousSettlementCandidate": {
+  "previousAutonomousSettlementCandidate": {
     "programId": "6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5",
     "status": "runtime-proven-autonomous-settlement",
     "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v4",
@@ -49,6 +49,86 @@
         "status": "idempotent-success-after-automatic-refund"
       }
     }
+  },
+  "previousAutonomousSettlementCandidateV5": {
+    "programId": "Buu7BgpxJiZXV9bU2pJBpQWUn2iEuyaSkD6xenGNxeDn",
+    "status": "deployed-with-rex-component-awaiting-live-e2e",
+    "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v5-strong-proof",
+    "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
+    "bytes": 242047,
+    "sha256": "BB63B784D1E43B64369AA5F2D42B17D55027A11293C95CAB8BB42D0878B49564",
+    "deployedSlot": 15607319,
+    "dataLength": 242095,
+    "executableDataLength": 242047,
+    "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
+    "balanceRlo": 1.68587208,
+    "rexBytecodeAccount": "Dwndi9TcUFRjG1D2xRgB6ukrLzs2RjYjgt3iWLxi612X",
+    "rexComponents": {
+      "programId": "Dwndi9TcUFRjG1D2xRgB6ukrLzs2RjYjgt3iWLxi612X",
+      "bytecodeAccount": "Dwndi9TcUFRjG1D2xRgB6ukrLzs2RjYjgt3iWLxi612X",
+      "component": "verify_settlement",
+      "bytes": 106891,
+      "sha256": "601E6BA55D67AE44C3AAE4A5B1696E98C1823B40CBF02CC6E48A659FAFD90124",
+      "dataLength": 106939,
+      "executableDataLength": 106891,
+      "balanceRlo": 0.74518632,
+      "executable": true
+    },
+    "runtimeProof": null
+  },
+  "previousAutonomousSettlementCandidateV6": {
+    "programId": "9LXQeM5vvn4Xh9k6wdrGe71ynCvdCLogXrQoScugiEHJ",
+    "status": "superseded-by-storage-safe-deployment",
+    "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v5-strong-proof",
+    "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
+    "bytes": 242051,
+    "sha256": "25EA9648CCEED1138ED0D7F3639B3477D603FE83AEDA4AADB14E3CCDDDF31C67",
+    "deployedSlot": 15643367,
+    "dataLength": 242099,
+    "executableDataLength": 242051,
+    "authority": "DKR4REhMAeJFRAJukESpvLFKCJu4X6LHSUcrBoFoipS",
+    "balanceRlo": 1.68589992,
+    "rexBytecodeAccount": "EFyLu4X1NzwVo8yBBiBZXqRyTRuG9TUHgNkSZFvkTQ5B",
+    "rexComponents": {
+      "programId": "EFyLu4X1NzwVo8yBBiBZXqRyTRuG9TUHgNkSZFvkTQ5B",
+      "bytecodeAccount": "EFyLu4X1NzwVo8yBBiBZXqRyTRuG9TUHgNkSZFvkTQ5B",
+      "component": "verify_settlement",
+      "bytes": 106527,
+      "sha256": "37778B35E6E414336F22BFA697014E1F258902329691512197F1CE2D4983A217",
+      "dataLength": 106619,
+      "executableDataLength": 106527,
+      "balanceRlo": 0.74295912,
+      "executable": true
+    },
+    "runtimeProof": null,
+    "supersedes": "Buu7BgpxJiZXV9bU2pJBpQWUn2iEuyaSkD6xenGNxeDn"
+  },
+  "autonomousSettlementCandidate": {
+    "programId": "FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q",
+    "status": "deployed-latest-awaiting-live-e2e",
+    "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v5-storage-safe",
+    "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
+    "bytes": 242877,
+    "sha256": "6490F8A95DBF19C32CA85D52F8E3DD33312B22AB7AB1C11756131E2D6D343094",
+    "deployedSlot": 15705856,
+    "dataLength": 242925,
+    "executableDataLength": 242877,
+    "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
+    "balanceRlo": 1.69164888,
+    "rexBytecodeAccount": "GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK",
+    "rexComponents": {
+      "programId": "GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK",
+      "bytecodeAccount": "GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK",
+      "component": "verify_settlement",
+      "bytes": 107806,
+      "sha256": "3EBE5ABDAA338D92AEB3F36E342F0BFB672BF6DE964213041EE918E25E3F43FA",
+      "dataLength": 107854,
+      "executableDataLength": 107806,
+      "balanceRlo": 0.75155472,
+      "executable": true
+    },
+    "runtimeProof": null,
+    "supersedes": "9LXQeM5vvn4Xh9k6wdrGe71ynCvdCLogXrQoScugiEHJ"
   },
   "previousRuntimeCandidate": {
     "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",

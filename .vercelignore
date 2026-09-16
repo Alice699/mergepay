@@ -1,0 +1,15 @@
+# Keep local build output out of the Vercel upload context.
+target/
+**/target/
+node_modules/
+**/node_modules/
+**/.next/
+**/dist/
+**/coverage/
+**/playwright-report/
+**/test-results/
+
+# Local-only material is never part of the deployed app.
+mergepay-demo/
+WORK_CONTEXT.md
+importan task.md

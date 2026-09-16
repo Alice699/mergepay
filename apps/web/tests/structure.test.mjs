@@ -20,6 +20,7 @@ const requiredPaths = [
   "app/docs/page.tsx",
   "app/api/rialo/route.ts",
   "app/api/github/pull/route.ts",
+  "app/api/github/settlement-preview/route.ts",
   "app/api/github/claim-review/route.ts",
   "app/api/github/auth/start/route.ts",
   "app/api/github/auth/callback/route.ts",
@@ -74,6 +75,7 @@ const requiredPaths = [
   "hooks/use-workflow.ts",
   "hooks/use-github-identity.ts",
   "hooks/use-github-claim-review.ts",
+  "hooks/use-github-settlement-preview.ts",
   "lib/config.ts",
   "lib/rialo.ts",
   "lib/embedded-wallet.ts",
@@ -381,6 +383,10 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
     new URL("app/api/github/claim-review/route.ts", webRoot),
     "utf8",
   );
+  const githubSettlementPreviewRoute = await readFile(
+    new URL("app/api/github/settlement-preview/route.ts", webRoot),
+    "utf8",
+  );
   const githubPublicPull = await readFile(
     new URL("lib/github-public-pull.ts", webRoot),
     "utf8",
@@ -506,12 +512,16 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(acceptClaimAction, /Approve contributor/);
   assert.match(githubPublicPull, /api.github.com/);
   assert.match(githubPublicPull, /merged_at/);
+  assert.match(githubPublicPull, /head\?\.sha/);
+  assert.match(githubPublicPull, /base\?\.ref/);
   assert.match(githubPublicPull, /redirect: "manual"/);
   assert.match(githubPublicPull, /runWithBoundedRetry/);
   assert.match(githubPublicPull, /GITHUB_RATE_LIMITED/);
   assert.match(githubPublicPull, /GITHUB_PULL_NOT_FOUND/);
   assert.match(githubProofRoute, /getGitHubIdentity/);
   assert.match(githubProofRoute, /pull.author.id !== identity.id/);
+  assert.match(githubSettlementPreviewRoute, /fetchPublicGitHubPull/);
+  assert.doesNotMatch(githubSettlementPreviewRoute, /getGitHubIdentity/);
   assert.match(githubClaimReviewRoute, /authorIdMatches/);
   assert.match(githubClaimReviewRoute, /recordedLoginMatches/);
   assert.match(githubIdentityHook, /api\/github\/auth\/session/);
@@ -534,7 +544,7 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(checkMergeAction, /Autonomous settlement/);
   assert.match(checkMergeAction, /Watching for merge/);
   assert.match(walletProvider, /MERGEPAY_CALLBACK_DISCRIMINANT/);
-  assert.match(walletProvider, /run_merge_check timer-handler ABI/);
+  assert.match(walletProvider, /manual check action itself uses public check_merge/);
   assert.match(refundHook, /getWorkflow/);
   assert.match(refundHook, /buildRefund/);
   assert.match(refundHook, /submitTransaction/);
@@ -560,6 +570,8 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(wallet, /Encrypted locally/);
   assert.match(wallet, /15 min auto-lock/);
   assert.match(config, /configuredRpcUrl \|\| "\/api\/rialo"/);
+  assert.match(config, /stale local/);
+  assert.match(config, /deploymentRexBytecodeAccount/);
   assert.match(rpcRelay, /allowedMethods/);
   assert.match(rpcRelay, /getWorkflowLineage/);
   assert.match(rpcRelay, /getSignaturesForAddress/);

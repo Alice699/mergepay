@@ -1,10 +1,10 @@
 //! MergePay: a GitHub pull-request bounty escrow built with Rialo Venus.
 //!
 //! A sponsor publishes and funds a workflow PDA. A contributor claims it with a
-//! separate wallet-owned record before Rialo REX checks GitHub's compact
-//! `GET /repos/{owner}/{repo}/pulls/{number}/merge` endpoint. HTTP 204 means
-//! merged, while HTTP 404 means not merged. A unanimous REX report releases
-//! the escrow to the contributor approved by the sponsor.
+//! separate wallet-owned record before a custom Rialo REX WASM component
+//! verifies GitHub's pull-request, commit-status, check-run, and review APIs.
+//! The exact head commit, base branch, and optional CI/review policy are locked
+//! at creation. Only a byte-identical, unanimous proof can release escrow.
 
 use rialo_venus_proc_macro::rialo;
 
@@ -30,6 +30,240 @@ rialo! {
             github_auth_ciphertext: Vec<u8>,
             github_url_ciphertext: Vec<u8>,
             next_merge_check_unix_ms: u64,
+            expected_head_sha: String,
+            expected_base_ref: String,
+            require_ci_success: bool,
+            minimum_approvals: u64,
+            proof_status: u64,
+            proof_head_sha: String,
+            proof_base_ref: String,
+            proof_merge_commit_sha: String,
+            proof_ci_success: bool,
+            proof_approvals: u64,
+            proof_checked_unix_ms: u64,
+        }
+
+        rex {
+            pub fn verify_settlement(
+                owner: String,
+                repo: String,
+                pull_number: u64,
+                expected_head_sha: String,
+                expected_base_ref: String,
+                require_ci_success: bool,
+                minimum_approvals: u64
+            ) -> Result<String, String> {
+                use rialo::rex_component::http;
+                use serde_json::Value;
+
+                let headers = vec![
+                    ("Accept".to_string(), "application/vnd.github+json".to_string()),
+                    ("X-GitHub-Api-Version".to_string(), "2022-11-28".to_string()),
+                    ("User-Agent".to_string(), "MergePay-Rialo/0.2".to_string()),
+                ];
+                let fetch_json = |url: String| -> Result<(Value, Vec<(String, String)>), String> {
+                    let response = http::get(&url, &headers, 10_000)
+                        .map_err(|error| format!("GitHub request failed: {}", error))?;
+                    if response.status != 200 {
+                        return Err(format!("GitHub returned HTTP {}", response.status));
+                    }
+                    if response.body.len() > 1_000_000 {
+                        return Err("GitHub response exceeded the proof limit".to_string());
+                    }
+                    let value = serde_json::from_slice::<Value>(&response.body)
+                        .map_err(|_| "GitHub returned invalid JSON".to_string())?;
+                    Ok((value, response.headers))
+                };
+                let encode = |
+                    code: u64,
+                    head: &str,
+                    merge_commit: &str,
+                    ci_success: bool,
+                    approvals: u64,
+                    base_ref: &str,
+                | -> String {
+                    format!(
+                        "MP1|{}|{}|{}|{}|{}|{}",
+                        code,
+                        head,
+                        merge_commit,
+                        if ci_success { 1 } else { 0 },
+                        approvals,
+                        base_ref
+                    )
+                };
+
+                let pull_url = format!(
+                    "https://api.github.com/repos/{}/{}/pulls/{}",
+                    owner,
+                    repo,
+                    pull_number
+                );
+                let (pull, _) = fetch_json(pull_url)?;
+                let head_sha = pull
+                    .pointer("/head/sha")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| "GitHub pull response omitted head SHA".to_string())?;
+                let base_ref = pull
+                    .pointer("/base/ref")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| "GitHub pull response omitted base ref".to_string())?;
+                let merged = pull
+                    .get("merged")
+                    .and_then(Value::as_bool)
+                    .ok_or_else(|| "GitHub pull response omitted merged state".to_string())?;
+
+                if head_sha != expected_head_sha {
+                    return Ok(encode(2, head_sha, "-", false, 0, base_ref));
+                }
+                if base_ref != expected_base_ref {
+                    return Ok(encode(3, head_sha, "-", false, 0, base_ref));
+                }
+                if !merged {
+                    return Ok(encode(1, head_sha, "-", false, 0, base_ref));
+                }
+
+                let merge_commit = pull
+                    .get("merge_commit_sha")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| "Merged pull omitted merge commit SHA".to_string())?;
+
+                let mut ci_success = !require_ci_success;
+                if require_ci_success {
+                    let status_url = format!(
+                        "https://api.github.com/repos/{}/{}/commits/{}/status",
+                        owner,
+                        repo,
+                        expected_head_sha
+                    );
+                    let (status, _) = fetch_json(status_url)?;
+                    let status_count = status
+                        .get("total_count")
+                        .and_then(Value::as_u64)
+                        .ok_or_else(|| "GitHub status response omitted total_count".to_string())?;
+                    let legacy_ok = status_count == 0
+                        || status.get("state").and_then(Value::as_str) == Some("success");
+
+                    let checks_url = format!(
+                        "https://api.github.com/repos/{}/{}/commits/{}/check-runs?filter=latest&per_page=100",
+                        owner,
+                        repo,
+                        expected_head_sha
+                    );
+                    let (checks, _) = fetch_json(checks_url)?;
+                    let check_count = checks
+                        .get("total_count")
+                        .and_then(Value::as_u64)
+                        .ok_or_else(|| "GitHub checks response omitted total_count".to_string())?;
+                    if check_count > 100 {
+                        return Err("GitHub check-run proof requires pagination".to_string());
+                    }
+                    let check_runs = checks
+                        .get("check_runs")
+                        .and_then(Value::as_array)
+                        .ok_or_else(|| "GitHub checks response omitted check_runs".to_string())?;
+                    let checks_complete = check_runs.iter().all(|check| {
+                        check.get("status").and_then(Value::as_str) == Some("completed")
+                            && matches!(
+                                check.get("conclusion").and_then(Value::as_str),
+                                Some("success" | "neutral" | "skipped")
+                            )
+                    });
+                    ci_success = (status_count + check_count) > 0
+                        && legacy_ok
+                        && checks_complete;
+                    if !ci_success {
+                        return Ok(encode(4, head_sha, merge_commit, false, 0, base_ref));
+                    }
+                }
+
+                let mut approvals = 0u64;
+                if minimum_approvals > 0 {
+                    let reviews_url = format!(
+                        "https://api.github.com/repos/{}/{}/pulls/{}/reviews?per_page=100",
+                        owner,
+                        repo,
+                        pull_number
+                    );
+                    let (reviews, review_headers) = fetch_json(reviews_url)?;
+                    let has_next_page = review_headers.iter().any(|(name, value)| {
+                        name.eq_ignore_ascii_case("link") && value.contains("rel=\"next\"")
+                    });
+                    if has_next_page {
+                        return Err("GitHub review proof requires pagination".to_string());
+                    }
+                    let review_items = reviews
+                        .as_array()
+                        .ok_or_else(|| "GitHub reviews response was not an array".to_string())?;
+                    let mut latest = std::collections::BTreeMap::<
+                        u64,
+                        (u64, String, String, String),
+                    >::new();
+                    for review in review_items {
+                        let Some(user_id) = review.pointer("/user/id").and_then(Value::as_u64) else {
+                            continue;
+                        };
+                        let state = review
+                            .get("state")
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                            .to_string();
+                        if matches!(state.as_str(), "COMMENTED" | "PENDING") {
+                            continue;
+                        }
+                        let Some(review_id) = review.get("id").and_then(Value::as_u64) else {
+                            continue;
+                        };
+                        let commit_id = review
+                            .get("commit_id")
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                            .to_string();
+                        let association = review
+                            .get("author_association")
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                            .to_string();
+                        let should_replace = latest
+                            .get(&user_id)
+                            .map(|(latest_id, _, _, _)| review_id > *latest_id)
+                            .unwrap_or(true);
+                        if should_replace {
+                            latest.insert(
+                                user_id,
+                                (review_id, state, commit_id, association),
+                            );
+                        }
+                    }
+                    approvals = latest
+                        .values()
+                        .filter(|(_, state, commit_id, association)| {
+                            state == "APPROVED"
+                                && commit_id == &expected_head_sha
+                                && matches!(association.as_str(), "OWNER" | "MEMBER" | "COLLABORATOR")
+                        })
+                        .count() as u64;
+                    if approvals < minimum_approvals {
+                        return Ok(encode(
+                            5,
+                            head_sha,
+                            merge_commit,
+                            ci_success,
+                            approvals,
+                            base_ref,
+                        ));
+                    }
+                }
+
+                Ok(encode(
+                    6,
+                    head_sha,
+                    merge_commit,
+                    ci_success,
+                    approvals,
+                    base_ref,
+                ))
+            }
         }
 
         program {
@@ -45,7 +279,7 @@ rialo! {
                 system_program,
                 sysvar::Sysvar,
             };
-            use rialo_types::{RexError, RexOutput};
+            use rialo_types::{RexData, RexOutput};
 
             initiating fn create_bounty(
                 &mut self,
@@ -55,6 +289,10 @@ rialo! {
                 pull_number: u64,
                 amount_kelvin: u64,
                 deadline_unix_ms: u64,
+                expected_head_sha: String,
+                expected_base_ref: String,
+                require_ci_success: bool,
+                minimum_approvals: u64,
             ) -> ProgramResult {
                 let current_unix_ms = self.unix_timestamp_ms();
                 msg!(
@@ -68,6 +306,10 @@ rialo! {
                     current_unix_ms
                 );
 
+                if self.__rex_bytecode_account == Pubkey::default() {
+                    msg!("MergePay rejected create: settlement REX bytecode is not configured");
+                    return Err(ProgramError::InvalidArgument);
+                }
                 if amount_kelvin == 0 {
                     msg!("MergePay rejected create: amount is zero");
                     return Err(ProgramError::InvalidArgument);
@@ -84,10 +326,24 @@ rialo! {
                     msg!("MergePay rejected create: invalid GitHub repository");
                     return Err(ProgramError::InvalidArgument);
                 }
+                if !self.valid_github_sha(&expected_head_sha) {
+                    msg!("MergePay rejected create: invalid expected head SHA");
+                    return Err(ProgramError::InvalidArgument);
+                }
+                if !self.valid_github_ref(&expected_base_ref) {
+                    msg!("MergePay rejected create: invalid expected base ref");
+                    return Err(ProgramError::InvalidArgument);
+                }
+                if minimum_approvals > 10 {
+                    msg!("MergePay rejected create: approval policy exceeds limit");
+                    return Err(ProgramError::InvalidArgument);
+                }
                 if current_unix_ms < 0 || deadline_unix_ms <= current_unix_ms as u64 {
                     msg!("MergePay rejected create: deadline is not in the future");
                     return Err(ProgramError::InvalidArgument);
                 }
+
+                let expected_head_sha = expected_head_sha.to_ascii_lowercase();
 
                 self.sponsor = *self.payer_account().key;
                 self.beneficiary = beneficiary;
@@ -108,6 +364,17 @@ rialo! {
                 self.github_auth_ciphertext = Vec::new();
                 self.github_url_ciphertext = Vec::new();
                 self.next_merge_check_unix_ms = 0;
+                self.expected_head_sha = expected_head_sha;
+                self.expected_base_ref = expected_base_ref;
+                self.require_ci_success = require_ci_success;
+                self.minimum_approvals = minimum_approvals;
+                self.proof_status = 0;
+                self.proof_head_sha = String::new();
+                self.proof_base_ref = String::new();
+                self.proof_merge_commit_sha = String::new();
+                self.proof_ci_success = false;
+                self.proof_approvals = 0;
+                self.proof_checked_unix_ms = 0;
 
                 if self.beneficiary == Pubkey::default() {
                     msg!(
@@ -147,6 +414,13 @@ rialo! {
 
                 let target_state = read_from_storage::<State>(&target_account.data.borrow())
                     .map_err(|_| ProgramError::InvalidAccountData)?;
+                if self.__rex_bytecode_account == Pubkey::default()
+                    || target_state.__rex_bytecode_account == Pubkey::default()
+                    || target_state.__rex_bytecode_account != self.__rex_bytecode_account
+                {
+                    msg!("MergePay rejected claim: settlement REX bytecode does not match");
+                    return Err(ProgramError::InvalidArgument);
+                }
                 if target_state.claim_request
                     || target_state.sponsor == Pubkey::default()
                     || target_state.beneficiary != Pubkey::default()
@@ -185,6 +459,17 @@ rialo! {
                 self.github_auth_ciphertext = Vec::new();
                 self.github_url_ciphertext = Vec::new();
                 self.next_merge_check_unix_ms = 0;
+                self.expected_head_sha = target_state.expected_head_sha;
+                self.expected_base_ref = target_state.expected_base_ref;
+                self.require_ci_success = target_state.require_ci_success;
+                self.minimum_approvals = target_state.minimum_approvals;
+                self.proof_status = 0;
+                self.proof_head_sha = String::new();
+                self.proof_base_ref = String::new();
+                self.proof_merge_commit_sha = String::new();
+                self.proof_ci_success = false;
+                self.proof_approvals = 0;
+                self.proof_checked_unix_ms = 0;
 
                 msg!(
                     "MergePay claim requested by {} for {}/{}#{}",
@@ -282,6 +567,11 @@ rialo! {
                     || claim_state.pull_number != self.pull_number
                     || claim_state.amount_kelvin != self.amount_kelvin
                     || claim_state.deadline_unix_ms != self.deadline_unix_ms
+                    || claim_state.expected_head_sha != self.expected_head_sha
+                    || claim_state.expected_base_ref != self.expected_base_ref
+                    || claim_state.require_ci_success != self.require_ci_success
+                    || claim_state.minimum_approvals != self.minimum_approvals
+                    || claim_state.__rex_bytecode_account != self.__rex_bytecode_account
                     || !self.valid_github_slug(&claim_state.claimant_github)
                     || claim_state.claimant_github_id == 0
                 {
@@ -368,17 +658,42 @@ rialo! {
                     return Ok(());
                 }
 
+                let proof_interval_ms = if self.require_ci_success
+                    || self.minimum_approvals > 0
+                {
+                    300_000
+                } else {
+                    60_000
+                };
                 self.next_merge_check_unix_ms = current_unix_ms_u64
-                    .checked_add(30_000)
+                    .checked_add(proof_interval_ms)
                     .unwrap_or(self.deadline_unix_ms);
-                self.checks += 1;
-                msg!("MergePay merge check #{} scheduled", self.checks);
+                self.checks = self.checks.saturating_add(1);
+                msg!("MergePay settlement proof check #{} scheduled", self.checks);
 
-                let url = self.github_url();
-                let headers = self.github_headers();
                 let beneficiary = self.beneficiary;
+                let owner = self.github_owner.clone();
+                let repo = self.github_repo.clone();
+                let pull_number = self.pull_number;
+                let expected_head_sha = self.expected_head_sha.clone();
+                let expected_base_ref = self.expected_base_ref.clone();
+                let require_ci_success = self.require_ci_success;
+                let minimum_approvals = self.minimum_approvals;
 
-                AFTER report = [http_get url: &url headers: &headers]
+                AFTER report = [verify_settlement
+                    owner: owner
+                    repo: repo
+                    pull_number: pull_number
+                    expected_head_sha: expected_head_sha
+                    expected_base_ref: expected_base_ref
+                    require_ci_success: require_ci_success
+                    minimum_approvals: minimum_approvals
+                    // GitHub REST is an external HTTPS dependency. The Venus
+                    // default REX collection window is 300ms, which is too
+                    // short for a cold DNS/TLS request and caused otherwise
+                    // valid merged proofs to become non-unanimous timeouts.
+                    request_delay_ms: 15_000u64
+                ]
                 CALL [handle_merge_response beneficiary: beneficiary report: report];
                 Ok(())
             }
@@ -414,20 +729,32 @@ rialo! {
                 }
 
                 let mut output_count = 0u64;
-                let mut merged_count = 0u64;
-                let mut not_merged_count = 0u64;
+                let mut success_count = 0u64;
+                let mut consensus_payload: Option<Vec<u8>> = None;
+                let mut payloads_match = true;
 
                 for output in report.outputs() {
                     output_count += 1;
                     match output {
-                        RexOutput::Success(_) => {
-                            merged_count += 1;
-                        }
-                        RexOutput::RexError(RexError::HttpStatusError {
-                            status,
-                            ..
-                        }) if status == 404 => {
-                            not_merged_count += 1;
+                        RexOutput::Success(response) => {
+                            if let RexData::Raw(payload) = response.response {
+                                if payload.len() > 512 {
+                                    msg!("MergePay rejected oversized settlement proof");
+                                    payloads_match = false;
+                                    continue;
+                                }
+                                if let Some(expected) = &consensus_payload {
+                                    if expected != &payload {
+                                        payloads_match = false;
+                                    }
+                                } else {
+                                    consensus_payload = Some(payload.clone());
+                                }
+                                success_count += 1;
+                            } else {
+                                msg!("MergePay rejected filtered settlement proof");
+                                payloads_match = false;
+                            }
                         }
                         RexOutput::RexError(error) => {
                             msg!("MergePay inconclusive REX error: {}", error);
@@ -443,20 +770,92 @@ rialo! {
 
                 if output_count == 0 {
                     msg!("MergePay received an empty REX report");
+                    self.record_inconclusive_proof(current_unix_ms as u64);
                     return Ok(());
                 }
 
-                if not_merged_count == output_count {
-                    msg!("MergePay PR is not merged; escrow remains locked");
-                    return Ok(());
-                }
-
-                if merged_count != output_count {
+                if success_count != output_count || !payloads_match {
                     msg!(
-                        "MergePay REX report was not unanimous: {}/{} merged",
-                        merged_count,
+                        "MergePay REX proof was not unanimous: {}/{} usable outputs",
+                        success_count,
                         output_count
                     );
+                    self.record_inconclusive_proof(current_unix_ms as u64);
+                    return Ok(());
+                }
+
+                let Some(payload) = consensus_payload else {
+                    self.record_inconclusive_proof(current_unix_ms as u64);
+                    return Ok(());
+                };
+                let Ok(proof) = std::str::from_utf8(&payload) else {
+                    msg!("MergePay rejected non-UTF8 settlement proof");
+                    self.record_inconclusive_proof(current_unix_ms as u64);
+                    return Ok(());
+                };
+                let fields: Vec<&str> = proof.split('|').collect();
+                if fields.len() != 7 || fields[0] != "MP1" {
+                    msg!("MergePay rejected malformed settlement proof");
+                    self.record_inconclusive_proof(current_unix_ms as u64);
+                    return Ok(());
+                }
+                let Ok(proof_status) = fields[1].parse::<u64>() else {
+                    self.record_inconclusive_proof(current_unix_ms as u64);
+                    return Ok(());
+                };
+                let proof_head_sha = fields[2];
+                let proof_merge_commit_sha = fields[3];
+                let proof_ci_success = match fields[4] {
+                    "0" => false,
+                    "1" => true,
+                    _ => {
+                        self.record_inconclusive_proof(current_unix_ms as u64);
+                        return Ok(());
+                    }
+                };
+                let Ok(proof_approvals) = fields[5].parse::<u64>() else {
+                    self.record_inconclusive_proof(current_unix_ms as u64);
+                    return Ok(());
+                };
+                let proof_base_ref = fields[6];
+                if !(1..=6).contains(&proof_status)
+                    || !self.valid_github_sha(proof_head_sha)
+                    || !self.valid_github_ref(proof_base_ref)
+                    || (proof_merge_commit_sha != "-"
+                        && !self.valid_github_sha(proof_merge_commit_sha))
+                {
+                    msg!("MergePay rejected invalid settlement proof fields");
+                    self.record_inconclusive_proof(current_unix_ms as u64);
+                    return Ok(());
+                }
+
+                self.proof_status = proof_status;
+                self.proof_head_sha = Self::fixed_proof_field(proof_head_sha, 40);
+                self.proof_base_ref = Self::fixed_proof_field(proof_base_ref, 128);
+                self.proof_merge_commit_sha = if proof_merge_commit_sha == "-" {
+                    Self::fixed_proof_field("", 40)
+                } else {
+                    Self::fixed_proof_field(proof_merge_commit_sha, 40)
+                };
+                self.proof_ci_success = proof_ci_success;
+                self.proof_approvals = proof_approvals;
+                self.proof_checked_unix_ms = current_unix_ms as u64;
+
+                if proof_status != 6 {
+                    msg!(
+                        "MergePay settlement conditions remain locked: proof status {}",
+                        proof_status
+                    );
+                    return Ok(());
+                }
+                if proof_head_sha != self.expected_head_sha
+                    || proof_base_ref != self.expected_base_ref
+                    || !self.valid_github_sha(proof_merge_commit_sha)
+                    || (self.require_ci_success && !proof_ci_success)
+                    || proof_approvals < self.minimum_approvals
+                {
+                    msg!("MergePay rejected proof that did not reproduce locked policy");
+                    self.record_inconclusive_proof(current_unix_ms as u64);
                     return Ok(());
                 }
 
@@ -537,14 +936,18 @@ rialo! {
                 if workflow_account.owner != self.program_id {
                     return Err(ProgramError::IncorrectProgramId);
                 }
-                // Refund the committed escrow even when the workflow account
-                // is below the latest rent-exempt threshold after a resize.
-                // The previous `amount + rent` guard rejected valid funded
-                // workflows with `InsufficientFunds` and also blocked the
-                // native deadline callback. The remaining balance is left in
-                // the PDA for its state/rent reserve when available.
+                // Older builds could return the escrow to the sponsor during
+                // a later storage resize while leaving `funded=true`. In that
+                // case the workflow is already financially recovered, but a
+                // second transfer would correctly fail with InsufficientFunds.
+                // Mark that legacy workflow settled so both the native timer
+                // and the manual fallback become idempotent.
                 if workflow_account.kelvins() < self.amount_kelvin {
-                    return Err(ProgramError::InsufficientFunds);
+                    msg!(
+                        "MergePay escrow was already recovered during a legacy storage resize"
+                    );
+                    self.refunded = true;
+                    return Ok(());
                 }
 
                 let workflow_balance = workflow_account
@@ -565,12 +968,13 @@ rialo! {
 
             control fn status(&mut self) -> ProgramResult {
                 msg!(
-                    "MergePay status: funded={}, merged={}, paid={}, refunded={}, checks={}, claim_request={}, claimant=@{} (GitHub {})",
+                    "MergePay status: funded={}, merged={}, paid={}, refunded={}, checks={}, proof_status={}, claim_request={}, claimant=@{} (GitHub {})",
                     self.funded,
                     self.merge_confirmed,
                     self.paid,
                     self.refunded,
                     self.checks,
+                    self.proof_status,
                     self.claim_request,
                     self.claimant_github,
                     self.claimant_github_id
@@ -625,6 +1029,11 @@ rialo! {
                     if self.github_auth_ciphertext == github_auth_ciphertext
                         && self.github_url_ciphertext == github_url_ciphertext
                     {
+                        // A retry can arrive after the envelope was written but
+                        // before an older build reserved the proof slots. Keep
+                        // preparation idempotent while making the storage shape
+                        // safe before escrow is transferred.
+                        self.reserve_proof_storage();
                         msg!("MergePay settlement storage was already prepared");
                         return Ok(());
                     }
@@ -634,6 +1043,10 @@ rialo! {
 
                 self.github_auth_ciphertext = github_auth_ciphertext;
                 self.github_url_ciphertext = github_url_ciphertext;
+                // Proof fields are written by asynchronous callbacks after the
+                // escrow is funded. Reserve their maximum serialized width now;
+                // Venus otherwise pays the later rent increase out of escrow.
+                self.reserve_proof_storage();
                 msg!("MergePay settlement storage prepared for atomic funding");
                 Ok(())
             }
@@ -643,6 +1056,32 @@ rialo! {
                     return Err(ProgramError::MissingRequiredSignature);
                 }
                 Ok(())
+            }
+
+            fn record_inconclusive_proof(&mut self, checked_unix_ms: u64) {
+                self.proof_status = 7;
+                self.reserve_proof_storage();
+                self.proof_ci_success = false;
+                self.proof_approvals = 0;
+                self.proof_checked_unix_ms = checked_unix_ms;
+            }
+
+            // Venus resizes a workflow PDA to the exact serialized state size.
+            // These three values are populated by a later REX callback, so they
+            // must keep a fixed-width representation after funding. NUL padding
+            // is removed by the typed client before the values reach the UI.
+            fn fixed_proof_field(value: &str, width: usize) -> String {
+                let mut fixed = value.to_string();
+                while fixed.len() < width {
+                    fixed.push('\0');
+                }
+                fixed
+            }
+
+            fn reserve_proof_storage(&mut self) {
+                self.proof_head_sha = Self::fixed_proof_field("", 40);
+                self.proof_base_ref = Self::fixed_proof_field("", 128);
+                self.proof_merge_commit_sha = Self::fixed_proof_field("", 40);
             }
 
             // The public workflow ABI stores JavaScript-compatible Unix
@@ -725,22 +1164,6 @@ rialo! {
                 ))
             }
 
-            fn github_url(&self) -> rialo_types::RexUrl {
-                // MergePay supports public repositories. GitHub documents the
-                // merge-status endpoint as callable without authentication for
-                // public resources, so construct the fixed-domain URL from
-                // committed workflow state. This avoids expiring token
-                // snapshots and the encrypted HTTP input path while preserving
-                // validator-consensus REX verification.
-                format!(
-                    "https://api.github.com/repos/{}/{}/pulls/{}/merge",
-                    self.github_owner,
-                    self.github_repo,
-                    self.pull_number
-                )
-                .into()
-            }
-
             fn valid_github_slug(&self, value: &str) -> bool {
                 !value.is_empty()
                     && value.len() <= 100
@@ -752,23 +1175,24 @@ rialo! {
                     })
             }
 
-            fn github_headers(&self) -> rialo_types::Headers {
-                let mut headers = std::collections::BTreeMap::new();
-                headers.insert(
-                    "Accept".to_string(),
-                    rialo_types::RexValue::plain_string(
-                        "application/vnd.github+json"
-                    )
-                );
-                headers.insert(
-                    "X-GitHub-Api-Version".to_string(),
-                    rialo_types::RexValue::plain_string("2022-11-28")
-                );
-                headers.insert(
-                    "User-Agent".to_string(),
-                    rialo_types::RexValue::plain_string("MergePay-Rialo/0.1")
-                );
-                rialo_types::Headers::new(headers)
+            fn valid_github_sha(&self, value: &str) -> bool {
+                value.len() == 40
+                    && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+            }
+
+            fn valid_github_ref(&self, value: &str) -> bool {
+                !value.is_empty()
+                    && value.len() <= 128
+                    && !value.starts_with('/')
+                    && !value.ends_with('/')
+                    && !value.contains("..")
+                    && value.bytes().all(|byte| {
+                        byte.is_ascii_alphanumeric()
+                            || byte == b'-'
+                            || byte == b'_'
+                            || byte == b'.'
+                            || byte == b'/'
+                    })
             }
         }
     }

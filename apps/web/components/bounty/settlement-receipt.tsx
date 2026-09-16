@@ -10,6 +10,7 @@ import {
   Check,
   CircleAlert,
   Clock3,
+  GitCommitHorizontal,
   GitPullRequest,
   LoaderCircle,
   RadioTower,
@@ -40,6 +41,24 @@ interface SettlementReceiptProps {
 }
 
 type TerminalState = "paid" | "refunded";
+
+function settlementProofLabel(status: DecodedMergePayWorkflow["state"]["proofStatus"]) {
+  const labels = {
+    0: "No proof recorded",
+    1: "Pull request not merged",
+    2: "Locked head changed",
+    3: "Target branch changed",
+    4: "Required CI not successful",
+    5: "Required approvals missing",
+    6: "All locked conditions passed",
+    7: "Latest REX proof inconclusive",
+  } as const;
+  return labels[status];
+}
+
+function shortCommit(value: string) {
+  return value.length === 40 ? `${value.slice(0, 10)}…${value.slice(-7)}` : "Not recorded";
+}
 
 export function SettlementReceipt({
   slug,
@@ -219,6 +238,7 @@ function VerifiedSettlementReceipt({
   workflow: DecodedMergePayWorkflow;
 }>) {
   const paid = terminalState === "paid";
+  const hasStrongProof = workflow.state.expectedHeadSha.length === 40;
   const destination = paid ? workflow.state.beneficiary : workflow.state.sponsor;
   const workflowUrl = slug ? workflowDetailHref(slug, workflow) : routes.settlements;
   const githubUrl = `https://github.com/${encodeURIComponent(workflow.state.githubOwner)}/${encodeURIComponent(workflow.state.githubRepo)}/pull/${workflow.state.pullNumber.toString()}`;
@@ -241,8 +261,12 @@ function VerifiedSettlementReceipt({
           </h2>
           <p>
             {paid
-              ? "The exact bounty amount was released to the approved contributor after the workflow recorded merged proof."
-              : "The exact bounty amount was returned to the sponsor after the workflow reached its deadline."}
+              ? hasStrongProof
+                ? "The exact bounty amount was released only after unanimous REX evidence reproduced every locked GitHub condition."
+                : "The exact bounty amount was released to the approved contributor after the workflow recorded merged proof."
+              : hasStrongProof
+                ? "The exact bounty amount returned to the sponsor at the deadline; an unmet proof condition could not redirect or release it."
+                : "The exact bounty amount was returned to the sponsor after the workflow reached its deadline."}
           </p>
         </div>
         <span className="settlement-receipt__verified">
@@ -264,7 +288,7 @@ function VerifiedSettlementReceipt({
           <Check aria-hidden="true" size={14} strokeWidth={2.2} />
           {paid ? "paid = true" : "refunded = true"}
         </strong>
-        <small>The opposite release path is permanently unavailable.</small>
+        <small>{paid && hasStrongProof ? "proof_status = 6 and the opposite release path is permanently unavailable." : "The opposite release path is permanently unavailable."}</small>
       </div>
 
       <dl className="settlement-receipt__details">
@@ -305,8 +329,8 @@ function VerifiedSettlementReceipt({
         <div>
           <dt>Settlement path</dt>
           <dd>
-            <strong>{paid ? "Merged PR payout" : "Deadline refund"}</strong>
-            <span>{paid ? "REX merge proof confirmed" : "Expired escrow recovered"}</span>
+            <strong>{paid ? "Verified policy payout" : "Deadline refund"}</strong>
+            <span>{paid ? hasStrongProof ? "Exact revision proof passed" : "REX merge proof confirmed" : hasStrongProof ? settlementProofLabel(workflow.state.proofStatus) : "Expired escrow recovered"}</span>
           </dd>
         </div>
         <div>
@@ -316,6 +340,42 @@ function VerifiedSettlementReceipt({
             <span>The committed bounty is no longer held in escrow</span>
           </dd>
         </div>
+        {hasStrongProof ? (
+          <>
+            <div>
+              <dt>Locked GitHub revision</dt>
+              <dd>
+                <strong><GitCommitHorizontal aria-hidden="true" size={14} /> {shortCommit(workflow.state.expectedHeadSha)}</strong>
+                <span>Target branch: {workflow.state.expectedBaseRef}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Locked policy</dt>
+              <dd>
+                <strong>{workflow.state.requireCiSuccess ? "CI required" : "CI optional"} · {workflow.state.minimumApprovals.toString()} approval{workflow.state.minimumApprovals === 1n ? "" : "s"}</strong>
+                <span>{settlementProofLabel(workflow.state.proofStatus)}</span>
+              </dd>
+            </div>
+            {paid ? (
+              <div>
+                <dt>Verified merge commit</dt>
+                <dd>
+                  <strong>{shortCommit(workflow.state.proofMergeCommitSha)}</strong>
+                  <span>Observed by REX before the deadline</span>
+                </dd>
+              </div>
+            ) : null}
+            {workflow.state.proofCheckedUnixMs > 0n ? (
+              <div>
+                <dt>Last REX evidence</dt>
+                <dd>
+                  <strong suppressHydrationWarning>{formatDeadline(workflow.state.proofCheckedUnixMs)}</strong>
+                  <span>CI {workflow.state.proofCiSuccess ? "successful" : "not successful"} · {workflow.state.proofApprovals.toString()} eligible approvals</span>
+                </dd>
+              </div>
+            ) : null}
+          </>
+        ) : null}
         {transactionSignature ? (
           <div className="settlement-receipt__detail settlement-receipt__detail--proof">
             <dt>Settlement transaction</dt>
@@ -404,7 +464,7 @@ function PendingSettlementReceipt({
                 ? `The last verified state from ${lastVerified} remains visible. Live sync resumes automatically when Rialo reconnects.`
                 : syncStatus === "stale"
                   ? `The latest read was interrupted. The verified state from ${lastVerified} is preserved while MergePay retries with backoff.`
-                  : "The bounty remains locked while Rialo checks the merge signal and deadline. This receipt refreshes automatically while the page is visible."
+                  : "The bounty remains locked while Rialo checks the exact GitHub conditions and deadline. This receipt refreshes automatically while the page is visible."
               : "A paid or refunded receipt can only be issued after the sponsor approves the claim and funds the workflow."}
           </p>
         </div>
@@ -428,7 +488,7 @@ function PendingSettlementReceipt({
         </div>
         <div data-active={funded}>
           <span>03</span>
-          <strong>{funded ? "Watching terminal state" : "Settlement waiting"}</strong>
+          <strong>{funded ? "Watching proof + deadline" : "Settlement waiting"}</strong>
         </div>
       </div>
 

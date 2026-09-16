@@ -5,6 +5,16 @@ export type MergePayInstructionName =
 
 export type RialoNetwork = "devnet" | "testnet" | "mainnet" | "localnet";
 
+export type MergePaySettlementProofStatus =
+  | 0 // Not checked yet.
+  | 1 // Pull request is not merged.
+  | 2 // Pull-request head no longer matches the locked commit.
+  | 3 // Pull-request base branch no longer matches the locked target.
+  | 4 // Required CI is missing, pending, or unsuccessful.
+  | 5 // Required current-commit approvals are missing.
+  | 6 // Every locked condition passed.
+  | 7; // REX report was unavailable, malformed, or not unanimous.
+
 /** A workflow nonce supplied to the generated Venus program. */
 export type WorkflowSlug = string | Uint8Array;
 
@@ -41,6 +51,24 @@ export interface MergePayWorkflowState {
   claimantGithub: string;
   /** Stable numeric GitHub user ID returned by OAuth. */
   claimantGithubId: bigint;
+  /** Exact pull-request head commit locked when the bounty is created. */
+  expectedHeadSha: string;
+  /** Exact pull-request base branch locked when the bounty is created. */
+  expectedBaseRef: string;
+  /** Whether at least one CI signal and every latest signal must pass. */
+  requireCiSuccess: boolean;
+  /** Required writer approvals attached to the exact locked head commit. */
+  minimumApprovals: bigint;
+  /** Last strong settlement-proof result persisted by the Rialo program. */
+  proofStatus: MergePaySettlementProofStatus;
+  proofHeadSha: string;
+  proofBaseRef: string;
+  proofMergeCommitSha: string;
+  proofCiSuccess: boolean;
+  proofApprovals: bigint;
+  proofCheckedUnixMs: bigint;
+  /** Account containing the immutable custom REX WASM verifier. */
+  rexBytecodeAccount: string;
 }
 
 export interface MergePayDeployment {

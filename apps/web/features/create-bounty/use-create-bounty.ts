@@ -9,6 +9,7 @@ import { useNetwork } from "@/hooks/use-network";
 import { MINIMUM_CREATE_BALANCE_KELVIN } from "@/lib/constants";
 import { MergePayUiError } from "@/lib/errors";
 import { parseRloToKelvin } from "@/lib/format";
+import { webConfig } from "@/lib/config";
 import type { CreateBountyFormValues } from "./schema";
 
 export type CreateBountyExecutor = TransactionExecutor<
@@ -69,6 +70,13 @@ export function useCreateBounty() {
       );
     }
 
+    if (!webConfig.rexBytecodeAccount) {
+      throw new MergePayUiError(
+        "The strong settlement verifier has not been deployed on this network yet.",
+        "PROGRAM_UNAVAILABLE",
+      );
+    }
+
     const instruction = network.client.buildCreateBounty({
       payer: wallet.address,
       workflowSlug: values.workflowSlug,
@@ -77,6 +85,11 @@ export function useCreateBounty() {
       pullNumber: BigInt(values.pullNumber),
       amountKelvin,
       deadlineUnixMs: BigInt(values.deadlineUnixMs),
+      expectedHeadSha: values.expectedHeadSha,
+      expectedBaseRef: values.expectedBaseRef,
+      requireCiSuccess: values.requireCiSuccess,
+      minimumApprovals: BigInt(values.minimumApprovals),
+      rexBytecodeAccount: webConfig.rexBytecodeAccount,
     });
     const transaction = await network.client.buildTransaction(wallet.address, [
       instruction,

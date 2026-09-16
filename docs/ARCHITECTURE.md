@@ -11,7 +11,7 @@
 | Subscriber | Triggers the one-shot callback when the REX report is ready |
 | Rialo timer subscription | Starts native merge polling after funding, re-arms retries, and invokes refund at the immutable deadline |
 | Approved contributor | Writable callback account that receives a successful payout |
-| GitHub API | Supplies the compact merged/not-merged HTTP status |
+| GitHub API | Supplies PR state, exact head/base refs, merge commit, CI signals, and review history |
 
 ## Browser signing boundary
 
@@ -72,7 +72,7 @@ next_merge_check_unix_ms: u64
 | Open bounty + claim record | `accept_claim` | Sponsor; exact target terms and GitHub identity match; before deadline | Beneficiary and claimant GitHub identity locked on main PDA |
 | Claimed | atomic `prepare_funding` + `fund` | Sponsor; beneficiary approved; not terminal; valid preparation envelope | Storage resized, exact escrow transferred, and public merge-status REX checks armed |
 | Funded | Native merge timer | Funded; active beneficiary; before deadline | Fresh `run_merge_check` branch without sponsor click |
-| Funded | Merge-check handler (manual fallback: `check_merge`) | Sponsor; current Venus branch; before deadline | Immediate fresh one-shot REX + subscription |
+| Funded | `check_merge` control call / native merge timer | Sponsor; before deadline | Control call resets the throttle and arms a fresh `run_merge_check` branch; the native heartbeat continues automatically |
 | Funded | Callback: all `204` | Beneficiary/account match; sufficient PDA balance | Paid; escrow released |
 | Funded | Callback: all `404` | Non-empty unanimous report | No state payout; escrow locked |
 | Funded | Callback: mixed/error | Any non-unanimous result | Inconclusive; escrow locked |
@@ -189,8 +189,10 @@ retry and sponsor fallback gets fresh accounts. The generated `run_merge_check`
 timer-handler ABI carries that branch explicitly; its account layout is `payer`,
 `workflow`, `rex_registry`, `system_program`, `subscriber_interface`,
 `subscription_pda_0`, `subscription_pda_1`, and `rex_pda_0`. The first subscription
-re-arms polling and the second waits for the REX response. The UI keeps the friendly
-action name `check_merge` while serializing this handler instruction under the hood.
+re-arms polling and the second waits for the REX response. The public `check_merge`
+control instruction has the smaller manifest account layout and only resets the
+throttle before arming a fresh timer branch; it must not be serialized as the
+handler discriminant.
 
 ## Callback ABI rule
 
@@ -231,11 +233,22 @@ They subtract only `amount_kelvin`, leaving the workflow account rent-exempt.
 
 ## External response model
 
-The full GitHub PR representation exceeded the observed REX response limit of `12,987`
-bytes. MergePay instead uses GitHub's compact merged-check endpoint:
+The strong-proof source uses a custom REX WASM component so the external request and
+the policy evaluation remain inside the validator-attested execution path. At bounty
+creation, the workflow locks the exact 40-character head SHA, target branch, whether CI
+must pass, the minimum number of current-commit approvals, and the component account.
 
-- HTTP `204` becomes `RexOutput::Success` with an empty body.
-- HTTP `404` becomes `RexError::HttpStatusError { status: 404, ... }`.
-- Every report output must agree before payout.
+The component reads only bounded public GitHub REST responses:
 
-This produces a small, deterministic signal with a fail-closed settlement policy.
+- pull-request details for `merged`, `head.sha`, `base.ref`, and `merge_commit_sha`;
+- commit status and check-runs when CI is required;
+- pull-request reviews when approvals are required.
+
+It emits a compact deterministic `MP1` proof containing the result code, observed head,
+merge commit, CI result, approval count, and base ref. The program accepts a payout only
+when every REX output is byte-identical and the proof reproduces every locked condition.
+Force-pushes, branch changes, stale approvals, failed/running checks, pagination gaps,
+malformed responses, and validator disagreement fail closed. The active DevNet
+artifact is the matching policy-locked program/component deployment with a bounded
+15-second REX collection window. A fresh live workflow is still needed to record
+runtime payout evidence for this exact artifact.

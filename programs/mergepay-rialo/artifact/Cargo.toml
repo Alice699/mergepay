@@ -6,5 +6,6 @@ publish = false
 
 [build-dependencies]
 rialo-build-lib = "0.18.1"
+rialo-venus-build-helper = "0.18.1"
 
 [workspace]

@@ -63,6 +63,12 @@ export function useRequestClaim() {
         "RPC_UNAVAILABLE",
       );
     }
+    if (bounty.state.rexBytecodeAccount === MERGEPAY_UNASSIGNED_BENEFICIARY) {
+      throw new MergePayUiError(
+        "This workflow was created before the strong settlement verifier was deployed. Create a new bounty from the current marketplace listing.",
+        "PROGRAM_UNAVAILABLE",
+      );
+    }
     if (
       bounty.state.claimRequest ||
       bounty.state.beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY ||
@@ -112,6 +118,7 @@ export function useRequestClaim() {
       targetWorkflow,
       claimantGithub,
       claimantGithubId,
+      rexBytecodeAccount: bounty.state.rexBytecodeAccount,
     });
     const transaction = await network.client.buildTransaction(wallet.address, [
       instruction,

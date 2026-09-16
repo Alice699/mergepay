@@ -1,7 +1,13 @@
 # DevNet Evidence
 
-Current runtime-proven autonomous settlement:
+Historical runtime-proven autonomous settlement:
 `6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5`
+
+The latest policy-locked deployment is `FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q`
+with REX bytecode account `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK`. It uses the
+storage-safe settlement ABI and a bounded 15-second REX collection window. Fresh live
+payout and refund evidence for this exact pair is still pending; the workflows below
+remain historical evidence for earlier deployments.
 
 ## Final autonomous-settlement proof (2026-09-09)
 

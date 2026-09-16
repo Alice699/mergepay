@@ -6,7 +6,10 @@ import {
 } from "@/hooks/use-transaction";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
-import { FUND_TRANSACTION_FEE_BUFFER_KELVIN } from "@/lib/constants";
+import {
+  FUND_TRANSACTION_FEE_BUFFER_KELVIN,
+  SETTLEMENT_PROOF_STORAGE_RESERVE_BYTES,
+} from "@/lib/constants";
 import { MergePayUiError } from "@/lib/errors";
 import { formatRlo } from "@/lib/format";
 
@@ -34,6 +37,7 @@ const FUNDING_PREPARATION_ENVELOPE = Uint8Array.from([
   2, 0, 0, 0, 2, 0,
   2, 0, 0, 0, 2, 0,
 ]);
+const FUNDING_PREPARATION_STORAGE_OVERHEAD_BYTES = 7n;
 
 export function useFundBounty() {
   const wallet = useWallet();
@@ -112,7 +116,11 @@ export function useFundBounty() {
     const githubAuthCiphertext = new Uint8Array(FUNDING_PREPARATION_ENVELOPE);
     const currentSpace = workflow.account.space;
     const ciphertextLength = BigInt(githubAuthCiphertext.length);
-    const targetSpace = currentSpace + ciphertextLength;
+    const targetSpace =
+      currentSpace +
+      ciphertextLength +
+      FUNDING_PREPARATION_STORAGE_OVERHEAD_BYTES +
+      BigInt(SETTLEMENT_PROOF_STORAGE_RESERVE_BYTES);
     if (targetSpace > BigInt(Number.MAX_SAFE_INTEGER)) {
       throw new MergePayUiError(
         "The workflow account is too large to resize safely before funding.",

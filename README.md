@@ -10,7 +10,7 @@
   <p>
     <a href="https://github.com/Alice699/mergepay/actions/workflows/ci.yml"><img src="https://github.com/Alice699/mergepay/actions/workflows/ci.yml/badge.svg" alt="MergePay CI status" /></a>
     <img src="https://img.shields.io/badge/Rialo-DevNet-A9DDD3?style=flat-square&labelColor=0B0F0E" alt="Rialo DevNet" />
-    <img src="https://img.shields.io/badge/settlement-runtime--proven-58D68D?style=flat-square&labelColor=0B0F0E" alt="Runtime-proven settlement" />
+    <img src="https://img.shields.io/badge/settlement-strong--proof--live--ready-58D68D?style=flat-square&labelColor=0B0F0E" alt="Strong-proof settlement live-ready" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-E8ECEA?style=flat-square&labelColor=0B0F0E" alt="Apache 2.0 license" /></a>
   </p>
 
@@ -52,7 +52,7 @@ actions remain available as idempotent fallbacks.
 | Sponsor claim review | The app exposes the contributor identity, payout wallet, exact terms, claim PDA, and Rialo Scan transaction, then rechecks the live public PR author ID before approval. |
 | Exact escrow | The sponsor approves one reviewed claim and funds the committed RLO amount onchain. |
 | Native automation | Rialo `AFTER` timers keep merge polling and deadline settlement alive after funding. |
-| Fail-closed proof | Empty, mixed, malformed, or failed REX reports cannot release escrow. |
+| Policy-locked proof | A custom REX WASM verifier checks the exact PR head, target branch, and optional CI/review policy before escrow can release. |
 | Live interface | Workflow state refreshes in place, transactions surface through notifications, wallet history is paginated, and terminal workflows expose shareable paid/refunded receipts. |
 | Reviewer-friendly wallet | A password-encrypted embedded signer provides DevNet onboarding without simulating funds or success states. |
 
@@ -62,12 +62,12 @@ actions remain available as idempotent fallbacks.
   <img src="docs/assets/mergepay-settlement-flow.svg" width="100%" alt="MergePay settlement rail showing a bounty moving through contributor identity, sponsor approval, funded escrow, Rialo REX verification, retry-safe proof handling, contributor payout, or sponsor refund" />
 </p>
 
-1. **Publish** — the sponsor commits a public repository, pull request, reward, and deadline.
+1. **Publish** — the sponsor verifies the public PR, then commits its exact head SHA, target branch, reward, deadline, and optional CI/review policy.
 2. **Claim** — the contributor signs in with GitHub and links the verified PR identity to a Rialo wallet.
 3. **Approve** — the sponsor reviews the exact identity, wallet, bounty terms, and transaction proof. Multiple matching claims require an explicit choice, and the public PR author ID is checked again before signing.
 4. **Fund** — MergePay prepares the workflow account, transfers the exact RLO escrow, and arms native settlement.
-5. **Verify** — Rialo REX validators query GitHub's compact merged-status endpoint.
-6. **Settle** — unanimous HTTP `204` pays the contributor; reaching the deadline first refunds the sponsor. The decoded terminal state becomes a receipt with the exact amount and destination.
+5. **Verify** — a custom REX WASM component reads GitHub's PR details plus the selected commit-status, check-run, and review evidence.
+6. **Settle** — unanimous structured proof that reproduces every locked condition pays the contributor; reaching the deadline first refunds the sponsor. The decoded terminal state becomes a receipt with the exact amount and destination.
 
 ### Why Rialo
 
@@ -76,7 +76,7 @@ keeper, payout signer, and refund scheduler. MergePay keeps the external signal,
 workflow state, timers, callback, and value transfer inside one reactive protocol flow:
 
 ```text
-GitHub merge status → Rialo REX report → reactive callback → onchain settlement
+GitHub PR + CI + reviews → custom REX WASM proof → reactive callback → onchain settlement
 ```
 
 Learn more about the model in Rialo's
@@ -84,23 +84,35 @@ Learn more about the model in Rialo's
 
 ## DevNet proof
 
-The active deployment has been exercised end to end for automatic payout, automatic
-refund, and the manual-refund race guard.
+The active deployment now contains the policy-locked REX proof and the production-sized
+external collection window. A fresh live workflow is still required to record payout
+evidence against this exact deployment; the previous runtime proof remains below as
+historical evidence.
 
 | Item | Current value |
 | --- | --- |
 | Network | Rialo DevNet |
-| Active program | `6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5` |
+| Active program | `FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q` |
+| REX bytecode account | `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK` |
 | Program format | RISC-V / PolkaVM |
 | Rialo release | `stable@0.18.1` |
-| Deployed artifact | `231,269` bytes at slot `11,428,520` |
-| Automatic merged-PR payout | Proven on DevNet |
-| Automatic deadline refund | Proven on DevNet |
-| Manual fallback after automatic refund | Idempotent; no double release |
+| Deployed artifact | `242,877` bytes at slot `15,705,856` |
+| REX collection window | `15,000 ms` bounded request window |
+| Automatic merged-PR payout | Pending fresh live workflow |
+| Automatic deadline refund | Pending fresh live workflow |
+| Manual fallback after automatic refund | Covered by invariant tests; historical live proof retained |
 
 Full transaction signatures, workflow PDAs, callback logs, balances, artifact hash,
 and historical deployments are recorded in [DevNet evidence](docs/EVIDENCE.md) and
 [deployment metadata](deployments/devnet.json).
+
+> [!NOTE]
+> `Alice699/mergepay-demo#8` was correctly merged on GitHub, but its old deployment
+> used the Venus default 300 ms REX collection window. Three of four validator
+> requests timed out, so the fail-closed contract kept escrow locked and refunded it
+> at the deadline. The active deployment above uses a bounded 15-second window and
+> the matching custom REX component. Because #8 is already terminal, a new workflow
+> is needed to prove automatic payout on the fixed deployment.
 
 ## Architecture
 
@@ -121,7 +133,7 @@ scripts/                     Repeatable deployment and verification utilities
 | Web | React 19, Vinext, TypeScript | Marketplace, wallet UX, live workflow state, and transaction feedback. |
 | Client | `@rialo/ts-cdk`, typed MergePay package | Instruction encoding, PDA derivation, RPC reads, signing boundary, and confirmation. |
 | Program | Rust, Rialo Venus `0.18.1` | Escrow invariants, claims, native timers, REX callbacks, payout, and refund. |
-| External proof | Rialo REX + GitHub REST API | Validator-attested public pull-request merge signal. |
+| External proof | Custom REX WASM + GitHub REST API | Validator-attested, deterministic proof of the locked PR revision, target branch, merge commit, and selected CI/review conditions. |
 
 The workflow PDA stores the immutable bounty terms and terminal state. Contributor
 claims use separate contributor-derived PDAs; the sponsor page discovers confirmed
@@ -166,7 +178,8 @@ The checked-in template targets the active DevNet deployment:
 NEXT_PUBLIC_RIALO_NETWORK=devnet
 NEXT_PUBLIC_RIALO_RPC_URL=/api/rialo
 RIALO_RPC_UPSTREAM_URL=https://devnet.rialo.io
-NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5
+NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q
+NEXT_PUBLIC_MERGEPAY_REX_BYTECODE_ACCOUNT=GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK
 ```
 
 Contributor verification additionally uses `GITHUB_OAUTH_CLIENT_ID`,

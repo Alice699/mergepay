@@ -159,12 +159,13 @@ export default function HomePage() {
               </header>
               <h3>The merge proof enters execution.</h3>
               <p>
-                Rialo validators request GitHub’s compact merge endpoint. Only
-                the agreed response can advance settlement.
+                Rialo validators request GitHub&apos;s PR details plus the selected
+                CI and review evidence. Only unanimous proof of the locked policy
+                can advance settlement.
               </p>
               <div className="home-http-proof">
-                <span>GET /pulls/42/merge</span>
-                <strong>204</strong>
+                <span>PR + CI + REVIEWS</span>
+                <strong>MP1 / 6</strong>
                 <small>UNANIMOUS</small>
               </div>
             </article>

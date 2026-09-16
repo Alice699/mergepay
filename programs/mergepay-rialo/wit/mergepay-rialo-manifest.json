@@ -271,7 +271,7 @@
       }
     },
     "prepare_funding": {
-      "discriminant": 4,
+      "discriminant": 3,
       "parameters": [
         {
           "name": "workflow_pda_slug",
@@ -323,7 +323,7 @@
       ],
       "serialization": {
         "format": "bincode",
-        "enum_variant": 4,
+        "enum_variant": 3,
         "fields": [
           {
             "name": "workflow_pda_slug",
@@ -337,7 +337,7 @@
       }
     },
     "create_bounty": {
-      "discriminant": 5,
+      "discriminant": 4,
       "parameters": [
         {
           "name": "workflow_pda_slug",
@@ -373,6 +373,31 @@
           "name": "deadline_unix_ms",
           "type": "u64",
           "description": "User-provided u64"
+        },
+        {
+          "name": "expected_head_sha",
+          "type": "string",
+          "description": "User-provided string"
+        },
+        {
+          "name": "expected_base_ref",
+          "type": "string",
+          "description": "User-provided string"
+        },
+        {
+          "name": "require_ci_success",
+          "type": "bool",
+          "description": "User-provided bool"
+        },
+        {
+          "name": "minimum_approvals",
+          "type": "u64",
+          "description": "User-provided u64"
+        },
+        {
+          "name": "__rex_bytecode_account",
+          "type": "pubkey",
+          "description": "User-provided pubkey"
         }
       ],
       "accounts": [
@@ -414,7 +439,7 @@
       ],
       "serialization": {
         "format": "bincode",
-        "enum_variant": 5,
+        "enum_variant": 4,
         "fields": [
           {
             "name": "workflow_pda_slug",
@@ -443,12 +468,32 @@
           {
             "name": "deadline_unix_ms",
             "type": "u64_le"
+          },
+          {
+            "name": "expected_head_sha",
+            "type": "string"
+          },
+          {
+            "name": "expected_base_ref",
+            "type": "string"
+          },
+          {
+            "name": "require_ci_success",
+            "type": "bool"
+          },
+          {
+            "name": "minimum_approvals",
+            "type": "u64_le"
+          },
+          {
+            "name": "__rex_bytecode_account",
+            "type": "bytes32"
           }
         ]
       }
     },
     "request_claim": {
-      "discriminant": 6,
+      "discriminant": 5,
       "parameters": [
         {
           "name": "workflow_pda_slug",
@@ -469,6 +514,11 @@
           "name": "claimant_github_id",
           "type": "u64",
           "description": "User-provided u64"
+        },
+        {
+          "name": "__rex_bytecode_account",
+          "type": "pubkey",
+          "description": "User-provided pubkey"
         }
       ],
       "accounts": [
@@ -499,6 +549,15 @@
           "description": "Solana system program"
         },
         {
+          "name": "subscriber_interface",
+          "source": "well_known",
+          "well_known": "subscriber_interface",
+          "is_signer": false,
+          "is_writable": false,
+          "is_executable": true,
+          "description": "Rialo subscriber interface program"
+        },
+        {
           "name": "target_workflow",
           "source": "parameter",
           "parameter": "target_workflow",
@@ -509,7 +568,7 @@
       ],
       "serialization": {
         "format": "bincode",
-        "enum_variant": 6,
+        "enum_variant": 5,
         "fields": [
           {
             "name": "workflow_pda_slug",
@@ -526,12 +585,16 @@
           {
             "name": "claimant_github_id",
             "type": "u64_le"
+          },
+          {
+            "name": "__rex_bytecode_account",
+            "type": "bytes32"
           }
         ]
       }
     },
     "accept_claim": {
-      "discriminant": 7,
+      "discriminant": 6,
       "parameters": [
         {
           "name": "workflow_pda_slug",
@@ -572,6 +635,15 @@
           "description": "Solana system program"
         },
         {
+          "name": "subscriber_interface",
+          "source": "well_known",
+          "well_known": "subscriber_interface",
+          "is_signer": false,
+          "is_writable": false,
+          "is_executable": true,
+          "description": "Rialo subscriber interface program"
+        },
+        {
           "name": "claim_workflow",
           "source": "parameter",
           "parameter": "claim_workflow",
@@ -582,7 +654,7 @@
       ],
       "serialization": {
         "format": "bincode",
-        "enum_variant": 7,
+        "enum_variant": 6,
         "fields": [
           {
             "name": "workflow_pda_slug",
@@ -655,7 +727,7 @@
   },
   "callbacks": {
     "handle_merge_response": {
-      "discriminant": 3,
+      "discriminant": 7,
       "handler_type": "rex",
       "parameters": [
         {
@@ -720,7 +792,7 @@
       ],
       "serialization": {
         "format": "bincode",
-        "enum_variant": 3,
+        "enum_variant": 7,
         "fields": [
           {
             "name": "workflow_pda_slug",
@@ -944,6 +1016,66 @@
         "name": "next_merge_check_unix_ms",
         "type": "u64",
         "offset": 309
+      },
+      {
+        "name": "expected_head_sha",
+        "type": "string",
+        "offset": 317
+      },
+      {
+        "name": "expected_base_ref",
+        "type": "string",
+        "offset": 349
+      },
+      {
+        "name": "require_ci_success",
+        "type": "bool",
+        "offset": 381
+      },
+      {
+        "name": "minimum_approvals",
+        "type": "u64",
+        "offset": 382
+      },
+      {
+        "name": "proof_status",
+        "type": "u64",
+        "offset": 390
+      },
+      {
+        "name": "proof_head_sha",
+        "type": "string",
+        "offset": 398
+      },
+      {
+        "name": "proof_base_ref",
+        "type": "string",
+        "offset": 430
+      },
+      {
+        "name": "proof_merge_commit_sha",
+        "type": "string",
+        "offset": 462
+      },
+      {
+        "name": "proof_ci_success",
+        "type": "bool",
+        "offset": 494
+      },
+      {
+        "name": "proof_approvals",
+        "type": "u64",
+        "offset": 495
+      },
+      {
+        "name": "proof_checked_unix_ms",
+        "type": "u64",
+        "offset": 503
+      },
+      {
+        "name": "__rex_bytecode_account",
+        "type": "pubkey",
+        "offset": 511
       }
     ],
     "min_size": 256

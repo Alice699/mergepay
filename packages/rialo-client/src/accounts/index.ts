@@ -5,6 +5,13 @@ import type {
   MergePayWorkflowState,
 } from "../types.js";
 
+function readProofString(reader: BincodeReader): string {
+  // The program reserves fixed-width proof slots before funding so async REX
+  // updates cannot make Venus charge rent from the escrow. NUL padding is an
+  // on-chain storage detail and should never leak into UI or comparisons.
+  return reader.readString().replace(/\0+$/u, "");
+}
+
 export function decodeWorkflowState(data: Uint8Array): MergePayWorkflowState {
   const reader = new BincodeReader(data);
   const discriminator = reader.readU64();
@@ -27,6 +34,31 @@ export function decodeWorkflowState(data: Uint8Array): MergePayWorkflowState {
       : "11111111111111111111111111111111";
   const claimantGithub = reader.remaining() > 0 ? reader.readString() : "";
   const claimantGithubId = reader.remaining() >= 8 ? reader.readU64() : 0n;
+  // These opaque fields are retained for the private-repository funding path.
+  // Skip their bytes without ever exposing ciphertext through the public state.
+  if (reader.remaining() > 0) reader.readVecBytes();
+  if (reader.remaining() > 0) reader.readVecBytes();
+  if (reader.remaining() >= 8) reader.readU64();
+  const expectedHeadSha = reader.remaining() > 0 ? reader.readString() : "";
+  const expectedBaseRef = reader.remaining() > 0 ? reader.readString() : "";
+  const requireCiSuccess = reader.remaining() > 0 ? reader.readBool() : false;
+  const minimumApprovals = reader.remaining() >= 8 ? reader.readU64() : 0n;
+  const rawProofStatus = reader.remaining() >= 8 ? reader.readU64() : 0n;
+  const proofStatus =
+    rawProofStatus >= 0n && rawProofStatus <= 7n
+      ? (Number(rawProofStatus) as MergePayWorkflowState["proofStatus"])
+      : 7;
+  const proofHeadSha = reader.remaining() > 0 ? readProofString(reader) : "";
+  const proofBaseRef = reader.remaining() > 0 ? readProofString(reader) : "";
+  const proofMergeCommitSha =
+    reader.remaining() > 0 ? readProofString(reader) : "";
+  const proofCiSuccess = reader.remaining() > 0 ? reader.readBool() : false;
+  const proofApprovals = reader.remaining() >= 8 ? reader.readU64() : 0n;
+  const proofCheckedUnixMs = reader.remaining() >= 8 ? reader.readU64() : 0n;
+  const rexBytecodeAccount =
+    reader.remaining() >= 32
+      ? readPublicKey(reader, "REX bytecode account")
+      : "11111111111111111111111111111111";
 
   return {
     discriminator,
@@ -48,6 +80,18 @@ export function decodeWorkflowState(data: Uint8Array): MergePayWorkflowState {
     claimTarget,
     claimantGithub,
     claimantGithubId,
+    expectedHeadSha,
+    expectedBaseRef,
+    requireCiSuccess,
+    minimumApprovals,
+    proofStatus,
+    proofHeadSha,
+    proofBaseRef,
+    proofMergeCommitSha,
+    proofCiSuccess,
+    proofApprovals,
+    proofCheckedUnixMs,
+    rexBytecodeAccount,
   };
 }
 

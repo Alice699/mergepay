@@ -41,8 +41,8 @@ const DEVNET_AIRDROP_KELVIN = 1_000_000_000n;
 const ALLOWED_EMBEDDED_INSTRUCTIONS = new Set<number>(
   [
     ...Object.values(MERGEPAY_INSTRUCTION_DISCRIMINANTS),
-    // check_merge is currently submitted through the generated
-    // run_merge_check timer-handler ABI so each retry can carry its branch.
+    // Native settlement callbacks remain valid in activity and wallet flows;
+    // the manual check action itself uses public check_merge.
     MERGEPAY_CALLBACK_DISCRIMINANT,
   ],
 );

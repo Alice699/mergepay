@@ -1060,6 +1060,11 @@ function claimRequestMatchesBounty(
     claim.state.pullNumber === bounty.state.pullNumber &&
     claim.state.amountKelvin === bounty.state.amountKelvin &&
     claim.state.deadlineUnixMs === bounty.state.deadlineUnixMs &&
+    claim.state.expectedHeadSha === bounty.state.expectedHeadSha &&
+    claim.state.expectedBaseRef === bounty.state.expectedBaseRef &&
+    claim.state.requireCiSuccess === bounty.state.requireCiSuccess &&
+    claim.state.minimumApprovals === bounty.state.minimumApprovals &&
+    claim.state.rexBytecodeAccount === bounty.state.rexBytecodeAccount &&
     claim.state.claimantGithubId !== 0n
   );
 }
@@ -1090,9 +1095,8 @@ function decodeInstructionNameBytes(
     bytes.byteOffset,
     bytes.byteLength,
   ).getUint32(0, true);
-  // The retry-safe ABI invokes the generated run_merge_check timer handler
-  // directly so it can carry the current Venus branch number. It is still a
-  // user-facing merge-check action, not an internal callback report.
+  // Native run_merge_check callbacks remain valid in activity history. The
+  // user-triggered check action itself uses the public check_merge control ABI.
   if (
     discriminant === MERGEPAY_CALLBACK_DISCRIMINANT &&
     bytes.byteLength === 44
@@ -1367,13 +1371,19 @@ function classifyRexSignal(
   if (!logMessages || logMessages.length === 0) return null;
   const logs = logMessages.join("\n").toLowerCase();
   if (logs.includes("mergepay released ")) return "merged";
-  if (logs.includes("mergepay pr is not merged")) return "not_merged";
+  if (
+    logs.includes("mergepay pr is not merged") ||
+    logs.includes("mergepay settlement conditions remain locked: proof status")
+  ) return "not_merged";
   if (
     logs.includes("mergepay inconclusive rex error") ||
     logs.includes("mergepay unserializable response") ||
     logs.includes("mergepay received an unsupported rex output") ||
     logs.includes("mergepay received an empty rex report") ||
-    logs.includes("mergepay rex report was not unanimous")
+    logs.includes("mergepay rex report was not unanimous") ||
+    logs.includes("mergepay rejected malformed settlement proof") ||
+    logs.includes("mergepay rejected invalid settlement proof fields") ||
+    logs.includes("mergepay rejected proof that did not reproduce locked policy")
   ) {
     return "inconclusive";
   }

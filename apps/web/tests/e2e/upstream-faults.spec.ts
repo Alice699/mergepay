@@ -87,6 +87,9 @@ test.describe("upstream fault boundaries", () => {
             state: "open",
             html_url: "https://github.com/Alice699/mergepay-demo/pull/7",
             merged_at: null,
+            merge_commit_sha: null,
+            head: { sha: "a".repeat(40) },
+            base: { ref: "main" },
             user: {
               id: 136351960,
               login: "biawaklahat",
@@ -101,6 +104,8 @@ test.describe("upstream fault boundaries", () => {
     expect(attempts).toBe(2);
     expect(pull.upstream.attempts).toBe(2);
     expect(pull.author.login).toBe("biawaklahat");
+    expect(pull.headSha).toBe("a".repeat(40));
+    expect(pull.baseRef).toBe("main");
   });
 
   test("passes an upstream RPC rate limit through without fabricating data", async () => {

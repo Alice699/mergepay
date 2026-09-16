@@ -12,6 +12,13 @@ import {
 
 const sponsor = "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo";
 const beneficiary = "5wk6cLsYjhYSpr7brqtJ7xnvzbh1zvUpoSxeivbjyEkd";
+const settlementPolicy = {
+  expectedHeadSha: "a".repeat(40),
+  expectedBaseRef: "main",
+  requireCiSuccess: false,
+  minimumApprovals: 0n,
+  rexBytecodeAccount: beneficiary,
+};
 
 function workflow(slug, overrides = {}) {
   const address = deriveWorkflowPda(MERGEPAY_PROGRAM_ID, sponsor, slug).address;
@@ -62,6 +69,7 @@ function createInstruction(slug, deadlineUnixMs) {
     pullNumber: 7n,
     amountKelvin: 1_000_000_000n,
     deadlineUnixMs,
+    ...settlementPolicy,
   });
 }
 

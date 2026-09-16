@@ -98,7 +98,7 @@ export default function GuidePage() {
                 <p className="eyebrow">Why Rialo</p>
                 <h2>The chain is part of the verification loop.</h2>
                 <div className="guide-reasons">
-                  <GuideReason title="REX can attest an external signal" copy="Rialo REX is the bridge between GitHub's public merged endpoint and an onchain callback. MergePay consumes the validator report inside the program instead of trusting a private payout server." />
+                  <GuideReason title="REX can attest external conditions" copy="Rialo REX is the bridge between GitHub's public PR, CI, and review evidence and an onchain callback. MergePay consumes a compact validator report inside the program instead of trusting a private payout server." />
                   <GuideReason title="Escrow is a program state" copy="The sponsor, approved contributor, amount, deadline, claim proof, and settlement flags live in Rialo workflow accounts. Anyone with the account address can inspect the same state." />
                   <GuideReason title="Failure stays visible" copy="A missing account, unavailable decoder, mixed report, or non-merged pull request does not become a payout. The program and UI keep uncertain funds locked." />
                 </div>
@@ -115,7 +115,7 @@ export default function GuidePage() {
                 <p>MergePay is a working DevNet builder submission, not production financial infrastructure. These constraints are part of the design and should remain visible to every user and reviewer.</p>
                 <div className="guide-limits">
                   <GuideLimit title="DevNet only" copy="The active deployment is unaudited and uses test RLO. Do not send production funds." />
-                  <GuideLimit title="Public GitHub only" copy="The current REX settlement path reads a public pull-request merge endpoint. Authenticated private-repository settlement is outside this MVP." />
+                  <GuideLimit title="Public GitHub only" copy="The current REX settlement path reads public PR, CI, and review endpoints. Authenticated private-repository settlement is outside this MVP." />
                   <GuideLimit title="Settlement is asynchronous" copy="The native heartbeat and REX callback run automatically after funding, but DevNet and GitHub response time mean a terminal receipt may not appear instantly. Manual check and refund controls remain idempotent fallbacks." />
                   <GuideLimit title="GitHub identity scope" copy="Contributor claims require read-only GitHub OAuth and an exact author-ID match for a public PR. MergePay does not request repository write access or support private repositories yet." />
                   <GuideLimit title="Rialo and GitHub are dependencies" copy="A slow RPC, unavailable REX path, changed GitHub response, or missing account can delay or prevent a decision." />

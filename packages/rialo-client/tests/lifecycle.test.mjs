@@ -32,6 +32,18 @@ function state(overrides = {}) {
     claimTarget: MERGEPAY_UNASSIGNED_BENEFICIARY,
     claimantGithub: "",
     claimantGithubId: 0n,
+    expectedHeadSha: "a".repeat(40),
+    expectedBaseRef: "main",
+    requireCiSuccess: true,
+    minimumApprovals: 1n,
+    proofStatus: 0,
+    proofHeadSha: "",
+    proofBaseRef: "",
+    proofMergeCommitSha: "",
+    proofCiSuccess: false,
+    proofApprovals: 0n,
+    proofCheckedUnixMs: 0n,
+    rexBytecodeAccount: beneficiary,
     ...overrides,
   };
 }
@@ -193,5 +205,26 @@ test("rejects stale, terminal-reversing, and identity-mutated snapshots", () => 
       workflow({ ...fundedState, checks: 1n }),
     ),
     false,
+  );
+  assert.equal(
+    isWorkflowSnapshotProgression(
+      workflow(fundedState),
+      workflow({ ...fundedState, expectedHeadSha: "b".repeat(40) }),
+    ),
+    false,
+  );
+  assert.equal(
+    isWorkflowSnapshotProgression(
+      workflow({ ...fundedState, proofStatus: 1, proofCheckedUnixMs: 100n }),
+      workflow({ ...fundedState, proofStatus: 6, proofCheckedUnixMs: 99n }),
+    ),
+    false,
+  );
+  assert.equal(
+    isWorkflowSnapshotProgression(
+      workflow({ ...fundedState, proofStatus: 1, proofCheckedUnixMs: 100n }),
+      workflow({ ...fundedState, proofStatus: 6, proofCheckedUnixMs: 101n }),
+    ),
+    true,
   );
 });

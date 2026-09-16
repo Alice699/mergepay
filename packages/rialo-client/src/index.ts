@@ -24,6 +24,7 @@ export type {
   DecodedMergePayWorkflow,
   MergePayDeployment,
   MergePayInstructionName,
+  MergePaySettlementProofStatus,
   MergePayWorkflowIdentity,
   MergePayWorkflowState,
   MergePayAccountInfo,

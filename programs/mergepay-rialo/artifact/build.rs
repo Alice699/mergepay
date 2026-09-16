@@ -5,4 +5,6 @@ fn main() {
         .program_path("..")
         .run()
         .expect("failed to build MergePay's Rialo PolkaVM artifact");
+    rialo_venus_build_helper::compile_rex_components("..")
+        .expect("failed to build MergePay's REX WASM components");
 }

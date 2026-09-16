@@ -11,6 +11,11 @@ const supportedNetworks: readonly RialoNetwork[] = [
 const configuredNetwork = process.env.NEXT_PUBLIC_RIALO_NETWORK;
 const configuredRpcUrl = process.env.NEXT_PUBLIC_RIALO_RPC_URL?.trim();
 const configuredProgramId = process.env.NEXT_PUBLIC_MERGEPAY_PROGRAM_ID?.trim();
+const configuredRexBytecodeAccount =
+  process.env.NEXT_PUBLIC_MERGEPAY_REX_BYTECODE_ACCOUNT?.trim();
+const deploymentRexBytecodeAccount = (
+  marketplaceDeployment as { rexBytecodeAccount?: unknown }
+).rexBytecodeAccount;
 
 function isRialoNetwork(value: string | undefined): value is RialoNetwork {
   return value !== undefined && supportedNetworks.includes(value as RialoNetwork);
@@ -26,6 +31,17 @@ export const webConfig = {
     (isRialoNetwork(configuredNetwork) ? configuredNetwork : "devnet") === "devnet"
       ? marketplaceDeployment.programId
       : configuredProgramId || null,
+  // A DevNet workflow stores this account immutably. Never let a stale local
+  // or hosted env value create a workflow against the superseded verifier.
+  rexBytecodeAccount:
+    (isRialoNetwork(configuredNetwork) ? configuredNetwork : "devnet") === "devnet"
+      ? typeof deploymentRexBytecodeAccount === "string"
+        ? deploymentRexBytecodeAccount
+        : null
+      : configuredRexBytecodeAccount ||
+        (typeof deploymentRexBytecodeAccount === "string"
+          ? deploymentRexBytecodeAccount
+          : null),
 } as const;
 
 export function networkLabel(network: RialoNetwork): string {

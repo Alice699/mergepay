@@ -60,8 +60,8 @@ live sponsor balance covers the exact bounty amount plus fee headroom. The detai
 re-reads Rialo after executed confirmation, keeps polling through claim approval,
 sponsor funding, and active settlement, and checks again when the page regains focus.
 Funding atomically prepares workflow storage and
-locks escrow, then the native heartbeat polls the public GitHub merge-status endpoint
-and handles deadline refund without an expiring GitHub App token. Funded workflows
+locks escrow, then the native heartbeat polls a policy-locked public GitHub proof
+component and handles deadline refund without an expiring GitHub App token. Funded workflows
 also expose a sponsor-only immediate-check fallback, follow its official workflow
 lineage, and distinguish root scheduling from callback payout. Global transaction
 notifications and terminal-state alerts explain confirmed and failed actions without
@@ -74,6 +74,9 @@ The UI calls a bounty paid only after the decoded account contains both
 the escrow visibly locked. If the native heartbeat has not already settled an expired
 workflow, the interface exposes the idempotent sponsor refund fallback. Both automatic
 and manual paths report Refunded only after the updated workflow account is decoded.
+New bounty creation also requires the deployed custom REX bytecode account and a fresh
+public PR verification, so an old deployment cannot silently create a workflow whose
+strong-proof policy is unavailable.
 
 ## Embedded DevNet wallet
 
@@ -107,7 +110,7 @@ Copy `.env.example` into the runtime environment when overriding the defaults:
 NEXT_PUBLIC_RIALO_NETWORK=devnet
 NEXT_PUBLIC_RIALO_RPC_URL=/api/rialo
 RIALO_RPC_UPSTREAM_URL=https://devnet.rialo.io
-NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5
+NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q
 ```
 
 `NEXT_PUBLIC_RIALO_RPC_URL` should remain same-origin unless a replacement endpoint

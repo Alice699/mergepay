@@ -5,6 +5,10 @@ export interface CreateBountyFormValues {
   pullNumber: string;
   amountRlo: string;
   deadlineUnixMs: string;
+  expectedHeadSha: string;
+  expectedBaseRef: string;
+  requireCiSuccess: boolean;
+  minimumApprovals: string;
 }
 
 export const CREATE_BOUNTY_FIELDS = [
@@ -14,4 +18,8 @@ export const CREATE_BOUNTY_FIELDS = [
   "pullNumber",
   "amountRlo",
   "deadlineUnixMs",
+  "expectedHeadSha",
+  "expectedBaseRef",
+  "requireCiSuccess",
+  "minimumApprovals",
 ] as const satisfies ReadonlyArray<keyof CreateBountyFormValues>;

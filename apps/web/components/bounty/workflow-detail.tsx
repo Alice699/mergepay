@@ -5,11 +5,14 @@ import {
   isWorkflowSnapshotProgression,
   type DecodedMergePayWorkflow,
   type MergePayClaimRequest,
+  type MergePaySettlementProofStatus,
 } from "@mergepay/rialo-client";
 import {
   Check,
   CircleAlert,
+  GitCommitHorizontal,
   LoaderCircle,
+  LockKeyhole,
   RadioTower,
   ReceiptText,
   RefreshCw,
@@ -147,6 +150,106 @@ function WorkflowObserverNotice({
   );
 }
 
+const SETTLEMENT_PROOF_COPY: Record<
+  MergePaySettlementProofStatus,
+  { title: string; copy: string; tone: "idle" | "warning" | "success" | "error" }
+> = {
+  0: {
+    title: "Waiting for the first REX proof",
+    copy: "The policy is locked onchain. GitHub verification starts after escrow funding.",
+    tone: "idle",
+  },
+  1: {
+    title: "Pull request is not merged yet",
+    copy: "The locked commit and target branch still match, but GitHub has not recorded a merge.",
+    tone: "warning",
+  },
+  2: {
+    title: "Head commit changed",
+    copy: "GitHub now reports a different PR head, so a force-push or newer commit cannot unlock this bounty.",
+    tone: "error",
+  },
+  3: {
+    title: "Target branch changed",
+    copy: "The PR no longer targets the branch the sponsor locked when creating this bounty.",
+    tone: "error",
+  },
+  4: {
+    title: "Required CI has not passed",
+    copy: "A status or check run is missing, pending, cancelled, or unsuccessful on the exact locked commit.",
+    tone: "warning",
+  },
+  5: {
+    title: "Required approvals are missing",
+    copy: "The latest eligible approvals attached to the locked commit are below the onchain minimum.",
+    tone: "warning",
+  },
+  6: {
+    title: "Every locked condition passed",
+    copy: "REX validators agreed on the exact commit, target branch, merge, CI, and review evidence.",
+    tone: "success",
+  },
+  7: {
+    title: "Latest proof was inconclusive",
+    copy: "GitHub data was unavailable, malformed, oversized, or validator outputs differed. Escrow stayed locked.",
+    tone: "error",
+  },
+};
+
+function shortCommit(value: string) {
+  return value.length === 40 ? `${value.slice(0, 10)}…${value.slice(-7)}` : "Not observed";
+}
+
+function SettlementProofPanel({
+  workflow,
+}: Readonly<{ workflow: DecodedMergePayWorkflow }>) {
+  const { state } = workflow;
+  const result = SETTLEMENT_PROOF_COPY[state.proofStatus];
+  const repositoryUrl = `https://github.com/${encodeURIComponent(state.githubOwner)}/${encodeURIComponent(state.githubRepo)}`;
+  const hasObservation = state.proofCheckedUnixMs > 0n;
+
+  return (
+    <section className="workflow-proof" data-tone={result.tone}>
+      <header className="workflow-proof__header">
+        <span className="workflow-proof__icon" aria-hidden="true">
+          {state.proofStatus === 6 ? <Check size={17} /> : state.proofStatus === 0 ? <LockKeyhole size={17} /> : <CircleAlert size={17} />}
+        </span>
+        <div>
+          <p className="panel-label">LOCKED SETTLEMENT PROOF</p>
+          <h3>{result.title}</h3>
+          <p>{result.copy}</p>
+        </div>
+        <strong className="workflow-proof__status">
+          {state.proofStatus === 0 ? "Not checked" : state.proofStatus === 6 ? "Passed" : state.proofStatus === 7 ? "Inconclusive" : "Unmet"}
+        </strong>
+      </header>
+
+      <dl className="workflow-proof__policy">
+        <div>
+          <dt>Locked head</dt>
+          <dd>
+            <GitCommitHorizontal aria-hidden="true" size={13} />
+            <a href={`${repositoryUrl}/commit/${state.expectedHeadSha}`} rel="noreferrer" target="_blank" title={state.expectedHeadSha}>{shortCommit(state.expectedHeadSha)}</a>
+          </dd>
+        </div>
+        <div><dt>Target branch</dt><dd><code>{state.expectedBaseRef}</code></dd></div>
+        <div><dt>CI policy</dt><dd>{state.requireCiSuccess ? "Required" : "Not required"}</dd></div>
+        <div><dt>Review policy</dt><dd>{state.minimumApprovals === 0n ? "No minimum" : `${state.minimumApprovals.toString()} approval${state.minimumApprovals === 1n ? "" : "s"}`}</dd></div>
+      </dl>
+
+      {hasObservation ? (
+        <dl className="workflow-proof__evidence">
+          <div><dt>Observed head</dt><dd title={state.proofHeadSha}>{shortCommit(state.proofHeadSha)}</dd></div>
+          <div><dt>Merge commit</dt><dd title={state.proofMergeCommitSha}>{shortCommit(state.proofMergeCommitSha)}</dd></div>
+          <div><dt>CI observed</dt><dd>{state.proofCiSuccess ? "Successful" : state.requireCiSuccess ? "Not successful" : "Not required"}</dd></div>
+          <div><dt>Eligible approvals</dt><dd>{state.proofApprovals.toString()}</dd></div>
+          <div className="workflow-proof__checked"><dt>Last REX proof</dt><dd suppressHydrationWarning>{formatDeadline(state.proofCheckedUnixMs)}</dd></div>
+        </dl>
+      ) : null}
+    </section>
+  );
+}
+
 function WorkflowRecord({
   workflow,
   workflowSlug,
@@ -241,6 +344,8 @@ function WorkflowRecord({
           )}
         </div>
       </dl>
+
+      {state.expectedHeadSha ? <SettlementProofPanel workflow={workflow} /> : null}
 
       {isUnclaimed && !state.claimRequest && !isSponsor && !claimWorkflowHint ? (
         <RequestClaimAction

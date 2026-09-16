@@ -3,27 +3,77 @@
 import {
   Check,
   CircleAlert,
+  GitCommitHorizontal,
+  GitPullRequest,
   LoaderCircle,
   LockKeyhole,
   RefreshCw,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCreateBounty } from "@/features/create-bounty/use-create-bounty";
+import {
+  useGitHubSettlementPreview,
+  type GitHubSettlementPreview,
+} from "@/hooks/use-github-settlement-preview";
 import { useWallet } from "@/hooks/use-wallet";
 import { useNetwork } from "@/hooks/use-network";
 import { asError, describeRialoError } from "@/lib/errors";
 import { MINIMUM_CREATE_BALANCE_KELVIN, routes } from "@/lib/constants";
+import { webConfig } from "@/lib/config";
 import { formatTimeZoneLabel, parseRloToKelvin } from "@/lib/format";
 import { generateWorkflowSlug } from "@/lib/validation";
 import type { CreateBountyFormValues } from "../schema";
 
-function readFormValues(form: HTMLFormElement): CreateBountyFormValues {
+function readTargetValues(form: HTMLFormElement) {
   const data = new FormData(form);
-  const value = (name: keyof CreateBountyFormValues) => {
+  const value = (name: string) => {
     const field = data.get(name);
     return typeof field === "string" ? field.trim() : "";
   };
+
+  const number = Number(value("pullNumber"));
+  if (
+    !/^[A-Za-z0-9._-]{1,100}$/.test(value("githubOwner")) ||
+    !/^[A-Za-z0-9._-]{1,100}$/.test(value("githubRepo")) ||
+    !Number.isSafeInteger(number) ||
+    number <= 0
+  ) {
+    throw new Error("Enter a valid public GitHub owner, repository, and PR number.");
+  }
+
+  return {
+    owner: value("githubOwner"),
+    repo: value("githubRepo"),
+    number,
+  };
+}
+
+function targetMatchesPreview(
+  target: ReturnType<typeof readTargetValues>,
+  preview: GitHubSettlementPreview,
+) {
+  return (
+    target.owner.toLowerCase() === preview.owner.toLowerCase() &&
+    target.repo.toLowerCase() === preview.repo.toLowerCase() &&
+    target.number === preview.number
+  );
+}
+
+function readFormValues(
+  form: HTMLFormElement,
+  preview: GitHubSettlementPreview | null,
+): CreateBountyFormValues {
+  const data = new FormData(form);
+  const value = (name: string) => {
+    const field = data.get(name);
+    return typeof field === "string" ? field.trim() : "";
+  };
+  const target = readTargetValues(form);
+
+  if (!preview || !targetMatchesPreview(target, preview)) {
+    throw new Error("Verify the GitHub target again before signing the bounty.");
+  }
 
   const deadline = value("deadlineUnixMs");
   const deadlineUnixMs = Date.parse(deadline);
@@ -31,14 +81,22 @@ function readFormValues(form: HTMLFormElement): CreateBountyFormValues {
     throw new Error("Choose a future deadline.");
   }
   parseRloToKelvin(value("amountRlo"));
+  const minimumApprovals = value("minimumApprovals");
+  if (!/^(?:[0-9]|10)$/.test(minimumApprovals)) {
+    throw new Error("Choose a valid approval requirement between 0 and 10.");
+  }
 
   return {
     workflowSlug: value("workflowSlug"),
-    githubOwner: value("githubOwner"),
-    githubRepo: value("githubRepo"),
-    pullNumber: value("pullNumber"),
+    githubOwner: target.owner,
+    githubRepo: target.repo,
+    pullNumber: String(target.number),
     amountRlo: value("amountRlo"),
     deadlineUnixMs: String(deadlineUnixMs),
+    expectedHeadSha: preview.headSha,
+    expectedBaseRef: preview.baseRef,
+    requireCiSuccess: data.get("requireCiSuccess") === "on",
+    minimumApprovals,
   };
 }
 
@@ -51,10 +109,13 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
   const network = useNetwork();
   const router = useRouter();
   const createBounty = useCreateBounty();
+  const targetPreview = useGitHubSettlementPreview();
+  const formRef = useRef<HTMLFormElement>(null);
   const [formError, setFormError] = useState<Error | null>(null);
   const [workflowSlug, setWorkflowSlug] = useState(initialWorkflowSlug);
   const [timeZoneLabel, setTimeZoneLabel] = useState("local time");
-  const isBusy = createBounty.status === "pending";
+  const isSubmitting = createBounty.status === "pending";
+  const isBusy = isSubmitting || targetPreview.status === "loading";
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -64,8 +125,25 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
   }, []);
 
   function regenerateWorkflowSlug() {
-    if (!isBusy && createBounty.transaction.phase !== "confirmed") {
+    if (!isSubmitting && createBounty.transaction.phase !== "confirmed") {
       setWorkflowSlug(generateWorkflowSlug());
+    }
+  }
+
+  function handleTargetChanged() {
+    if (targetPreview.status !== "idle") targetPreview.reset();
+    if (formError) setFormError(null);
+  }
+
+  async function handleVerifyTarget() {
+    if (!formRef.current || isBusy) return;
+    setFormError(null);
+    try {
+      const target = readTargetValues(formRef.current);
+      await targetPreview.verify(target);
+    } catch (cause) {
+      if (cause instanceof Error && cause.name === "AbortError") return;
+      // The hook keeps the structured upstream error as the visible source of truth.
     }
   }
 
@@ -76,7 +154,7 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
     setFormError(null);
     let values: CreateBountyFormValues;
     try {
-      values = readFormValues(event.currentTarget);
+      values = readFormValues(event.currentTarget, targetPreview.preview);
     } catch (cause) {
       setFormError(asError(cause));
       return;
@@ -113,9 +191,14 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
     network.rpcStatus !== "available" ||
     balanceChecking ||
     balanceUnavailable ||
-    balanceNeedsFunding;
+    balanceNeedsFunding ||
+    !webConfig.rexBytecodeAccount ||
+    targetPreview.status !== "success";
   const statusTone =
-    formError || createBounty.status === "error" || transactionPhase === "failed"
+    formError ||
+    targetPreview.status === "error" ||
+    createBounty.status === "error" ||
+    transactionPhase === "failed"
       ? "error"
       : createBounty.status === "success" || transactionPhase === "confirmed"
         ? "success"
@@ -154,6 +237,21 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
   } else if (balanceNeedsFunding) {
     statusTitle = "Faucet required";
     statusCopy = `Available balance is ${wallet.balance.formatted ?? "0"} RLO. Request 1 RLO from the DevNet faucet, then refresh.`;
+  } else if (!webConfig.rexBytecodeAccount) {
+    statusTitle = "Verifier deployment pending";
+    statusCopy = "The custom settlement REX account must be configured before a strong-proof bounty can be created.";
+  } else if (targetPreview.status === "loading") {
+    statusTitle = "Verifying GitHub target";
+    statusCopy = "Reading the exact head commit and target branch from GitHub.";
+    buttonLabel = "Verifying target";
+  } else if (targetPreview.status === "error") {
+    statusTitle = "Target not verified";
+    statusCopy = describeRialoError(targetPreview.error);
+    buttonLabel = "Verify target first";
+  } else if (targetPreview.status !== "success") {
+    statusTitle = "Verify the source condition";
+    statusCopy = "Confirm the pull request to lock its exact commit and target branch.";
+    buttonLabel = "Verify target first";
   } else if (transactionPhase === "reviewing") {
     statusTitle = "Review transaction";
     statusCopy = "Verify the signer, program, amount, and workflow account.";
@@ -181,7 +279,7 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
   }
 
   return (
-    <form className="bounty-form" aria-label="Create a MergePay bounty" onSubmit={handleSubmit}>
+    <form ref={formRef} className="bounty-form" aria-label="Create a MergePay bounty" onSubmit={handleSubmit}>
       <fieldset className="form-section">
         <legend className="sr-only">GitHub target</legend>
         <div className="form-section__heading">
@@ -189,9 +287,30 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
           <div><p className="form-section__eyebrow mono">SOURCE CONDITION</p><h2>GitHub target</h2><p>One public pull request per bounty.</p></div>
         </div>
         <div className="form-grid form-grid--three">
-          <label className="form-field"><span>Owner <b aria-hidden="true">*</b></span><input name="githubOwner" autoComplete="off" placeholder="Repository owner" required spellCheck={false} /></label>
-          <label className="form-field"><span>Repository <b aria-hidden="true">*</b></span><input name="githubRepo" autoComplete="off" placeholder="Repository name" required spellCheck={false} /></label>
-          <label className="form-field"><span>Pull request <b aria-hidden="true">*</b></span><input name="pullNumber" inputMode="numeric" min="1" placeholder="PR number" required type="number" /></label>
+          <label className="form-field"><span>Owner <b aria-hidden="true">*</b></span><input name="githubOwner" autoComplete="off" maxLength={100} onChange={handleTargetChanged} pattern="[A-Za-z0-9._-]+" placeholder="Repository owner" required spellCheck={false} /></label>
+          <label className="form-field"><span>Repository <b aria-hidden="true">*</b></span><input name="githubRepo" autoComplete="off" maxLength={100} onChange={handleTargetChanged} pattern="[A-Za-z0-9._-]+" placeholder="Repository name" required spellCheck={false} /></label>
+          <label className="form-field"><span>Pull request <b aria-hidden="true">*</b></span><input name="pullNumber" inputMode="numeric" min="1" onChange={handleTargetChanged} placeholder="PR number" required type="number" /></label>
+        </div>
+        <div className="settlement-target" data-status={targetPreview.status}>
+          <div className="settlement-target__lead">
+            <span className="settlement-target__icon" aria-hidden="true">
+              {targetPreview.status === "loading" ? <LoaderCircle className="ui-icon--spin" size={17} /> : targetPreview.status === "success" ? <Check size={17} /> : <GitPullRequest size={17} />}
+            </span>
+            <div>
+              <strong>{targetPreview.status === "success" ? targetPreview.preview.title : "Lock the exact pull-request revision"}</strong>
+              <p>{targetPreview.status === "success" ? `${targetPreview.preview.owner}/${targetPreview.preview.repo} · PR #${targetPreview.preview.number} · ${targetPreview.preview.state}` : targetPreview.status === "error" ? targetPreview.error.message : "MergePay will read GitHub before creating the onchain workflow."}</p>
+            </div>
+          </div>
+          <button className="button settlement-target__verify" disabled={isBusy} onClick={handleVerifyTarget} type="button">
+            {targetPreview.status === "loading" ? <LoaderCircle aria-hidden="true" className="ui-icon--spin" size={14} /> : <RefreshCw aria-hidden="true" size={14} />}
+            {targetPreview.status === "success" ? "Verify again" : "Verify target"}
+          </button>
+          {targetPreview.status === "success" ? (
+            <dl className="settlement-target__facts">
+              <div><dt>HEAD COMMIT</dt><dd title={targetPreview.preview.headSha}><GitCommitHorizontal aria-hidden="true" size={13} /> <code>{targetPreview.preview.headSha}</code></dd></div>
+              <div><dt>TARGET BRANCH</dt><dd><code>{targetPreview.preview.baseRef}</code></dd></div>
+            </dl>
+          ) : null}
         </div>
       </fieldset>
 
@@ -209,6 +328,32 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
               <small>MergePay verifies the public GitHub pull request, then the sponsor approves the contributor wallet before funding. The beneficiary is locked once approved.</small>
             </div>
           </div>
+          <div className="settlement-policy form-grid__wide">
+            <div className="settlement-policy__heading">
+              <span aria-hidden="true"><LockKeyhole size={18} /></span>
+              <div>
+                <strong>Locked payout policy</strong>
+                <p>The exact commit and target branch are always required. Add CI or review rules when the bounty needs stronger assurance.</p>
+              </div>
+            </div>
+            <div className="settlement-policy__options">
+              <label className="settlement-policy__toggle">
+                <input name="requireCiSuccess" type="checkbox" />
+                <span><strong>Require successful CI</strong><small>At least one GitHub status or check run must exist; all latest signals must finish successfully.</small></span>
+              </label>
+              <label className="form-field">
+                <span>Required approvals</span>
+                <select defaultValue="0" name="minimumApprovals">
+                  <option value="0">No approval requirement</option>
+                  <option value="1">1 current-commit approval</option>
+                  <option value="2">2 current-commit approvals</option>
+                  <option value="3">3 current-commit approvals</option>
+                </select>
+                <small>Only the latest decision from repository writers on the locked commit counts.</small>
+              </label>
+            </div>
+            <p className="settlement-policy__warning"><CircleAlert aria-hidden="true" size={14} /> A force-push or target-branch change makes the proof fail closed. The sponsor can recover escrow after the deadline.</p>
+          </div>
           <label className="form-field"><span>Bounty amount <b aria-hidden="true">*</b></span><div className="input-affix"><input aria-describedby="amount-hint" name="amountRlo" inputMode="decimal" min="0.000000001" placeholder="0.001" required step="0.000000001" type="text" /><b>RLO</b></div><small id="amount-hint">The contributor receives this exact amount in RLO.</small></label>
           <label className="form-field"><span>Deadline <b aria-hidden="true">*</b></span><input aria-describedby="deadline-hint" name="deadlineUnixMs" required type="datetime-local" /><small id="deadline-hint">Uses your local time · {timeZoneLabel}.</small></label>
           <div className="form-field form-grid__wide">
@@ -217,7 +362,7 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
               <button
                 aria-label="Generate a new workflow ID"
                 className="workflow-id__generate"
-                disabled={isBusy || transactionPhase === "confirmed"}
+                disabled={isSubmitting || transactionPhase === "confirmed"}
                 onClick={regenerateWorkflowSlug}
                 type="button"
               >

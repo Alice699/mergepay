@@ -16,6 +16,8 @@ MergePay is a DevNet MVP, not audited production software.
 - The payout account pubkey must match the committed beneficiary.
 - The beneficiary account is writable but is not required to sign the callback.
 - Payout requires a non-empty, unanimous successful REX report.
+- The strong-proof verifier binds the payout to the exact head SHA, target branch,
+  optional CI policy, and current-commit review policy stored in the workflow.
 - Unanimous HTTP `404`, mixed reports, unsupported outputs, and REX errors do not pay.
 - `paid` and `refunded` terminal flags prevent a second escrow release.
 - Payout/refund release only the committed escrow amount; any remaining workflow
@@ -33,7 +35,8 @@ MergePay is a DevNet MVP, not audited production software.
 
 - Rialo DevNet, its REX validators, registry, and subscriber programs behave according
   to the tested `0.18.1` release.
-- GitHub's public merge-status endpoint accurately represents public repository state.
+- GitHub's public REST responses accurately represent the public repository state used by
+  the selected proof policy, including the PR head/base, merge commit, CI, and reviews.
 - The sponsor chooses the intended repository, PR, amount, and deadline, then reviews the
   contributor claim before funding.
 - Contributor claims require GitHub OAuth. The server compares the authenticated
@@ -43,11 +46,12 @@ MergePay is a DevNet MVP, not audited production software.
 - OAuth remains an off-chain identity boundary: Rialo cannot call GitHub from inside the
   program. Sponsor approval is still required and must review the exact PR, identity,
   and wallet before funding.
-- The active public-repository settlement path constructs only
-  `https://api.github.com/repos/{owner}/{repo}/pulls/{number}/merge` from committed,
-  slug-validated fields. It uses fixed non-secret headers and requires no GitHub App
-  installation token or private key. GitHub OAuth remains separate and is used only
-  for contributor identity binding.
+- The strong-proof REX component constructs only bounded URLs from committed,
+  slug-validated fields: PR details, the locked commit's status/check-runs, and the PR's
+  reviews. It uses fixed non-secret headers and requires no GitHub App installation token
+  or private key. GitHub OAuth remains separate and is used only for contributor identity
+  binding. The active recorded DevNet deployment is still the previous compact-endpoint
+  ABI until the new program/component pair is redeployed.
 - DevNet transaction history and deployments may be reset.
 - The embedded wallet runs in the same browser origin as the dApp. While unlocked, an
   origin compromise or malicious dependency could access signing capability; encrypted
@@ -62,10 +66,11 @@ MergePay is a DevNet MVP, not audited production software.
 
 ## Fail-closed behavior
 
-The program pays only when every report output is `RexOutput::Success`. A `404` is
-treated as not merged and keeps escrow locked. Any other HTTP error, malformed output,
-empty report, or validator disagreement also leaves funds locked for a later retry or
-post-deadline refund.
+The program pays only when every report output is `RexOutput::Success`, all outputs carry
+the same compact `MP1` proof, and that proof reproduces the immutable settlement policy.
+A current head mismatch, target-branch change, unmerged PR, failed or incomplete CI,
+insufficient current-commit approvals, HTTP error, malformed output, empty report, or
+validator disagreement leaves funds locked for a later retry or post-deadline refund.
 
 For a public GitHub repository, `404` can also mean that the repository/PR is missing
 or inaccessible. That ambiguity cannot create a payout; it only keeps the
@@ -77,6 +82,8 @@ sponsor-selected bounty locked until refund.
 - The active marketplace and autonomous settlement ABI is deployed at the recorded
   program, with funding plus automatic payout and refund lineages preserved in
   `docs/EVIDENCE.md`.
+- The policy-locked settlement source is implemented but not live on that historical
+  program until the matching Rialo program and REX component are redeployed.
 - Native RLO escrow only; no token interface yet.
 - One sponsor, one approved beneficiary, one PR, and one fixed amount per workflow.
 - One claim record can be approved for a bounty in the current MVP; replacing or

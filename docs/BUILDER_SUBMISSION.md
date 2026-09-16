@@ -18,13 +18,17 @@ signals across transactions.
 
 ## What is live
 
-- Runtime-proven autonomous settlement: `6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5`
+- Active policy-locked autonomous-settlement deployment: `FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q`
+- Active custom REX bytecode account: `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK`
+- Previous runtime-proven deployment: `6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5` (historical)
 - Previous runtime-proven review deployment: `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB` (historical)
 - Previous reset deployment: `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
-- Hardened metadata: `231269`-byte RISC-V executable, slot `11428520`, fresh runtime proof verified
+- Active metadata: `242877`-byte RISC-V executable, slot `15705856`, matching REX component deployed
 - RISC-V / PolkaVM Venus program built against `0.18.1`
 - Sponsor-created and funded workflow PDA
-- GitHub merge check through built-in HTTP REX
+- Policy-locked public settlement proof through a custom REX WASM component with a
+  bounded 15-second collection window
+- Fresh live payout proof for the active deployment (pending a new funded workflow)
 - Writable beneficiary propagated into the callback
 - Unanimous merged payout
 - Open-PR fail-closed path
@@ -40,8 +44,8 @@ signals across transactions.
 
 1. Show `programs/mergepay-rialo/src/lib.rs` and the atomic
    `prepare_funding` + `fund` path.
-2. Show program `6LwYm...` with `rialo client program show` and the final evidence in
-   `docs/EVIDENCE.md`.
+2. Show program `FfPSHGD...` with `rialo client program show` and the deployment metadata
+   in `deployments/devnet.json`; use `docs/EVIDENCE.md` for the historical runtime proof.
 3. Inspect merged-PR callback `D8gSMi1e...` and its `50,000,000`-kelvin payout log.
 4. Inspect automatic refund callback `3df8q5SM...` and its exact refund log.
 5. Show manual refund transaction `NViDopSB...` succeeding idempotently after the
@@ -52,7 +56,8 @@ Full signatures and balances are in [EVIDENCE.md](EVIDENCE.md).
 ## Engineering findings
 
 1. The full GitHub PR JSON exceeded the observed REX `12,987`-byte response limit.
-   GitHub's compact merged endpoint provides the exact required signal with no body.
+   The strong-proof source now uses a custom REX WASM component with bounded PR, CI,
+   check-run, and review requests, then emits a compact deterministic proof.
 2. Rialo DevNet `0.18.1` exposed workflow clock values in milliseconds. The contract
    names the public field `deadline_unix_ms` to remove ambiguity.
 3. Venus derives workflow PDAs from payer plus slug. The sponsor must remain payer
@@ -79,11 +84,13 @@ See [SECURITY.md](SECURITY.md) for the full threat model and limitations.
 
 ## Honest scope
 
-This is a DevNet MVP, not an audited production payment protocol. It currently supports
-public GitHub repositories, native RLO, one beneficiary, and native post-funding checks
-with a sponsor fallback. Public merge proof uses GitHub's fixed merge-status endpoint
-without an installation token; private repositories remain out of scope.
-The reactive external verification and settlement path is real and fully demonstrated.
+This is a DevNet MVP, not an audited production payment protocol. The recorded active
+deployment supports public GitHub repositories, native RLO, one beneficiary, and native
+post-funding checks with a sponsor fallback. The policy-locked public proof is now
+deployed with its matching REX component, but the new deployment still needs a fresh
+live payout workflow before it can claim runtime proof; private repositories remain
+out of scope.
+The reactive external verification and settlement path is implemented and fail-closed.
 The dApp includes an experimental DevNet-only embedded signer because a public Rialo
 extension is not required for review. Private-repository authentication, production
 wallet hardening, and audit work remain out of

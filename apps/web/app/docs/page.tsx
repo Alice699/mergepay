@@ -32,7 +32,7 @@ export default function DocsPage() {
             </div>
             <div className="docs-program__footer">
               <span>Autonomous payout and refund</span>
-              <strong>Runtime-proven</strong>
+              <strong>Strong-proof live</strong>
             </div>
           </div>
         </ScrollReveal>
@@ -131,12 +131,12 @@ export default function DocsPage() {
             <ScrollReveal className="docs-section-reveal" delay={40}>
               <div>
               <h2>GitHub signal</h2>
-              <p>MergePay constructs a fixed public URL from the committed owner, repository, and pull-request number. The compact merged-check endpoint avoids the REX response-size failure observed with the full pull-request representation.</p>
-              <pre><code>GET https://api.github.com/repos/&#123;owner&#125;/&#123;repo&#125;/pulls/&#123;number&#125;/merge</code></pre>
+              <p>MergePay locks the PR head SHA and target branch before funding. The custom REX WASM verifier then reads bounded public GitHub responses and evaluates the selected merge, CI, and review conditions inside validator-attested execution.</p>
+              <pre><code>GET /pulls/&#123;number&#125;<br />GET /commits/&#123;headSha&#125;/status<br />GET /commits/&#123;headSha&#125;/check-runs<br />GET /pulls/&#123;number&#125;/reviews</code></pre>
               <div className="signal-grid signal-grid--three">
-                <div><strong>204</strong><span>Every validator agrees the PR merged; payout is eligible.</span></div>
-                <div><strong>404</strong><span>The PR is open, missing, or inaccessible; escrow stays locked.</span></div>
-                <div><strong>ERROR</strong><span>Empty, mixed, or malformed reports fail closed and retry later.</span></div>
+                <div><strong>MP1 / 6</strong><span>Every validator agrees all locked conditions pass; payout is eligible.</span></div>
+                <div><strong>MP1 / 1–5</strong><span>The PR or selected evidence is not ready; escrow stays locked.</span></div>
+                <div><strong>INCONCLUSIVE</strong><span>Empty, mixed, paginated, or malformed reports fail closed and retry later.</span></div>
               </div>
               </div>
             </ScrollReveal>
@@ -150,8 +150,8 @@ export default function DocsPage() {
               <p>The native heartbeat owns both terminal paths. A unanimous merged proof pays the contributor; reaching the immutable deadline first refunds the sponsor. Terminal flags and exact-amount accounting prevent a second release when a manual fallback races an automatic callback. Each terminal workflow exposes a shareable receipt containing the exact amount, destination, reserve, and decoded success flag.</p>
 
               <div className="docs-proof-grid">
-                <div><span>MERGED PR</span><strong>Automatic payout</strong><small>Runtime-proven on DevNet</small></div>
-                <div><span>DEADLINE</span><strong>Automatic refund</strong><small>Runtime-proven on DevNet</small></div>
+                <div><span>MERGED PR</span><strong>Automatic payout</strong><small>Fresh live proof pending</small></div>
+                <div><span>DEADLINE</span><strong>Automatic refund</strong><small>Fresh live proof pending</small></div>
                 <div><span>FALLBACK RACE</span><strong>Idempotent</strong><small>No double escrow release</small></div>
               </div>
 
@@ -160,7 +160,7 @@ export default function DocsPage() {
                 <p>GitHub OAuth verifies contributor identity when the claim is created. Sponsor review then re-fetches the public PR and compares the stable numeric author ID again, failing closed if GitHub is unavailable or disagrees. This second check is an application gate; the onchain program independently enforces sponsor authority, account ownership, exact terms, and the beneficiary lock. Public merge settlement uses fixed non-secret headers and requires no GitHub App installation token or private key.</p>
               </div>
 
-              <p>MergePay remains an unaudited DevNet MVP. It trusts the tested Rialo runtime, REX validators, and GitHub’s public merge endpoint. Its current product boundary is intentionally narrow:</p>
+              <p>MergePay remains an unaudited DevNet MVP. It trusts the tested Rialo runtime, REX validators, and GitHub&apos;s public REST responses. Its current product boundary is intentionally narrow:</p>
               <ul className="limit-list">
                 <li>DevNet and test RLO only</li>
                 <li>Public GitHub repositories only</li>

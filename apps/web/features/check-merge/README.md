@@ -15,9 +15,10 @@ This feature owns the sponsor fallback for the native autonomous REX path:
 - refresh the decoded workflow and report paid, no-payout, callback-failed, or
   still-pending outcomes without consulting a trusted application backend.
 
-The browser never decides whether a pull request is merged. GitHub is queried by
-Rialo REX, and the UI calls a bounty paid only after the decoded workflow account
-contains both `merge_confirmed=true` and `paid=true`.
+The browser never decides whether a pull request satisfies settlement. The custom REX
+WASM component reads the locked PR head/base, merge commit, and any selected CI/review
+evidence. The UI calls a bounty paid only after the decoded workflow account contains
+both `merge_confirmed=true` and `paid=true`.
 
 The primary path is now registered by `fund`: Rialo starts a one-shot settlement
 heartbeat, and each `run_merge_check` handler re-arms the next short native timer.

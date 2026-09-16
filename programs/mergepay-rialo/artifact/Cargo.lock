@@ -27,6 +27,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
+name = "arrayvec"
+version = "0.7.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
+
+[[package]]
 name = "async-trait"
 version = "0.1.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -121,10 +127,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "bincode"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
+
+[[package]]
+name = "blake3"
+version = "1.8.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae"
+dependencies = [
+ "arrayvec",
+ "cc",
+ "cfg-if",
+ "constant_time_eq",
+ "cpufeatures 0.3.0",
+ "serde",
+]
 
 [[package]]
 name = "block-buffer"
@@ -273,6 +302,12 @@ dependencies = [
  "once_cell",
  "tiny-keccak",
 ]
+
+[[package]]
+name = "constant_time_eq"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "cpufeatures"
@@ -1030,6 +1065,7 @@ name = "mergepay-rialo-artifact"
 version = "0.1.0"
 dependencies = [
  "rialo-build-lib",
+ "rialo-venus-build-helper",
 ]
 
 [[package]]
@@ -1517,6 +1553,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rialo-rex-wasm-v1-loader-interface"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81121ea954f25a6cf90a99beac57920effd5b58340589486c0ab0349aed4b139"
+dependencies = [
+ "blake3",
+ "rialo-s-instruction",
+ "rialo-s-pubkey",
+ "rialo-s-sdk-ids",
+ "rialo-s-system-interface",
+ "serde",
+ "serde_bytes",
+ "serde_derive",
+]
+
+[[package]]
 name = "rialo-s-decode-error"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1535,6 +1587,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rialo-s-instruction"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9c927c16bf2d19350376556e84ab29598621a9b6d2189b2212c15ba4d1b2674"
+dependencies = [
+ "bincode",
+ "getrandom 0.2.17",
+ "js-sys",
+ "num-traits",
+ "rialo-s-define-syscall",
+ "rialo-s-pubkey",
+ "serde",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "rialo-s-pubkey"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1550,7 +1618,18 @@ dependencies = [
  "rialo-s-define-syscall",
  "rialo-s-sha256-hasher",
  "rialo-sanitize",
+ "serde",
+ "serde_derive",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "rialo-s-sdk-ids"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d147cb10bc57a0b064a441010ff4e8ae319ab6414604bf765b25ce51a756dca5"
+dependencies = [
+ "rialo-s-pubkey",
 ]
 
 [[package]]
@@ -1562,6 +1641,22 @@ dependencies = [
  "rialo-hash",
  "rialo-s-define-syscall",
  "sha2",
+]
+
+[[package]]
+name = "rialo-s-system-interface"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd801ec7ba438b8a8ab51b527eb5ae26cdbf6384e7e478e858cf3d311b6d7d2a"
+dependencies = [
+ "js-sys",
+ "num-traits",
+ "rialo-s-decode-error",
+ "rialo-s-instruction",
+ "rialo-s-pubkey",
+ "serde",
+ "serde_derive",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1590,6 +1685,19 @@ checksum = "6bfbd0ad6629c78ce6a447bf46686451efd3e77fa090c2ec77c56df7c9a06e7b"
 dependencies = [
  "rialo-syngen-dsl",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "rialo-venus-build-helper"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83f7162ada70fd5388035402acfb5d91dfd1f1a1bcbc4f9bf06c689d504647db"
+dependencies = [
+ "blake3",
+ "rialo-rex-wasm-v1-loader-interface",
+ "rialo-venus-dsl",
+ "serde",
+ "toml",
 ]
 
 [[package]]
@@ -1785,6 +1893,16 @@ checksum = "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde_bytes"
+version = "0.11.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5d440709e79d88e51ac01c4b72fc6cb7314017bb7da9eeff678aa94c10e3ea8"
+dependencies = [
+ "serde",
+ "serde_core",
 ]
 
 [[package]]

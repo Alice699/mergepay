@@ -17,6 +17,13 @@ interface GitHubPullResponse {
   state: string;
   html_url: string;
   merged_at: string | null;
+  merge_commit_sha?: string | null;
+  head?: {
+    sha?: string;
+  };
+  base?: {
+    ref?: string;
+  };
   user?: {
     id?: number;
     login?: string;
@@ -47,6 +54,9 @@ export interface PublicGitHubPull {
   state: string;
   htmlUrl: string;
   mergedAt: string | null;
+  mergeCommitSha: string | null;
+  headSha: string;
+  baseRef: string;
   author: {
     id: number;
     login: string;
@@ -266,6 +276,9 @@ export async function fetchPublicGitHubPull(
 
   const login = payload.user?.login?.trim();
   const authorId = payload.user?.id;
+  const headSha = payload.head?.sha?.trim().toLowerCase();
+  const baseRef = payload.base?.ref?.trim();
+  const mergeCommitSha = payload.merge_commit_sha?.trim().toLowerCase() || null;
   if (
     !login ||
     !Number.isSafeInteger(authorId) ||
@@ -273,7 +286,16 @@ export async function fetchPublicGitHubPull(
     payload.number !== number ||
     typeof payload.title !== "string" ||
     typeof payload.state !== "string" ||
-    typeof payload.html_url !== "string"
+    typeof payload.html_url !== "string" ||
+    !headSha ||
+    !/^[a-f0-9]{40}$/.test(headSha) ||
+    !baseRef ||
+    baseRef.length > 128 ||
+    baseRef.startsWith("/") ||
+    baseRef.endsWith("/") ||
+    baseRef.includes("..") ||
+    !/^[A-Za-z0-9._/-]+$/.test(baseRef) ||
+    (mergeCommitSha !== null && !/^[a-f0-9]{40}$/.test(mergeCommitSha))
   ) {
     throw new GitHubPublicPullError(
       "GitHub returned an incomplete pull-request record.",
@@ -294,6 +316,9 @@ export async function fetchPublicGitHubPull(
     state: payload.state,
     htmlUrl: payload.html_url,
     mergedAt: payload.merged_at,
+    mergeCommitSha,
+    headSha,
+    baseRef,
     author: {
       id: authorId as number,
       login,

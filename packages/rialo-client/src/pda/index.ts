@@ -23,6 +23,12 @@ export interface DerivedWorkflowAccounts {
   rexSlug: Uint8Array;
 }
 
+export interface DerivedCheckMergeControlAccounts {
+  workflow: DerivedPda;
+  subscription: DerivedPda;
+  subscriptionSlug: Uint8Array;
+}
+
 function u64Le(value: number): Uint8Array {
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new RangeError("PDA index values must be non-negative safe integers");
@@ -123,6 +129,30 @@ export function deriveEventDataPda(
     ],
     MERGEPAY_WELL_KNOWN_ADDRESSES.rexProcessor,
   );
+}
+
+/**
+ * Derive the account set for the public `check_merge` control instruction.
+ *
+ * The control call clears the proof throttle and arms a fresh native-timer
+ * `run_merge_check` branch. Its generated subscription is therefore branch
+ * zero at account index four; callback accounts belong to the later timer
+ * branch and must not be supplied to this external instruction.
+ */
+export function deriveCheckMergeControlAccounts(
+  programId: string,
+  payer: string,
+  workflowSlug: WorkflowSlug,
+): DerivedCheckMergeControlAccounts {
+  const workflow = deriveWorkflowPda(programId, payer, workflowSlug);
+  const subscriptionSlug = deriveMultiAccountSlug(
+    workflow.address,
+    0,
+    MERGEPAY_ACCOUNT_INDEXES.fundSubscriptionPda,
+  );
+  const subscription = deriveSubscriptionPda(payer, subscriptionSlug);
+
+  return { workflow, subscription, subscriptionSlug };
 }
 
 /**

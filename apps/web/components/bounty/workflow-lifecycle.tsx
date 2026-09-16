@@ -1,8 +1,8 @@
 const stages = [
   { number: "01", scope: "ONCHAIN", title: "Create", copy: "Commit the PR, beneficiary, amount, and deadline." },
   { number: "02", scope: "ESCROW", title: "Fund", copy: "Lock the exact bounty amount in the workflow PDA." },
-  { number: "03", scope: "REX", title: "Verify", copy: "Rialo checks GitHub’s compact merge endpoint." },
-  { number: "04", scope: "CALLBACK", title: "Settle", copy: "Pay on unanimous merge proof or refund after expiry." },
+  { number: "03", scope: "REX", title: "Verify", copy: "Rialo checks the locked PR, CI, and review policy." },
+  { number: "04", scope: "CALLBACK", title: "Settle", copy: "Pay on unanimous policy proof or refund after expiry." },
 ] as const;
 
 export function WorkflowLifecycle() {

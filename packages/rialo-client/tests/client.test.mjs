@@ -19,6 +19,7 @@ import {
   buildUnsignedTransaction,
   decodeWorkflowState,
   deriveCheckMergeAccounts,
+  deriveCheckMergeControlAccounts,
   deriveMultiAccountSlug,
   deriveWorkflowPda,
 } from "../dist/index.js";
@@ -39,6 +40,14 @@ const slug = "0000000000000000000000000000000000000000000000000000000000000009";
 const claimSlug = "000000000000000000000000000000000000000000000000000000000000000a";
 const workflowPda = deriveWorkflowPda(MERGEPAY_PROGRAM_ID, payer, slug).address;
 const claimWorkflow = deriveWorkflowPda(MERGEPAY_PROGRAM_ID, payer, claimSlug).address;
+const rexBytecodeAccount = beneficiary;
+const settlementPolicy = {
+  expectedHeadSha: "a".repeat(40),
+  expectedBaseRef: "main",
+  requireCiSuccess: true,
+  minimumApprovals: 2n,
+  rexBytecodeAccount,
+};
 
 test("keeps generated client constants aligned with the checked-in Venus manifest", () => {
   assert.equal(manifest.version, MERGEPAY_MANIFEST_VERSION);
@@ -73,11 +82,40 @@ test("keeps generated client constants aligned with the checked-in Venus manifes
   );
   assert.deepEqual(
     manifest.instructions.request_claim.accounts.map((account) => account.name),
-    ["payer", "workflow_pda", "system_program", "target_workflow"],
+    [
+      "payer",
+      "workflow_pda",
+      "system_program",
+      "subscriber_interface",
+      "target_workflow",
+    ],
+  );
+  assert.deepEqual(
+    manifest.instructions.create_bounty.parameters.map((parameter) => parameter.name),
+    [
+      "workflow_pda_slug",
+      "beneficiary",
+      "github_owner",
+      "github_repo",
+      "pull_number",
+      "amount_kelvin",
+      "deadline_unix_ms",
+      "expected_head_sha",
+      "expected_base_ref",
+      "require_ci_success",
+      "minimum_approvals",
+      "__rex_bytecode_account",
+    ],
   );
   assert.deepEqual(
     manifest.instructions.accept_claim.accounts.map((account) => account.name),
-    ["payer", "workflow_pda", "system_program", "claim_workflow"],
+    [
+      "payer",
+      "workflow_pda",
+      "system_program",
+      "subscriber_interface",
+      "claim_workflow",
+    ],
   );
 });
 
@@ -88,16 +126,16 @@ test("derives the workflow and merge-check callback auxiliary PDAs from the ABI"
   });
 
   const accounts = deriveCheckMergeAccounts(MERGEPAY_PROGRAM_ID, payer, slug);
-  assert.equal(accounts.subscription.address, "5qAX4k8KYY9MLobHiufcfsG1HFJX9YwFAY6sgvSrNcJ8");
-  assert.equal(accounts.retrySubscription.address, "AaHC7NCzunC7HRZyq5PxkSEoR7iCNTGr9enUdsdJCBNu");
-  assert.equal(accounts.rex.address, "APnHxU7ZJZs4trksvG9d7XgzUQnraZB9CXXhh4MDcxBB");
+  assert.equal(accounts.subscription.address, "GAbKXcuNsQhPEYNZcWuM1bHXzKWiaJ1YikJUbLjfKCNx");
+  assert.equal(accounts.retrySubscription.address, "B4ZDyJVpWQyeabBPsJbK4PtSjH8ALxCocmARCQqLfjfn");
+  assert.equal(accounts.rex.address, "9frhs8e36X2zwMQdiKfVsVrxaTbJUHSNzXZpnp3pq85q");
   assert.equal(
     Buffer.from(accounts.subscriptionSlug).toString("hex"),
-    "ef5722000b4f28d3c2467c71a97edbac4f97789d6fc02d847688f32ad37d975a",
+    "6982149ae4370f94e82f3673736a30cf945a3054c1df310d79433cb5bf3441f1",
   );
   assert.equal(
     Buffer.from(accounts.rexSlug).toString("hex"),
-    "d0c9871371f9771453221dd15675708dcb3ac2e3cbf6fe7fb8c334e59b825d08",
+    "c12194c7066fea7265fac498b386e3a04f2907c85d78df56b645e59662983353",
   );
   assert.equal(
     Buffer.from(deriveMultiAccountSlug(workflowPda, 0, 5)).toString("hex"),
@@ -116,6 +154,16 @@ test("derives the workflow and merge-check callback auxiliary PDAs from the ABI"
   );
   assert.notEqual(retryAccounts.subscription.address, accounts.subscription.address);
   assert.notEqual(retryAccounts.rex.address, accounts.rex.address);
+
+  const controlAccounts = deriveCheckMergeControlAccounts(
+    MERGEPAY_PROGRAM_ID,
+    payer,
+    slug,
+  );
+  assert.equal(
+    Buffer.from(controlAccounts.subscriptionSlug).toString("hex"),
+    Buffer.from(deriveMultiAccountSlug(workflowPda, 0, 4)).toString("hex"),
+  );
 });
 
 test("builds the exact external instruction wire format", () => {
@@ -128,33 +176,27 @@ test("builds the exact external instruction wire format", () => {
   const check = buildCheckMergeInstruction(base);
   assert.equal(
     Buffer.from(check.data).toString("hex"),
-    `08000000${slug}0000000000000000`,
+    `02000000${slug}`,
   );
   assert.deepEqual(check.accounts.map((account) => account.pubkey.toString()), [
     payer,
     workflowPda,
-    "Qrac1eRegistry11111111111111111111111111111",
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
-    "5qAX4k8KYY9MLobHiufcfsG1HFJX9YwFAY6sgvSrNcJ8",
-    "AaHC7NCzunC7HRZyq5PxkSEoR7iCNTGr9enUdsdJCBNu",
-    "APnHxU7ZJZs4trksvG9d7XgzUQnraZB9CXXhh4MDcxBB",
+    deriveCheckMergeControlAccounts(MERGEPAY_PROGRAM_ID, payer, slug).subscription.address,
   ]);
 
   const retryCheck = buildCheckMergeInstruction({ ...base, branchNumber: 1 });
   assert.equal(
     Buffer.from(retryCheck.data).toString("hex"),
-    `08000000${slug}0100000000000000`,
+    `02000000${slug}`,
   );
   assert.deepEqual(retryCheck.accounts.map((account) => account.pubkey.toString()), [
     payer,
     workflowPda,
-    "Qrac1eRegistry11111111111111111111111111111",
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
-    deriveCheckMergeAccounts(MERGEPAY_PROGRAM_ID, payer, slug, 1).subscription.address,
-    deriveCheckMergeAccounts(MERGEPAY_PROGRAM_ID, payer, slug, 1).retrySubscription.address,
-    deriveCheckMergeAccounts(MERGEPAY_PROGRAM_ID, payer, slug, 1).rex.address,
+    deriveCheckMergeControlAccounts(MERGEPAY_PROGRAM_ID, payer, slug).subscription.address,
   ]);
 
   const create = buildCreateBountyInstruction({
@@ -165,9 +207,10 @@ test("builds the exact external instruction wire format", () => {
     pullNumber: 332677n,
     amountKelvin: 1_000_000n,
     deadlineUnixMs: 1_787_941_094_399n,
+    ...settlementPolicy,
   });
-  assert.equal(create.data.length, 123);
-  assert.equal(Buffer.from(create.data.slice(0, 4)).toString("hex"), "05000000");
+  assert.equal(create.data.length, 224);
+  assert.equal(Buffer.from(create.data.slice(0, 4)).toString("hex"), "04000000");
   assert.deepEqual(create.accounts.map((account) => account.pubkey.toString()), [
     payer,
     workflowPda,
@@ -186,7 +229,7 @@ test("builds the exact external instruction wire format", () => {
   });
   assert.equal(
     Buffer.from(prepareFunding.data.slice(0, 4)).toString("hex"),
-    "04000000",
+    "03000000",
   );
   assert.equal(
     Buffer.from(prepareFunding.data.slice(36, 44)).readBigUInt64LE(),
@@ -211,7 +254,7 @@ test("builds the exact external instruction wire format", () => {
     workflowPda,
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
-    "DKFyKivi7pff71SPbZReY4d1AKFmNsLHtGenvmSiYNye",
+    "HGeGQBQ4HjmuP5SCKAXGFkfVQTXoqVBpAJTUmmZosg8W",
   ]);
 
   const refund = buildRefundInstruction(base);
@@ -230,9 +273,14 @@ test("builds the exact external instruction wire format", () => {
     targetWorkflow: workflowPda,
     claimantGithub: "Alice699",
     claimantGithubId: 123456789,
+    rexBytecodeAccount,
   });
-  assert.equal(Buffer.from(request.data.slice(0, 4)).toString("hex"), "06000000");
-  assert.equal(Buffer.from(request.data.slice(-8)).readBigUInt64LE(), 123456789n);
+  assert.equal(Buffer.from(request.data.slice(0, 4)).toString("hex"), "05000000");
+  assert.equal(Buffer.from(request.data.slice(-40, -32)).readBigUInt64LE(), 123456789n);
+  assert.deepEqual(
+    request.data.slice(-32),
+    PublicKey.fromString(rexBytecodeAccount).toBytes(),
+  );
   assert.deepEqual(request.accounts.map((account) => account.pubkey.toString()), [
     payer,
     claimWorkflow,
@@ -246,13 +294,42 @@ test("builds the exact external instruction wire format", () => {
     workflowSlug: slug,
     claimWorkflow,
   });
-  assert.equal(Buffer.from(accept.data.slice(0, 4)).toString("hex"), "07000000");
+  assert.equal(Buffer.from(accept.data.slice(0, 4)).toString("hex"), "06000000");
   assert.deepEqual(accept.accounts.map((account) => account.pubkey.toString()), [
     payer,
     workflowPda,
     "11111111111111111111111111111111",
     claimWorkflow,
   ]);
+
+  assert.throws(
+    () =>
+      buildCreateBountyInstruction({
+        ...base,
+        beneficiary,
+        githubOwner: "microsoft",
+        githubRepo: "vscode",
+        pullNumber: 332677n,
+        amountKelvin: 1_000_000n,
+        deadlineUnixMs: 1_787_941_094_399n,
+        ...settlementPolicy,
+        rexBytecodeAccount: "11111111111111111111111111111111",
+      }),
+    /REX bytecode account must be configured/,
+  );
+  assert.throws(
+    () =>
+      buildRequestClaimInstruction({
+        programId: MERGEPAY_PROGRAM_ID,
+        payer,
+        workflowSlug: claimSlug,
+        targetWorkflow: workflowPda,
+        claimantGithub: "Alice699",
+        claimantGithubId: 123456789,
+        rexBytecodeAccount: "11111111111111111111111111111111",
+      }),
+    /REX bytecode account must be configured/,
+  );
 });
 
 test("decodes a bincode workflow account without fixed string offsets", () => {
@@ -274,7 +351,22 @@ test("decodes a bincode workflow account without fixed string offsets", () => {
     .writeBool(false)
     .writeFixedArray(new Uint8Array(32), 32)
     .writeString("")
-    .writeU64(987654321n);
+    .writeU64(987654321n)
+    .writeVecBytes(Uint8Array.from([2, 1]))
+    .writeVecBytes(Uint8Array.from([2, 2]))
+    .writeU64(1_900_000_000_000n)
+    .writeString(settlementPolicy.expectedHeadSha)
+    .writeString(settlementPolicy.expectedBaseRef)
+    .writeBool(settlementPolicy.requireCiSuccess)
+    .writeU64(settlementPolicy.minimumApprovals)
+    .writeU64(6n)
+    .writeString(settlementPolicy.expectedHeadSha)
+    .writeString(settlementPolicy.expectedBaseRef.padEnd(128, "\0"))
+    .writeString("b".repeat(40))
+    .writeBool(true)
+    .writeU64(3n)
+    .writeU64(1_900_000_100_000n)
+    .writeFixedArray(PublicKey.fromString(rexBytecodeAccount).toBytes(), 32);
 
   const state = decodeWorkflowState(writer.toBytes());
   assert.equal(state.discriminator, 2n);
@@ -296,6 +388,17 @@ test("decodes a bincode workflow account without fixed string offsets", () => {
       claimTarget: state.claimTarget,
       claimantGithub: state.claimantGithub,
       claimantGithubId: state.claimantGithubId,
+      expectedHeadSha: state.expectedHeadSha,
+      expectedBaseRef: state.expectedBaseRef,
+      requireCiSuccess: state.requireCiSuccess,
+      minimumApprovals: state.minimumApprovals,
+      proofStatus: state.proofStatus,
+      proofHeadSha: state.proofHeadSha,
+      proofBaseRef: state.proofBaseRef,
+      proofMergeCommitSha: state.proofMergeCommitSha,
+      proofCiSuccess: state.proofCiSuccess,
+      proofApprovals: state.proofApprovals,
+      rexBytecodeAccount: state.rexBytecodeAccount,
     },
     {
       funded: true,
@@ -307,6 +410,17 @@ test("decodes a bincode workflow account without fixed string offsets", () => {
       claimTarget: "11111111111111111111111111111111",
       claimantGithub: "",
       claimantGithubId: 987654321n,
+      expectedHeadSha: settlementPolicy.expectedHeadSha,
+      expectedBaseRef: "main",
+      requireCiSuccess: true,
+      minimumApprovals: 2n,
+      proofStatus: 6,
+      proofHeadSha: settlementPolicy.expectedHeadSha,
+      proofBaseRef: settlementPolicy.expectedBaseRef,
+      proofMergeCommitSha: "b".repeat(40),
+      proofCiSuccess: true,
+      proofApprovals: 3n,
+      rexBytecodeAccount,
     },
   );
 });
@@ -465,6 +579,7 @@ test("discovers every valid claim request and rejects mismatched records", async
     targetWorkflow: workflowPda,
     claimantGithub: "biawaklahat",
     claimantGithubId: 136351960n,
+    rexBytecodeAccount,
   });
   const secondRequestClaimInstruction = buildRequestClaimInstruction({
     programId: MERGEPAY_PROGRAM_ID,
@@ -473,6 +588,7 @@ test("discovers every valid claim request and rejects mismatched records", async
     targetWorkflow: workflowPda,
     claimantGithub: "biawaklahat",
     claimantGithubId: 136351960n,
+    rexBytecodeAccount,
   });
   const deadlineUnixMs = 1_800_000_000_000n;
   const bounty = {
@@ -484,6 +600,7 @@ test("discovers every valid claim request and rejects mismatched records", async
       pullNumber: 6n,
       amountKelvin: 2_000_000n,
       deadlineUnixMs,
+      ...settlementPolicy,
     },
   };
   const claim = {
@@ -505,6 +622,7 @@ test("discovers every valid claim request and rejects mismatched records", async
       deadlineUnixMs,
       claimantGithub: "biawaklahat",
       claimantGithubId: 136351960n,
+      ...settlementPolicy,
     },
   };
   const secondClaim = { ...claim, address: secondClaimPda };
@@ -589,6 +707,16 @@ test("discovers every valid claim request and rejects mismatched records", async
   });
   const mismatchedResult = await client.findClaimRequests(bounty);
   assert.deepEqual(mismatchedResult, []);
+
+  client.getWorkflowByAddress = async () => ({
+    ...claim,
+    state: {
+      ...claim.state,
+      expectedHeadSha: "c".repeat(40),
+    },
+  });
+  const policyMismatchedResult = await client.findClaimRequests(bounty);
+  assert.deepEqual(policyMismatchedResult, []);
 });
 
 test("projects terminal workflow state into paid and refunded wallet settlements", async () => {
@@ -655,6 +783,7 @@ test("projects terminal workflow state into paid and refunded wallet settlements
     targetWorkflow: workflowPda,
     claimantGithub: "biawaklahat",
     claimantGithubId: 136351960n,
+    rexBytecodeAccount,
   });
   const refundedClient = new MergePayClient({
     rpc: {
@@ -810,7 +939,7 @@ test("discovers an open bounty from program history and decoded account state", 
   const slugHex = Buffer.from(slugBytes).toString("hex");
   const openWorkflow = deriveWorkflowPda(MERGEPAY_PROGRAM_ID, payer, slugHex).address;
   const instructionBytes = new Uint8Array(37);
-  instructionBytes.set([5, 0, 0, 0], 0);
+  instructionBytes.set([4, 0, 0, 0], 0);
   instructionBytes.set(slugBytes, 4);
 
   const stateWriter = new BincodeWriter();

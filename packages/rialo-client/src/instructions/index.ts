@@ -2,7 +2,6 @@ import type { AccountMeta, Instruction } from "@rialo/ts-cdk";
 import { BincodeWriter, PublicKey } from "@rialo/ts-cdk";
 import {
   MERGEPAY_ACCOUNT_INDEXES,
-  MERGEPAY_CALLBACK_DISCRIMINANT,
   MERGEPAY_INSTRUCTION_DISCRIMINANTS,
   MERGEPAY_SEEDS,
   MERGEPAY_UNASSIGNED_BENEFICIARY,
@@ -10,7 +9,7 @@ import {
 } from "../constants.js";
 import { asU64, toPublicKey, workflowSlugToBytes } from "../encoding.js";
 import {
-  deriveCheckMergeAccounts,
+  deriveCheckMergeControlAccounts,
   deriveMultiAccountSlug,
   deriveSubscriptionPda,
   deriveWorkflowPda,
@@ -38,12 +37,24 @@ export interface CreateBountyInstructionInput extends WorkflowInstructionInput {
   pullNumber: bigint | number;
   amountKelvin: bigint | number;
   deadlineUnixMs: bigint | number;
+  /** Exact 40-character Git commit SHA locked into the settlement policy. */
+  expectedHeadSha: string;
+  /** Exact pull-request target branch locked into the settlement policy. */
+  expectedBaseRef: string;
+  /** Require GitHub status/check-run signals on the locked commit to pass. */
+  requireCiSuccess: boolean;
+  /** Required current-commit approvals from repository writers (0-10). */
+  minimumApprovals: bigint | number;
+  /** Account containing the immutable custom settlement REX component. */
+  rexBytecodeAccount: string;
 }
 
 export interface RequestClaimInstructionInput extends WorkflowInstructionInput {
   targetWorkflow: string;
   claimantGithub: string;
   claimantGithubId: bigint | number;
+  /** Must reproduce the target bounty's immutable REX component account. */
+  rexBytecodeAccount: string;
 }
 
 export interface AcceptClaimInstructionInput extends WorkflowInstructionInput {
@@ -51,8 +62,11 @@ export interface AcceptClaimInstructionInput extends WorkflowInstructionInput {
 }
 
 export interface CheckMergeInstructionInput extends WorkflowInstructionInput {
-  /** Current Venus async branch stored in the workflow account. */
-  branchNumber: number;
+  /**
+   * @deprecated The public control instruction always starts a fresh timer
+   * branch. Kept as an ignored compatibility field for older callers.
+   */
+  branchNumber?: number;
 }
 
 /** SDK instruction plus protocol-level metadata useful to the UI and tests. */
@@ -272,6 +286,13 @@ export function buildRequestClaimInstruction(
   validateGithubSlug(claimantGithub, "GitHub username");
   const claimantGithubId = asU64(input.claimantGithubId, "GitHub user ID");
   if (claimantGithubId === 0n) throw new RangeError("GitHub user ID must be greater than zero");
+  const rexBytecodeAccount = toPublicKey(
+    input.rexBytecodeAccount,
+    "REX bytecode account",
+  );
+  if (rexBytecodeAccount.equals(PublicKey.fromString(MERGEPAY_UNASSIGNED_BENEFICIARY))) {
+    throw new RangeError("REX bytecode account must be configured");
+  }
   const workflow = deriveWorkflowPda(input.programId, input.payer, input.workflowSlug);
   const writer = new BincodeWriter();
   writer
@@ -279,7 +300,8 @@ export function buildRequestClaimInstruction(
     .writeFixedArray(workflowSlugToBytes(input.workflowSlug), 32)
     .writeFixedArray(targetWorkflow.toBytes(), 32)
     .writeString(claimantGithub)
-    .writeU64(claimantGithubId);
+    .writeU64(claimantGithubId)
+    .writeFixedArray(rexBytecodeAccount.toBytes(), 32);
 
   return instruction(
     "request_claim",
@@ -306,9 +328,26 @@ export function buildCreateBountyInstruction(
   const pullNumber = asU64(input.pullNumber, "pull number");
   const amountKelvin = asU64(input.amountKelvin, "amount_kelvin");
   const deadlineUnixMs = asU64(input.deadlineUnixMs, "deadline_unix_ms");
+  const expectedHeadSha = input.expectedHeadSha.trim().toLowerCase();
+  const expectedBaseRef = input.expectedBaseRef.trim();
+  const minimumApprovals = asU64(input.minimumApprovals, "minimum approvals");
+  const rexBytecodeAccount = toPublicKey(
+    input.rexBytecodeAccount,
+    "REX bytecode account",
+  );
   if (pullNumber === 0n) throw new RangeError("pull number must be greater than zero");
   if (amountKelvin === 0n) throw new RangeError("amount_kelvin must be greater than zero");
   if (deadlineUnixMs === 0n) throw new RangeError("deadline_unix_ms must be greater than zero");
+  if (!/^[a-f0-9]{40}$/.test(expectedHeadSha)) {
+    throw new TypeError("expected head SHA must be exactly 40 hexadecimal characters");
+  }
+  validateGithubRef(expectedBaseRef);
+  if (minimumApprovals > 10n) {
+    throw new RangeError("minimum approvals must be between 0 and 10");
+  }
+  if (rexBytecodeAccount.equals(PublicKey.fromString(MERGEPAY_UNASSIGNED_BENEFICIARY))) {
+    throw new RangeError("REX bytecode account must be configured");
+  }
 
   const payer = toPublicKey(input.payer, "payer");
   const workflow = deriveWorkflowPda(input.programId, input.payer, input.workflowSlug);
@@ -321,7 +360,12 @@ export function buildCreateBountyInstruction(
     .writeString(input.githubRepo)
     .writeU64(pullNumber)
     .writeU64(amountKelvin)
-    .writeU64(deadlineUnixMs);
+    .writeU64(deadlineUnixMs)
+    .writeString(expectedHeadSha)
+    .writeString(expectedBaseRef)
+    .writeBool(input.requireCiSuccess)
+    .writeU64(minimumApprovals)
+    .writeFixedArray(rexBytecodeAccount.toBytes(), 32);
 
   return instruction(
     "create_bounty",
@@ -336,21 +380,18 @@ export function buildCheckMergeInstruction(
   input: CheckMergeInstructionInput,
 ): MergePayInstruction {
   const payer = toPublicKey(input.payer, "payer");
-  const derived = deriveCheckMergeAccounts(
+  const derived = deriveCheckMergeControlAccounts(
     input.programId,
     input.payer,
     input.workflowSlug,
-    input.branchNumber,
   );
   const writer = new BincodeWriter();
   writer
-    // The current Venus runtime cannot expose a handler as a normal external
-    // instruction. `run_merge_check` is therefore invoked through its
-    // generated timer-handler ABI; the handler itself still enforces the
-    // sponsor/funded/active-workflow checks before starting REX.
-    .writeU32(MERGEPAY_CALLBACK_DISCRIMINANT)
-    .writeFixedArray(workflowSlugToBytes(input.workflowSlug), 32)
-    .writeU64(asU64(input.branchNumber, "branch number"));
+    // Use the public control ABI. It resets next_merge_check_unix_ms before
+    // arming a fresh native timer, so a manual check cannot be swallowed by
+    // the previous heartbeat throttle.
+    .writeU32(MERGEPAY_INSTRUCTION_DISCRIMINANTS.check_merge)
+    .writeFixedArray(workflowSlugToBytes(input.workflowSlug), 32);
 
   return instruction(
     "check_merge",
@@ -359,11 +400,6 @@ export function buildCheckMergeInstruction(
     [
       meta(payer, true, true),
       meta(PublicKey.fromString(derived.workflow.address), false, true),
-      meta(
-        PublicKey.fromString(MERGEPAY_WELL_KNOWN_ADDRESSES.rexRegistry),
-        false,
-        false,
-      ),
       meta(
         PublicKey.fromString(MERGEPAY_WELL_KNOWN_ADDRESSES.systemProgram),
         false,
@@ -375,8 +411,6 @@ export function buildCheckMergeInstruction(
         false,
       ),
       meta(PublicKey.fromString(derived.subscription.address), false, true),
-      meta(PublicKey.fromString(derived.retrySubscription.address), false, true),
-      meta(PublicKey.fromString(derived.rex.address), false, true),
     ],
     derived.workflow.address,
   );
@@ -390,6 +424,21 @@ function validateGithubSlug(value: string, label: string): void {
   ) {
     throw new TypeError(
       `${label} must be 1-100 ASCII characters containing only letters, numbers, '.', '_' or '-'`,
+    );
+  }
+}
+
+function validateGithubRef(value: string): void {
+  if (
+    value.length === 0 ||
+    value.length > 128 ||
+    value.startsWith("/") ||
+    value.endsWith("/") ||
+    value.includes("..") ||
+    !/^[A-Za-z0-9._/-]+$/.test(value)
+  ) {
+    throw new TypeError(
+      "expected base ref must be a valid 1-128 character Git branch name",
     );
   }
 }
