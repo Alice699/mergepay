@@ -10,18 +10,28 @@ MergePay is a DevNet MVP, not audited production software.
 - A contributor claim is derived from the contributor payer, points to one sponsor-owned
   target, and copies no terms into the main bounty until the sponsor approves it.
 - Claim approval rechecks the target address, sponsor, repository, PR number, amount,
-  deadline, beneficiary, and bounded GitHub login before locking the payout wallet.
-- Sponsor-only controls compare the current payer against committed state.
+- deadline, beneficiary, exact head/base, CI/review policy, REX component, and bounded
+  GitHub login before locking the payout wallet.
+- Create and claim flows require the payer account to be an actual signer. Sponsor-only
+  controls compare both the signer and its pubkey against committed state.
+- Account parameters are checked against the actual account keys supplied to the
+  instruction; an encoded workflow/claim address cannot be silently substituted.
 - The reactive handler also requires the callback payer to match the committed sponsor.
 - The payout account pubkey must match the committed beneficiary.
 - The beneficiary account is writable but is not required to sign the callback.
 - Payout requires a non-empty, unanimous successful REX report.
+- Every raw REX validator update must deserialize; malformed updates are counted as
+  disagreement instead of being filtered out of the quorum.
+- The workflow binds new settlement records to the active policy-locked DevNet REX
+  bytecode account: `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK`.
 - The strong-proof verifier binds the payout to the exact head SHA, target branch,
   optional CI policy, and current-commit review policy stored in the workflow.
 - Unanimous HTTP `404`, mixed reports, unsupported outputs, and REX errors do not pay.
 - `paid` and `refunded` terminal flags prevent a second escrow release.
 - Payout/refund release only the committed escrow amount; any remaining workflow
   balance stays available for the PDA's state/rent reserve.
+- Mutating paths reject impossible flag combinations such as `paid` without
+  `merge_confirmed`, or a refunded workflow that is also paid.
 - Payout and refund explicitly require the workflow account to be program-owned.
 - Arithmetic that combines rent and escrow uses checked addition.
 - Escrow debit and recipient credit use checked arithmetic.
@@ -50,8 +60,8 @@ MergePay is a DevNet MVP, not audited production software.
   slug-validated fields: PR details, the locked commit's status/check-runs, and the PR's
   reviews. It uses fixed non-secret headers and requires no GitHub App installation token
   or private key. GitHub OAuth remains separate and is used only for contributor identity
-  binding. The active recorded DevNet deployment is still the previous compact-endpoint
-  ABI until the new program/component pair is redeployed.
+  binding. New workflows are accepted only with the exact policy-locked DevNet component
+  recorded above; rotating that component requires a coordinated program redeployment.
 - DevNet transaction history and deployments may be reset.
 - The embedded wallet runs in the same browser origin as the dApp. While unlocked, an
   origin compromise or malicious dependency could access signing capability; encrypted
@@ -82,8 +92,8 @@ sponsor-selected bounty locked until refund.
 - The active marketplace and autonomous settlement ABI is deployed at the recorded
   program, with funding plus automatic payout and refund lineages preserved in
   `docs/EVIDENCE.md`.
-- The policy-locked settlement source is implemented but not live on that historical
-  program until the matching Rialo program and REX component are redeployed.
+- The REX component binding is DevNet-specific. A future component rotation must update
+  the on-chain allowlist and redeploy the program before new bounties can use it.
 - Native RLO escrow only; no token interface yet.
 - One sponsor, one approved beneficiary, one PR, and one fixed amount per workflow.
 - One claim record can be approved for a bounty in the current MVP; replacing or

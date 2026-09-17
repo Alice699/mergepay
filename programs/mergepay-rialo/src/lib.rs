@@ -310,6 +310,11 @@ rialo! {
                     msg!("MergePay rejected create: settlement REX bytecode is not configured");
                     return Err(ProgramError::InvalidArgument);
                 }
+                if !self.has_authorized_rex_bytecode_account() {
+                    msg!("MergePay rejected create: unauthorized settlement REX bytecode");
+                    return Err(ProgramError::InvalidArgument);
+                }
+                self.require_payer_signature()?;
                 if amount_kelvin == 0 {
                     msg!("MergePay rejected create: amount is zero");
                     return Err(ProgramError::InvalidArgument);
@@ -403,7 +408,12 @@ rialo! {
                 claimant_github: String,
                 claimant_github_id: u64,
             ) -> ProgramResult {
+                self.require_payer_signature()?;
                 let target_account = ReadAccountInfo::from(target_workflow);
+                if target_account.key != &target_workflow {
+                    msg!("MergePay rejected claim: target account does not match target_workflow");
+                    return Err(ProgramError::InvalidArgument);
+                }
                 if target_account.owner != self.program_id {
                     return Err(ProgramError::IncorrectProgramId);
                 }
@@ -414,7 +424,8 @@ rialo! {
 
                 let target_state = read_from_storage::<State>(&target_account.data.borrow())
                     .map_err(|_| ProgramError::InvalidAccountData)?;
-                if self.__rex_bytecode_account == Pubkey::default()
+                if !self.has_authorized_rex_bytecode_account()
+                    || self.__rex_bytecode_account == Pubkey::default()
                     || target_state.__rex_bytecode_account == Pubkey::default()
                     || target_state.__rex_bytecode_account != self.__rex_bytecode_account
                 {
@@ -425,6 +436,7 @@ rialo! {
                     || target_state.sponsor == Pubkey::default()
                     || target_state.beneficiary != Pubkey::default()
                     || target_state.funded
+                    || target_state.merge_confirmed
                     || target_state.paid
                     || target_state.refunded
                 {
@@ -483,6 +495,7 @@ rialo! {
 
             control fn fund(&mut self) -> ProgramResult {
                 self.require_sponsor()?;
+                self.require_state_consistency()?;
                 if self.claim_request
                     || self.beneficiary == Pubkey::default()
                     || self.funded
@@ -506,6 +519,13 @@ rialo! {
 
                 let payer_account = self.payer_account().clone();
                 let workflow_account = self.accounts[1].clone();
+                if !payer_account.is_writable || !workflow_account.is_writable {
+                    msg!("MergePay rejected funding: writable payer and workflow accounts are required");
+                    return Err(ProgramError::InvalidArgument);
+                }
+                if workflow_account.owner != self.program_id {
+                    return Err(ProgramError::IncorrectProgramId);
+                }
                 let system_program_account = self
                     .accounts
                     .iter()
@@ -543,6 +563,7 @@ rialo! {
 
             control fn accept_claim(&mut self, claim_workflow: Pubkey) -> ProgramResult {
                 self.require_sponsor()?;
+                self.require_state_consistency()?;
                 if self.claim_request
                     || self.beneficiary != Pubkey::default()
                     || self.funded
@@ -553,6 +574,10 @@ rialo! {
                 }
 
                 let claim_account = ReadAccountInfo::from(claim_workflow);
+                if claim_account.key != &claim_workflow {
+                    msg!("MergePay rejected claim acceptance: claim account does not match claim_workflow");
+                    return Err(ProgramError::InvalidArgument);
+                }
                 if claim_account.owner != self.program_id {
                     return Err(ProgramError::IncorrectProgramId);
                 }
@@ -562,6 +587,10 @@ rialo! {
                     || claim_state.claim_target != *self.accounts[1].key
                     || claim_state.sponsor != self.sponsor
                     || claim_state.beneficiary == Pubkey::default()
+                    || claim_state.funded
+                    || claim_state.merge_confirmed
+                    || claim_state.paid
+                    || claim_state.refunded
                     || claim_state.github_owner != self.github_owner
                     || claim_state.github_repo != self.github_repo
                     || claim_state.pull_number != self.pull_number
@@ -603,6 +632,7 @@ rialo! {
             // reuse a consumed one-shot account.
             control fn check_merge(&mut self) -> ProgramResult {
                 self.require_sponsor()?;
+                self.require_state_consistency()?;
                 if !self.funded
                     || self.beneficiary == Pubkey::default()
                     || self.paid
@@ -626,6 +656,7 @@ rialo! {
 
             handler fn run_merge_check(&mut self) -> ProgramResult {
                 self.require_sponsor()?;
+                self.require_state_consistency()?;
                 if !self.funded
                     || self.beneficiary == Pubkey::default()
                     || self.paid
@@ -706,6 +737,7 @@ rialo! {
                 report: RexReport,
             ) -> ProgramResult {
                 self.require_sponsor()?;
+                self.require_state_consistency()?;
                 if beneficiary != self.beneficiary {
                     return Err(ProgramError::InvalidArgument);
                 }
@@ -733,8 +765,18 @@ rialo! {
                 let mut consensus_payload: Option<Vec<u8>> = None;
                 let mut payloads_match = true;
 
-                for output in report.outputs() {
+                // `RexReport::outputs()` filters out updates that fail to
+                // deserialize. Counting that filtered iterator would allow a
+                // report containing one valid output plus malformed validator
+                // updates to look unanimous. Every raw update must decode and
+                // participate in the consensus decision.
+                for update in &report.updates {
                     output_count += 1;
+                    let Ok(output) = update.try_data_as_output() else {
+                        msg!("MergePay rejected undecodable REX validator output");
+                        payloads_match = false;
+                        continue;
+                    };
                     match output {
                         RexOutput::Success(response) => {
                             if let RexData::Raw(payload) = response.response {
@@ -863,6 +905,10 @@ rialo! {
                 if workflow_account.owner != self.program_id {
                     return Err(ProgramError::IncorrectProgramId);
                 }
+                if !workflow_account.is_writable || !beneficiary_account.is_writable {
+                    msg!("MergePay rejected payout: writable workflow and beneficiary accounts are required");
+                    return Err(ProgramError::InvalidArgument);
+                }
 
                 // The workflow PDA must retain rent when possible, but the
                 // escrow amount itself is the only balance that can be
@@ -899,10 +945,12 @@ rialo! {
 
             control fn refund(&mut self) -> ProgramResult {
                 self.require_sponsor()?;
+                self.require_state_consistency()?;
                 self.execute_refund(true)
             }
 
             fn execute_refund(&mut self, enforce_deadline: bool) -> ProgramResult {
+                self.require_state_consistency()?;
                 let current_unix_ms = self.unix_timestamp_ms();
                 // A manual fallback can race the native deadline heartbeat.
                 // Treat an already-refunded workflow as success so a stale UI
@@ -935,6 +983,10 @@ rialo! {
                 let sponsor_account = self.payer_account();
                 if workflow_account.owner != self.program_id {
                     return Err(ProgramError::IncorrectProgramId);
+                }
+                if !workflow_account.is_writable || !sponsor_account.is_writable {
+                    msg!("MergePay rejected refund: writable workflow and sponsor accounts are required");
+                    return Err(ProgramError::InvalidArgument);
                 }
                 // Older builds could return the escrow to the sponsor during
                 // a later storage resize while leaving `funded=true`. In that
@@ -995,6 +1047,7 @@ rialo! {
                 github_auth_ciphertext: Vec<u8>,
             ) -> ProgramResult {
                 self.require_sponsor()?;
+                self.require_state_consistency()?;
                 if self.claim_request
                     || self.beneficiary == Pubkey::default()
                     || self.funded
@@ -1051,11 +1104,66 @@ rialo! {
                 Ok(())
             }
 
-            fn require_sponsor(&self) -> ProgramResult {
-                if self.payer_account().key != &self.sponsor {
+            fn require_payer_signature(&self) -> ProgramResult {
+                if !self.payer_account().is_signer {
+                    msg!("MergePay rejected instruction: payer signature is required");
                     return Err(ProgramError::MissingRequiredSignature);
                 }
                 Ok(())
+            }
+
+            fn require_sponsor(&self) -> ProgramResult {
+                self.require_payer_signature()?;
+                if self.payer_account().key != &self.sponsor {
+                    msg!("MergePay rejected instruction: payer is not the committed sponsor");
+                    return Err(ProgramError::MissingRequiredSignature);
+                }
+                Ok(())
+            }
+
+            fn has_authorized_rex_bytecode_account(&self) -> bool {
+                // This is the active DevNet verifier deployed with the current
+                // program artifact. Binding it on-chain prevents a raw caller
+                // from selecting a look-alike REX component that can emit a
+                // forged `MP1|6` proof. Rotate this constant together with a
+                // program/component redeployment.
+                self.__rex_bytecode_account
+                    == Pubkey::from_str_const("GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK")
+            }
+
+            fn require_authorized_rex_bytecode_account(&self) -> ProgramResult {
+                if !self.has_authorized_rex_bytecode_account() {
+                    msg!("MergePay rejected instruction: unauthorized settlement REX bytecode");
+                    return Err(ProgramError::InvalidAccountData);
+                }
+                Ok(())
+            }
+
+            fn require_workflow_account(&self) -> ProgramResult {
+                let workflow_account = &self.accounts[1];
+                if workflow_account.owner != self.program_id {
+                    msg!("MergePay rejected instruction: workflow account is not program-owned");
+                    return Err(ProgramError::IncorrectProgramId);
+                }
+                if !workflow_account.is_writable {
+                    msg!("MergePay rejected instruction: workflow account must be writable");
+                    return Err(ProgramError::InvalidArgument);
+                }
+                Ok(())
+            }
+
+            fn require_state_consistency(&self) -> ProgramResult {
+                if (self.merge_confirmed && !self.paid)
+                    || (self.paid
+                        && (!self.funded || !self.merge_confirmed || self.refunded))
+                    || (self.refunded
+                        && (!self.funded || self.merge_confirmed || self.paid))
+                {
+                    msg!("MergePay rejected inconsistent settlement state");
+                    return Err(ProgramError::InvalidAccountData);
+                }
+                self.require_workflow_account()?;
+                self.require_authorized_rex_bytecode_account()
             }
 
             fn record_inconclusive_proof(&mut self, checked_unix_ms: u64) {

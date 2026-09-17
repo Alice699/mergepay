@@ -361,6 +361,10 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
     new URL("features/claim-bounty/components/accept-claim-action.tsx", webRoot),
     "utf8",
   );
+  const claimReview = await readFile(
+    new URL("features/claim-bounty/claim-review.ts", webRoot),
+    "utf8",
+  );
   const rialoClient = await readFile(
     new URL("../../packages/rialo-client/src/client.ts", webRoot),
     "utf8",
@@ -373,6 +377,23 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(acceptClaimAction, /TransactionProof/);
   assert.match(acceptClaimAction, /useGitHubClaimReview/);
   assert.doesNotMatch(acceptClaimAction, /Paste the confirmed claim/);
+  for (const immutableTerm of [
+    "expectedHeadSha",
+    "expectedBaseRef",
+    "requireCiSuccess",
+    "minimumApprovals",
+    "rexBytecodeAccount",
+  ]) {
+    assert.match(claimReview, new RegExp(immutableTerm));
+  }
+  for (const terminalFlag of [
+    "!claim.state.funded",
+    "!claim.state.mergeConfirmed",
+    "!claim.state.paid",
+    "!claim.state.refunded",
+  ]) {
+    assert.match(claimReview, new RegExp(terminalFlag.replaceAll(".", "\\.")));
+  }
   assert.match(rialoClient, /findLatestClaimRequest/);
   assert.match(rialoClient, /findClaimRequests/);
   const githubProofRoute = await readFile(

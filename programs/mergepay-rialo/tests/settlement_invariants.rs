@@ -246,7 +246,7 @@ fn program_source_keeps_terminal_guards_before_balance_mutation() {
     assert_ordered(
         payout,
         "current_unix_ms as u64 >= self.deadline_unix_ms",
-        "for output in report.outputs()",
+        "for update in &report.updates",
     );
     assert_ordered(
         payout,
@@ -323,6 +323,8 @@ fn custom_rex_and_callback_keep_every_ambiguous_result_fail_closed() {
     for required_guard in [
         "RexData::Raw(payload)",
         "if payload.len() > 512",
+        "for update in &report.updates",
+        "update.try_data_as_output()",
         "if success_count != output_count || !payloads_match",
         "fields.len() != 7",
         "proof_status != 6",
@@ -349,6 +351,49 @@ fn custom_rex_and_callback_keep_every_ambiguous_result_fail_closed() {
         check.contains("request_delay_ms: 15_000u64"),
         "the external GitHub REX duty must use a bounded production-sized collection window",
     );
+}
+
+#[test]
+fn role_and_account_boundaries_are_checked_before_state_changes() {
+    let create = program_section("initiating fn create_bounty", "initiating fn request_claim");
+    assert!(create.contains("self.require_payer_signature()?"));
+    assert!(create.contains("has_authorized_rex_bytecode_account"));
+
+    let request = program_section("initiating fn request_claim", "control fn fund");
+    assert!(request.contains("self.require_payer_signature()?"));
+    assert!(request.contains("target_account.key != &target_workflow"));
+
+    let accept = program_section("control fn accept_claim", "control fn check_merge");
+    assert!(accept.contains("claim_account.key != &claim_workflow"));
+    for state_flag in [
+        "claim_state.funded",
+        "claim_state.merge_confirmed",
+        "claim_state.paid",
+        "claim_state.refunded",
+    ] {
+        assert!(
+            accept.contains(state_flag),
+            "missing claim state guard: {state_flag}"
+        );
+    }
+
+    for section in [
+        program_section("control fn fund", "control fn accept_claim"),
+        program_section("control fn check_merge", "handler fn run_merge_check"),
+        program_section(
+            "handler fn run_merge_check",
+            "handler fn handle_merge_response",
+        ),
+        program_section("handler fn handle_merge_response", "control fn refund"),
+        program_section("control fn refund", "fn execute_refund"),
+        program_section("control fn prepare_funding", "fn require_payer_signature"),
+    ] {
+        assert!(section.contains("self.require_state_consistency()?"));
+    }
+
+    let helpers = program_section("fn require_payer_signature", "fn record_inconclusive_proof");
+    assert!(helpers.contains("self.payer_account().is_signer"));
+    assert!(helpers.contains("MergePay rejected inconsistent settlement state"));
 }
 
 #[test]
