@@ -22,6 +22,7 @@ const requiredPaths = [
   "app/api/github/pull/route.ts",
   "app/api/github/settlement-preview/route.ts",
   "app/api/github/claim-review/route.ts",
+  "app/api/github/claim-authorization/consume/route.ts",
   "app/api/github/auth/start/route.ts",
   "app/api/github/auth/callback/route.ts",
   "app/api/github/auth/session/route.ts",
@@ -82,6 +83,9 @@ const requiredPaths = [
   "lib/constants.ts",
   "lib/errors.ts",
   "lib/github-claim-review.ts",
+  "lib/github-claim-authorization.ts",
+  "lib/github-claim-binding.js",
+  "lib/github-claim-binding.d.ts",
   "lib/github-public-pull.ts",
   "lib/github-api-error.ts",
   "lib/upstream-reliability.ts",
@@ -404,6 +408,14 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
     new URL("app/api/github/claim-review/route.ts", webRoot),
     "utf8",
   );
+  const githubClaimAuthorizationRoute = await readFile(
+    new URL("app/api/github/claim-authorization/consume/route.ts", webRoot),
+    "utf8",
+  );
+  const githubClaimBinding = await readFile(
+    new URL("lib/github-claim-binding.js", webRoot),
+    "utf8",
+  );
   const githubSettlementPreviewRoute = await readFile(
     new URL("app/api/github/settlement-preview/route.ts", webRoot),
     "utf8",
@@ -526,6 +538,8 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.doesNotMatch(requestClaimAction, /your-github-handle|Enter the GitHub username/);
   assert.match(requestClaimAction, /Request claim/);
   assert.match(requestClaimHook, /claimantGithubId/);
+  assert.match(requestClaimHook, /consumeGitHubClaimAuthorization/);
+  assert.match(requestClaimHook, /CLAIM_IDENTITY_BINDING_MISMATCH/);
   assert.match(acceptClaimHook, /buildAcceptClaim/);
   assert.match(acceptClaimHook, /submitTransaction/);
   assert.match(acceptClaimHook, /verifyGitHubClaimAuthor/);
@@ -539,8 +553,17 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(githubPublicPull, /runWithBoundedRetry/);
   assert.match(githubPublicPull, /GITHUB_RATE_LIMITED/);
   assert.match(githubPublicPull, /GITHUB_PULL_NOT_FOUND/);
-  assert.match(githubProofRoute, /getGitHubIdentity/);
-  assert.match(githubProofRoute, /pull.author.id !== identity.id/);
+  assert.match(githubProofRoute, /getGitHubSession/);
+  assert.match(githubProofRoute, /pull.author.id !== session.identity.id/);
+  assert.match(githubProofRoute, /createClaimAuthorization/);
+  assert.match(githubProofRoute, /deriveWorkflowPda/);
+  assert.match(githubClaimAuthorizationRoute, /verifyClaimAuthorization/);
+  assert.match(githubClaimAuthorizationRoute, /readClaimAuthorizationCookie/);
+  assert.match(githubClaimAuthorizationRoute, /clearClaimAuthorizationCookie/);
+  assert.match(githubClaimBinding, /CLAIM_AUTHORIZATION_AUDIENCE/);
+  assert.match(githubClaimBinding, /CLAIM_AUTHORIZATION_TTL_MS/);
+  assert.match(githubClaimBinding, /sessionId/);
+  assert.match(githubClaimBinding, /claimWorkflow/);
   assert.match(githubSettlementPreviewRoute, /fetchPublicGitHubPull/);
   assert.doesNotMatch(githubSettlementPreviewRoute, /getGitHubIdentity/);
   assert.match(githubClaimReviewRoute, /authorIdMatches/);

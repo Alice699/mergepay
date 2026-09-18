@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { githubApiErrorFromResponse } from "@/lib/github-api-error";
+import type { GitHubClaimAuthorization } from "@/lib/github-claim-authorization";
 
 export interface GitHubPullProof {
   owner: string;
@@ -16,6 +17,7 @@ export interface GitHubPullProof {
     login: string;
     avatarUrl: string | null;
   };
+  authorization: GitHubClaimAuthorization;
 }
 
 export type GitHubPullProofState =
@@ -27,6 +29,26 @@ interface GitHubPullInput {
   owner: string;
   repo: string;
   number: bigint | number;
+  walletAddress: string;
+  targetWorkflow: string;
+  workflowSlug: string;
+}
+
+function isGitHubPullProof(value: unknown): value is GitHubPullProof {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<GitHubPullProof>;
+  return (
+    Number.isSafeInteger(candidate.number) &&
+    Number.isSafeInteger(candidate.author?.id) &&
+    typeof candidate.author?.login === "string" &&
+    typeof candidate.authorization?.token === "string" &&
+    typeof candidate.authorization.nonce === "string" &&
+    Number.isSafeInteger(candidate.authorization.expiresAt) &&
+    typeof candidate.authorization.walletAddress === "string" &&
+    typeof candidate.authorization.targetWorkflow === "string" &&
+    typeof candidate.authorization.claimWorkflow === "string" &&
+    typeof candidate.authorization.workflowSlug === "string"
+  );
 }
 
 export function useGitHubPullProof() {
@@ -39,13 +61,22 @@ export function useGitHubPullProof() {
   const verify = useCallback(async (input: GitHubPullInput) => {
     setState({ status: "loading", proof: null, error: null });
     try {
-      const response = await fetch(
-        `/api/github/pull?owner=${encodeURIComponent(input.owner)}&repo=${encodeURIComponent(input.repo)}&number=${encodeURIComponent(String(input.number))}`,
-        { cache: "no-store" },
-      );
-      let payload: GitHubPullProof | { error?: string };
+      const response = await fetch("/api/github/pull", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner: input.owner,
+          repo: input.repo,
+          number: String(input.number),
+          walletAddress: input.walletAddress,
+          targetWorkflow: input.targetWorkflow,
+          workflowSlug: input.workflowSlug,
+        }),
+        cache: "no-store",
+      });
+      let payload: unknown;
       try {
-        payload = (await response.json()) as GitHubPullProof | { error?: string };
+        payload = await response.json();
       } catch {
         throw githubApiErrorFromResponse(
           response,
@@ -53,7 +84,7 @@ export function useGitHubPullProof() {
           "GitHub verification returned an unreadable response.",
         );
       }
-      if (!response.ok || !("author" in payload)) {
+      if (!response.ok || !isGitHubPullProof(payload)) {
         throw githubApiErrorFromResponse(
           response,
           payload,

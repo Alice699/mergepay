@@ -157,7 +157,7 @@ export default function DocsPage() {
 
               <div className="docs-auth-note">
                 <span>AUTH BOUNDARY</span>
-                <p>GitHub OAuth verifies contributor identity when the claim is created. Sponsor review then re-fetches the public PR and compares the stable numeric author ID again, failing closed if GitHub is unavailable or disagrees. This second check is an application gate; the onchain program independently enforces sponsor authority, account ownership, exact terms, and the beneficiary lock. Public merge settlement uses fixed non-secret headers and requires no GitHub App installation token or private key.</p>
+                <p>GitHub OAuth verifies contributor identity when the claim is created. MergePay then issues a five-minute, one-time authorization bound to the OAuth session, numeric GitHub ID, receiving wallet, exact PR, and derived claim account. A session, wallet, or target change requires fresh verification. Sponsor review re-fetches the public PR and compares the stable numeric author ID again, failing closed if GitHub is unavailable or disagrees. These OAuth checks are application gates; the onchain program independently enforces sponsor authority, account ownership, exact terms, and the beneficiary lock. Public merge settlement uses fixed non-secret headers and requires no GitHub App installation token or private key.</p>
               </div>
 
               <p>MergePay remains an unaudited DevNet MVP. It trusts the tested Rialo runtime, REX validators, and GitHub&apos;s public REST responses. Its current product boundary is intentionally narrow:</p>

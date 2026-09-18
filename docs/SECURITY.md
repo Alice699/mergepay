@@ -53,6 +53,14 @@ MergePay is a DevNet MVP, not audited production software.
   numeric GitHub user ID with the author ID returned for the exact public pull request;
   a typed username is not accepted as identity proof. The claim record stores the
   canonical login and numeric ID alongside the receiving Rialo wallet.
+- OAuth state and session cookies have separate versioned audiences and bounded
+  lifetimes. Each session receives a random session ID; reconnecting GitHub invalidates
+  claim authorizations created by the prior session.
+- The official web claim flow issues a five-minute HMAC authorization with a random
+  nonce and explicit claim audience. It binds the OAuth session, numeric GitHub ID,
+  canonical login, receiving wallet, program/network, bounty PDA, repository/PR,
+  workflow slug, and derived claim PDA. Consumption requires a matching same-origin,
+  HttpOnly `SameSite=Strict` cookie, which is cleared on the first attempt.
 - OAuth remains an off-chain identity boundary: Rialo cannot call GitHub from inside the
   program. Sponsor approval is still required and must review the exact PR, identity,
   and wallet before funding.
@@ -108,6 +116,11 @@ sponsor-selected bounty locked until refund.
 - The current PR and merge proof paths target public repositories only. GitHub OAuth
   access tokens are exchanged and used server-side for identity lookup, never stored in
   the browser session or exposed to the client.
+- Claim authorization is an application-layer guard for the official MergePay web flow,
+  not a validator-attested onchain credential. A direct native caller can submit a
+  contributor-signed claim proposal with arbitrary identity fields, but cannot approve
+  it. The official sponsor approval flow re-fetches the public PR and rejects a numeric
+  author-ID mismatch before the program locks the beneficiary.
 - The current settlement path supports public repositories only. Private repository
   merge proof would require a separately designed authenticated REX flow and credential
   lifecycle; the legacy GitHub App route is not part of active funding.

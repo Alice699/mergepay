@@ -7,12 +7,17 @@ export interface GitHubIdentity {
 
 interface SignedState {
   state: string;
+  audience: typeof GITHUB_OAUTH_STATE_AUDIENCE;
+  issuedAt: number;
   returnTo: string;
   expiresAt: number;
 }
 
-interface SignedSession {
+export interface GitHubSession {
   identity: GitHubIdentity;
+  sessionId: string;
+  audience: typeof GITHUB_SESSION_AUDIENCE;
+  issuedAt: number;
   expiresAt: number;
 }
 
@@ -24,9 +29,13 @@ export interface GitHubOAuthConfig {
 
 export const GITHUB_SESSION_COOKIE = "mergepay_github_session";
 export const GITHUB_STATE_COOKIE = "mergepay_github_oauth_state";
+export const GITHUB_CLAIM_AUTHORIZATION_COOKIE = "mergepay_github_claim_authorization";
 
 const STATE_MAX_AGE_SECONDS = 10 * 60;
 const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+const CLAIM_AUTHORIZATION_MAX_AGE_SECONDS = 5 * 60;
+const GITHUB_OAUTH_STATE_AUDIENCE = "mergepay:github-oauth-state:v1";
+const GITHUB_SESSION_AUDIENCE = "mergepay:github-session:v1";
 const SAFE_GITHUB_LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
 
 function base64UrlEncode(value: string | Uint8Array): string {
@@ -71,6 +80,10 @@ function constantTimeEqual(left: string, right: string): boolean {
 function sessionSecret(): string | null {
   const secret = process.env.GITHUB_SESSION_SECRET?.trim();
   return secret && secret.length >= 32 ? secret : null;
+}
+
+export function getGitHubSigningSecret(): string | null {
+  return sessionSecret();
 }
 
 function requestOrigin(request: Request): string {
@@ -148,19 +161,24 @@ function serializeCookie(
   name: string,
   value: string,
   maxAge: number,
+  options: { path?: string; sameSite?: "Lax" | "Strict" } = {},
 ): string {
   return [
     `${name}=${value}`,
-    "Path=/",
+    `Path=${options.path ?? "/"}`,
     "HttpOnly",
-    "SameSite=Lax",
+    `SameSite=${options.sameSite ?? "Lax"}`,
     `Max-Age=${maxAge}`,
     ...(secureCookie(request) ? ["Secure"] : []),
   ].join("; ");
 }
 
-function clearCookie(request: Request, name: string): string {
-  return serializeCookie(request, name, "", 0);
+function clearCookie(
+  request: Request,
+  name: string,
+  options: { path?: string; sameSite?: "Lax" | "Strict" } = {},
+): string {
+  return serializeCookie(request, name, "", 0, options);
 }
 
 async function createSignedValue(value: unknown): Promise<string> {
@@ -190,17 +208,31 @@ export async function createOAuthStateCookie(
   state: string,
   returnTo: string,
 ): Promise<string> {
+  const now = Date.now();
   const value = await createSignedValue({
     state,
+    audience: GITHUB_OAUTH_STATE_AUDIENCE,
+    issuedAt: now,
     returnTo: safeReturnTo(returnTo),
-    expiresAt: Date.now() + STATE_MAX_AGE_SECONDS * 1000,
+    expiresAt: now + STATE_MAX_AGE_SECONDS * 1000,
   } satisfies SignedState);
   return serializeCookie(request, GITHUB_STATE_COOKIE, value, STATE_MAX_AGE_SECONDS);
 }
 
 export async function readOAuthState(request: Request, state: string): Promise<SignedState | null> {
   const value = await readSignedValue<SignedState>(parseCookies(request).get(GITHUB_STATE_COOKIE));
-  if (!value || value.state !== state || value.expiresAt < Date.now()) return null;
+  const now = Date.now();
+  if (
+    !value ||
+    value.audience !== GITHUB_OAUTH_STATE_AUDIENCE ||
+    value.state !== state ||
+    !Number.isSafeInteger(value.issuedAt) ||
+    value.issuedAt > now ||
+    value.expiresAt <= now ||
+    value.expiresAt - value.issuedAt > STATE_MAX_AGE_SECONDS * 1000
+  ) {
+    return null;
+  }
   return value;
 }
 
@@ -208,16 +240,32 @@ export async function createSessionCookie(
   request: Request,
   identity: GitHubIdentity,
 ): Promise<string> {
+  const now = Date.now();
   const value = await createSignedValue({
     identity,
-    expiresAt: Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
-  } satisfies SignedSession);
+    sessionId: crypto.randomUUID(),
+    audience: GITHUB_SESSION_AUDIENCE,
+    issuedAt: now,
+    expiresAt: now + SESSION_MAX_AGE_SECONDS * 1000,
+  } satisfies GitHubSession);
   return serializeCookie(request, GITHUB_SESSION_COOKIE, value, SESSION_MAX_AGE_SECONDS);
 }
 
-export async function getGitHubIdentity(request: Request): Promise<GitHubIdentity | null> {
-  const value = await readSignedValue<SignedSession>(parseCookies(request).get(GITHUB_SESSION_COOKIE));
-  if (!value || value.expiresAt < Date.now()) return null;
+export async function getGitHubSession(request: Request): Promise<GitHubSession | null> {
+  const value = await readSignedValue<GitHubSession>(parseCookies(request).get(GITHUB_SESSION_COOKIE));
+  const now = Date.now();
+  if (
+    !value ||
+    value.audience !== GITHUB_SESSION_AUDIENCE ||
+    typeof value.sessionId !== "string" ||
+    value.sessionId.length < 16 ||
+    !Number.isSafeInteger(value.issuedAt) ||
+    value.issuedAt > now ||
+    value.expiresAt <= now ||
+    value.expiresAt - value.issuedAt > SESSION_MAX_AGE_SECONDS * 1000
+  ) {
+    return null;
+  }
   if (
     !Number.isSafeInteger(value.identity?.id) ||
     value.identity.id < 1 ||
@@ -225,13 +273,49 @@ export async function getGitHubIdentity(request: Request): Promise<GitHubIdentit
   ) {
     return null;
   }
-  return value.identity;
+  return value;
+}
+
+export async function getGitHubIdentity(request: Request): Promise<GitHubIdentity | null> {
+  return (await getGitHubSession(request))?.identity ?? null;
+}
+
+export function createClaimAuthorizationCookie(request: Request, token: string): string {
+  return serializeCookie(
+    request,
+    GITHUB_CLAIM_AUTHORIZATION_COOKIE,
+    token,
+    CLAIM_AUTHORIZATION_MAX_AGE_SECONDS,
+    { path: "/api/github/claim-authorization", sameSite: "Strict" },
+  );
+}
+
+export function readClaimAuthorizationCookie(request: Request): string | null {
+  return parseCookies(request).get(GITHUB_CLAIM_AUTHORIZATION_COOKIE) ?? null;
+}
+
+export function clearClaimAuthorizationCookie(request: Request): string {
+  return clearCookie(request, GITHUB_CLAIM_AUTHORIZATION_COOKIE, {
+    path: "/api/github/claim-authorization",
+    sameSite: "Strict",
+  });
+}
+
+export function isSameOriginMutation(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  try {
+    return new URL(origin).origin === requestOrigin(request);
+  } catch {
+    return false;
+  }
 }
 
 export function clearGitHubCookies(request: Request): string[] {
   return [
     clearCookie(request, GITHUB_SESSION_COOKIE),
     clearCookie(request, GITHUB_STATE_COOKIE),
+    clearClaimAuthorizationCookie(request),
   ];
 }
 

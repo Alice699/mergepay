@@ -1,4 +1,5 @@
 import {
+  clearClaimAuthorizationCookie,
   clearGitHubCookies,
   createSessionCookie,
   getGitHubOAuthConfig,
@@ -121,5 +122,6 @@ export async function GET(request: Request) {
   response.headers.append("Set-Cookie", await createSessionCookie(request, identity));
   const [, stateCookie] = clearGitHubCookies(request);
   if (stateCookie) response.headers.append("Set-Cookie", stateCookie);
+  response.headers.append("Set-Cookie", clearClaimAuthorizationCookie(request));
   return response;
 }

@@ -9,7 +9,7 @@ import {
   LoaderCircle,
   WalletCards,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CopyValue } from "@/components/ui/copy-value";
 import { useGitHubIdentity } from "@/hooks/use-github-identity";
 import { useGitHubPullProof } from "@/hooks/use-github-pull-proof";
@@ -35,21 +35,43 @@ export function RequestClaimAction({
   const network = useNetwork();
   const github = useGitHubIdentity();
   const proof = useGitHubPullProof();
+  const resetProof = proof.reset;
   const requestClaim = useRequestClaim();
   const [claimWorkflowSlug, setClaimWorkflowSlug] = useState("");
   const [formError, setFormError] = useState<Error | null>(null);
   const phase = requestClaim.transaction.phase;
   const busy = requestClaim.status === "pending";
-  const proofMatches =
-    proof.status === "success" &&
-    Boolean(github.identity) &&
-    proof.proof.author.id === github.identity?.id;
   const isSponsor = wallet.address === workflow.state.sponsor;
   const walletReady =
     wallet.status === "connected" &&
     Boolean(wallet.address) &&
     network.isExpectedNetwork &&
     network.rpcStatus === "available";
+  const authorizationExpiresAt =
+    proof.status === "success" ? proof.proof.authorization.expiresAt : null;
+  useEffect(() => {
+    if (authorizationExpiresAt === null) return;
+    const remainingMs = authorizationExpiresAt - Date.now();
+    if (remainingMs <= 0) {
+      resetProof();
+      return;
+    }
+    const timeout = window.setTimeout(() => resetProof(), remainingMs);
+    return () => window.clearTimeout(timeout);
+  }, [authorizationExpiresAt, resetProof]);
+  const proofMatches =
+    proof.status === "success" &&
+    Boolean(github.identity) &&
+    Boolean(wallet.address) &&
+    proof.proof.author.id === github.identity?.id &&
+    proof.proof.authorization.walletAddress === wallet.address &&
+    proof.proof.authorization.targetWorkflow === workflow.address &&
+    proof.proof.authorization.workflowSlug === claimWorkflowSlug &&
+    proof.proof.authorization.owner === workflow.state.githubOwner &&
+    proof.proof.authorization.repo === workflow.state.githubRepo &&
+    proof.proof.authorization.pullNumber === Number(workflow.state.pullNumber) &&
+    proof.proof.authorization.programId === network.client.programId &&
+    proof.proof.authorization.network === network.network;
 
   async function verifyAuthor() {
     setFormError(null);
@@ -57,11 +79,24 @@ export function RequestClaimAction({
       setFormError(new Error("Connect the GitHub account that authored this pull request first."));
       return;
     }
+    if (!walletReady || !wallet.address) {
+      setFormError(new Error("Connect the receiving Rialo wallet before verifying the pull request."));
+      return;
+    }
+    if (isSponsor) {
+      setFormError(new Error("The sponsor wallet cannot receive its own bounty."));
+      return;
+    }
+    const nextSlug = claimWorkflowSlug || generateWorkflowSlug();
+    setClaimWorkflowSlug(nextSlug);
     try {
       const verified = await proof.verify({
         owner: workflow.state.githubOwner,
         repo: workflow.state.githubRepo,
         number: workflow.state.pullNumber,
+        walletAddress: wallet.address,
+        targetWorkflow: workflow.address,
+        workflowSlug: nextSlug,
       });
       if (verified.author.id !== github.identity.id) {
         setFormError(new Error("The connected GitHub account did not author this pull request."));
@@ -96,8 +131,7 @@ export function RequestClaimAction({
       const result = await requestClaim.execute({
         workflowSlug: nextSlug,
         targetWorkflow: workflow.address,
-        claimantGithub: proof.proof.author.login,
-        claimantGithubId: github.identity.id,
+        authorization: proof.proof.authorization,
         bounty: workflow,
       });
       onConfirmed(result);
@@ -205,18 +239,22 @@ export function RequestClaimAction({
     proof.status === "success" &&
     Boolean(github.identity) &&
     proof.proof.author.id !== github.identity?.id;
+  const bindingMismatch =
+    proof.status === "success" &&
+    !proofMismatch &&
+    !proofMatches;
   const githubStepTone = proofMatches
     ? "success"
     : proof.status === "loading" || github.status === "loading"
       ? "pending"
-      : proof.status === "error" || proofMismatch || !github.configured
+      : proof.status === "error" || proofMismatch || bindingMismatch || !github.configured
         ? "error"
         : "idle";
   const githubStepLabel = proofMatches
     ? "Verified"
     : proof.status === "loading"
       ? "Checking"
-      : proof.status === "error" || proofMismatch
+      : proof.status === "error" || proofMismatch || bindingMismatch
         ? "Check failed"
         : !github.configured
           ? "Unavailable"
@@ -324,7 +362,7 @@ export function RequestClaimAction({
               <small>{github.identity ? `GitHub user ID ${github.identity.id}` : "OAuth is required to claim a bounty."}</small>
             </div>
             {github.identity ? (
-              <button className="button button--quiet" disabled={busy || requestClaim.status === "success"} onClick={() => void github.disconnect()} type="button">
+              <button className="button button--quiet" disabled={busy || requestClaim.status === "success"} onClick={() => { resetProof(); void github.disconnect(); }} type="button">
                 Disconnect
               </button>
             ) : (
@@ -335,8 +373,8 @@ export function RequestClaimAction({
             )}
           </div>
           <div className="workflow-claim__proof-row">
-            <small id="github-proof-hint">MergePay checks the exact PR author against your authenticated GitHub user ID. No username entry and no GitHub write access.</small>
-            <button className="button button--quiet" disabled={!github.identity || busy || proof.status === "loading" || requestClaim.status === "success"} onClick={() => void verifyAuthor()} type="button">
+            <small id="github-proof-hint">MergePay issues a short-lived, one-time proof bound to this GitHub ID, receiving wallet, PR, and claim record. No username entry and no GitHub write access.</small>
+            <button className="button button--quiet" disabled={!github.identity || !walletReady || isSponsor || busy || proof.status === "loading" || requestClaim.status === "success"} onClick={() => void verifyAuthor()} type="button">
               {proof.status === "loading" ? <LoaderCircle aria-hidden="true" className="ui-icon ui-icon--spin" size={14} /> : <Fingerprint aria-hidden="true" size={14} />}
               Verify PR
             </button>
