@@ -1,6 +1,6 @@
 {
   "network": "devnet",
-  "updatedAt": "2026-09-19",
+  "updatedAt": "2026-09-21",
   "reviewCandidate": {
     "programId": "6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB",
     "status": "fully-tested-hardened",
@@ -132,7 +132,7 @@
   },
   "previousAutonomousSettlementCandidateV8": {
     "programId": "AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx",
-    "status": "superseded-by-10-second-heartbeat",
+    "status": "superseded-by-5-second-proof-cadence",
     "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v6-deadline-safe",
     "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
     "bytes": 252425,
@@ -145,9 +145,9 @@
     "rexBytecodeAccount": "GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK",
     "supersedes": "FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q"
   },
-  "autonomousSettlementCandidate": {
+  "previousAutonomousSettlementCandidateV9": {
     "programId": "Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx",
-    "status": "deployed-latest-awaiting-live-auto-payout-e2e",
+    "status": "superseded-by-5-second-proof-cadence",
     "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v6-deadline-safe",
     "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
     "bytes": 252425,
@@ -156,6 +156,21 @@
     "dataLength": 252473,
     "executableDataLength": 252425,
     "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
+    "balanceRlo": 1.75810296,
+    "rexBytecodeAccount": "GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK",
+    "supersedes": "AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx"
+  },
+  "autonomousSettlementCandidate": {
+    "programId": "EJPnYc1o5BPL3A9PLSBNVcNZg6e9qNH1adQBM6ZG3s31",
+    "status": "deployed-latest-5-second-cadence",
+    "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v6-deadline-safe",
+    "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
+    "bytes": 252425,
+    "sha256": "0F652EB7BC87FF12F6303FAE62BC7A2668EAA290DAA3133DD6E50846EA93258D",
+    "deployedSlot": 18508684,
+    "dataLength": 252473,
+    "executableDataLength": 252425,
+    "authority": "DKR4REhMAeJFRAJukESpvLFKCJu4X6LHSUcrBoFoipS",
     "balanceRlo": 1.75810296,
     "rexBytecodeAccount": "GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK",
     "rexComponents": {
@@ -170,7 +185,7 @@
       "executable": true
     },
     "runtimeProof": null,
-    "supersedes": "AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx"
+    "supersedes": "Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx"
   },
   "previousRuntimeCandidate": {
     "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",

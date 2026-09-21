@@ -23,6 +23,6 @@ both `merge_confirmed=true` and `paid=true`.
 The primary path is now registered by `fund`: Rialo starts a one-shot settlement
 heartbeat, and each `run_merge_check` handler re-arms the next short native timer.
 The heartbeat checks the deadline on every pass but only starts a GitHub REX request
-every 10 seconds. It stops harmlessly when `paid` or `refunded` is terminal, and a
+every 5 seconds. It stops harmlessly when `paid` or `refunded` is terminal, and a
 deadline response cannot race refund because the callback rejects post-deadline
 merge proofs.

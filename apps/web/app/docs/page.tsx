@@ -150,8 +150,8 @@ export default function DocsPage() {
               <p>The native heartbeat owns both terminal paths. A unanimous merged proof pays the contributor; reaching the immutable deadline first refunds the sponsor. Terminal flags and exact-amount accounting prevent a second release when a manual fallback races an automatic callback. Each terminal workflow exposes a shareable receipt containing the exact amount, destination, reserve, and decoded success flag.</p>
 
               <div className="docs-proof-grid">
-                <div><span>MERGED PR</span><strong>Automatic payout</strong><small>Fresh live proof pending</small></div>
-                <div><span>DEADLINE</span><strong>Automatic refund</strong><small>Fresh live proof pending</small></div>
+                <div><span>MERGED PR</span><strong>Automatic payout</strong><small>Live DevNet proof recorded</small></div>
+                <div><span>DEADLINE</span><strong>Automatic refund</strong><small>Live DevNet proof recorded</small></div>
                 <div><span>FALLBACK RACE</span><strong>Idempotent</strong><small>No double escrow release</small></div>
               </div>
 

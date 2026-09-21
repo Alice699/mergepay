@@ -138,7 +138,7 @@ AFTER 1 second CALL [run_merge_check]
 ```
 
 `run_merge_check` re-arms a short `AFTER 2 seconds CALL [run_merge_check]` heartbeat
-before checking the deadline. It performs a GitHub REX request at most every 30
+before checking the deadline. It performs a GitHub REX request at most every 5
 seconds, pays on unanimous merge proof, and refunds from the same heartbeat after
 expiry. This makes both settlement paths continue without a sponsor click; the manual
 `check_merge` action remains an immediate fallback. Every timer and REX branch uses
@@ -168,7 +168,7 @@ are validated, and recorded lineage proves both merged-PR payout and deadline re
 without a manual button click.
 
 Rialo's generated timestamp predicate uses an active window of roughly 100 commits;
-the explicit 10-second re-arm is therefore part of the liveness design, not an
+the explicit 5-second proof cadence is therefore part of the liveness design, not an
 assumption that one subscription survives until an arbitrary long deadline.
 
 ## Why one payer owns the workflow
@@ -250,5 +250,5 @@ when every REX output is byte-identical and the proof reproduces every locked co
 Force-pushes, branch changes, stale approvals, failed/running checks, pagination gaps,
 malformed responses, and validator disagreement fail closed. The active DevNet
 artifact is the matching policy-locked program/component deployment with a bounded
-15-second REX collection window. A fresh live workflow is still needed to record
+5-second REX collection window. A fresh live workflow is still needed to record
 runtime payout evidence for this exact artifact.

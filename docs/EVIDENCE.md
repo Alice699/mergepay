@@ -3,11 +3,36 @@
 Historical runtime-proven autonomous settlement:
 `6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5`
 
-The latest policy-locked deployment is `Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx`
+The latest policy-locked deployment is `EJPnYc1o5BPL3A9PLSBNVcNZg6e9qNH1adQBM6ZG3s31`
 with REX bytecode account `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK`. It uses the
-storage-safe settlement ABI and a bounded 15-second REX collection window. Fresh live
-payout and refund evidence for this exact pair is still pending; the workflows below
+storage-safe settlement ABI and a bounded 5-second REX collection window. Fresh live
+payout and refund evidence for this exact pair is recorded below; older workflows
 remain historical evidence for earlier deployments.
+
+## Fresh 5-second-cadence live smoke test (2026-09-21)
+
+These workflows ran against the active program above after redeploy. Neither path used
+the sponsor's manual check or refund button.
+
+### Automatic merged-PR payout
+
+Fixture: `Alice699/mergepay-demo#14` (merged).
+
+| Step | Signature / workflow | Result |
+| --- | --- | --- |
+| Create | `JmTt7zKZukDxUe548ABNhR2RvTNKuzWXxHaLVVawMNAzQzziBmL5eFHXCG6xE5qnxnXB7rd4hCasz9jnyfEVxXK` | Executed, `err=null` |
+| Prepare + fund | `4psuWA8vd2pX18LQcyrdbQh16Xge4E2kDWJTDjbDZCdV8T9uhHy3pSPzLM8gUgRvwJ3FmHWp21PtQoRoUKtYov3T` | Escrow funded, `err=null` |
+| Workflow | `ExTgFzvmimca9QizRx9KqUGoNwA6tpUvCtvKHD3CU5ri` | `paid=true`, `refunded=false`, `checks=1` |
+
+### Automatic deadline refund
+
+Fixture: `Alice699/mergepay-demo#27` (kept unmerged).
+
+| Step | Signature / workflow | Result |
+| --- | --- | --- |
+| Create | `3DjTvbptDy5qBtML4NcmKM2kZh9tHedDoLjTdxSXPbPDTBtkoPiU3VWiCD9rKYPSbxDupkD4HHPdag5HZjw3EohP` | Executed, `err=null` |
+| Prepare + fund | `2Kp3EdNLqcYe5FhpZCa5oFiCm4UM4FHGoLpdepqD8P8YFvAcm8e9vmZdDszeYQTWomKXwRD4TEL9JmbTDAX4Pi3v` | Escrow funded, `err=null` |
+| Workflow | `DRPYwPSLbuDjjwtpY9MExJDFs8EsCdGA7X75MMT2cbT1` | `refunded=true`, `paid=false`, `checks=7` |
 
 ## Final autonomous-settlement proof (2026-09-09)
 

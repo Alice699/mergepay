@@ -134,20 +134,20 @@ test("keeps generated client constants aligned with the checked-in Venus manifes
 test("derives the workflow and merge-check callback auxiliary PDAs from the ABI", () => {
   assert.deepEqual(deriveWorkflowPda(MERGEPAY_PROGRAM_ID, payer, slug), {
     address: workflowPda,
-    bump: 253,
+    bump: 254,
   });
 
   const accounts = deriveCheckMergeAccounts(MERGEPAY_PROGRAM_ID, payer, slug);
-  assert.equal(accounts.subscription.address, "toRnfaeDXrhW1FQGXcSXJrKfpECqeUJoaBFyjc4YDpr");
-  assert.equal(accounts.retrySubscription.address, "CwoBuV39sd8oiYEpr83ZtUUbAKoGobB2pRKEVsWZPeGL");
-  assert.equal(accounts.rex.address, "Agb9FXCcsofCxEQh5Zw4jAX5dcfYNqFnfE82yHm2Y9fF");
+  assert.equal(accounts.subscription.address, "AoWY7doE7JT9EKP7arc2v9kKK861FZXoGwswdUgTLi19");
+  assert.equal(accounts.retrySubscription.address, "qzqxbfRVAYLZJszLfhgGRjyky3WkE2rEL9c1msqv6Ki");
+  assert.equal(accounts.rex.address, "DESQGMUphinYnerVScuBXgteawM6bJBWs117XA4TzW15");
   assert.equal(
     Buffer.from(accounts.subscriptionSlug).toString("hex"),
-    "3e11366c47af3b4c6ba4a06dfe3bab23420ad06e507d60d84fbf7c8f050b4d7d",
+    "08e12781504015c7203b75f90bb9177e8a6fda41ee9a9d57e54f9da1f504b670",
   );
   assert.equal(
     Buffer.from(accounts.rexSlug).toString("hex"),
-    "2c5320c3d826d2f06a5164b1302ec6b2cf5dfc43e0aaab0573e8bf80caed02d0",
+    "d47323c229d5054b657c171021db0667dd56ed5307c910e2b6a4fc47bd451fc9",
   );
   assert.equal(
     Buffer.from(deriveMultiAccountSlug(workflowPda, 0, 5)).toString("hex"),
@@ -266,7 +266,7 @@ test("builds the exact external instruction wire format", () => {
     workflowPda,
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
-    "97H9EDe5s9Pst9umFBDxHAmzvSqwQRup6a53vuz8ECgh",
+    "3PWEjU3J4MCmUTLZrmGt598Wq7UHPrtE5k6rMp4p83HE",
   ]);
 
   const refund = buildRefundInstruction(base);

@@ -30,8 +30,8 @@ import { routes } from "@/lib/constants";
 import { formatDeadline, formatRlo } from "@/lib/format";
 import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 
-const RECEIPT_POLL_INTERVAL_MS = 2_500;
-const RECEIPT_MAX_BACKOFF_MS = 15_000;
+const RECEIPT_POLL_INTERVAL_MS = 1_000;
+const RECEIPT_MAX_BACKOFF_MS = 8_000;
 
 interface SettlementReceiptProps {
   slug: string | null;

@@ -84,15 +84,14 @@ Learn more about the model in Rialo's
 
 ## DevNet proof
 
-The active deployment now contains the policy-locked REX proof and the production-sized
-external collection window. A fresh live workflow is still required to record payout
-evidence against this exact deployment; the previous runtime proof remains below as
-historical evidence.
+The active deployment contains the policy-locked REX proof and the faster 5-second
+external collection window. Fresh live payout and refund workflows are recorded below;
+older runtime proofs remain historical evidence.
 
 | Item | Current value |
 | --- | --- |
 | Network | Rialo DevNet |
-| Active program | `Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx` |
+| Active program | `EJPnYc1o5BPL3A9PLSBNVcNZg6e9qNH1adQBM6ZG3s31` |
 | REX bytecode account | `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK` |
 | Program format | RISC-V / PolkaVM |
 | Rialo release | `stable@0.18.1` |
@@ -110,7 +109,7 @@ and historical deployments are recorded in [DevNet evidence](docs/EVIDENCE.md) a
 > `Alice699/mergepay-demo#8` was correctly merged on GitHub, but its old deployment
 > used the Venus default 300 ms REX collection window. Three of four validator
 > requests timed out, so the fail-closed contract kept escrow locked and refunded it
-> at the deadline. The active deployment above uses a bounded 15-second window and
+> at the deadline. The active deployment above uses a bounded 5-second window and
 > the matching custom REX component. Because #8 is already terminal, a new workflow
 > is needed to prove automatic payout on the fixed deployment.
 
@@ -178,7 +177,7 @@ The checked-in template targets the active DevNet deployment:
 NEXT_PUBLIC_RIALO_NETWORK=devnet
 NEXT_PUBLIC_RIALO_RPC_URL=/api/rialo
 RIALO_RPC_UPSTREAM_URL=https://devnet.rialo.io
-NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx
+NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=EJPnYc1o5BPL3A9PLSBNVcNZg6e9qNH1adQBM6ZG3s31
 NEXT_PUBLIC_MERGEPAY_REX_BYTECODE_ACCOUNT=GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK
 ```
 

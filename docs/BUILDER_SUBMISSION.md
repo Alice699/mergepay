@@ -18,17 +18,17 @@ signals across transactions.
 
 ## What is live
 
-- Active policy-locked autonomous-settlement deployment: `Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx`
+- Active policy-locked autonomous-settlement deployment: `EJPnYc1o5BPL3A9PLSBNVcNZg6e9qNH1adQBM6ZG3s31`
 - Active custom REX bytecode account: `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK`
 - Previous runtime-proven deployment: `6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5` (historical)
 - Previous runtime-proven review deployment: `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB` (historical)
 - Previous reset deployment: `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
-- Active metadata: `252425`-byte RISC-V executable, slot `18493851`, matching REX component deployed
+- Active metadata: `252425`-byte RISC-V executable, slot `18508684`, matching canonical REX component
 - RISC-V / PolkaVM Venus program built against `0.18.1`
 - Sponsor-created and funded workflow PDA
 - Policy-locked public settlement proof through a custom REX WASM component with a
-  bounded 15-second collection window
-- Fresh live payout proof for the active deployment (pending a new funded workflow)
+  bounded 5-second collection window
+- Fresh live payout and deadline-refund proofs for the active deployment
 - Writable beneficiary propagated into the callback
 - Unanimous merged payout
 - Open-PR fail-closed path
@@ -88,7 +88,7 @@ This is a DevNet MVP, not an audited production payment protocol. The recorded a
 deployment supports public GitHub repositories, native RLO, one beneficiary, and native
 post-funding checks with a sponsor fallback. The policy-locked public proof is now
 deployed with its matching REX component, but the new deployment still needs a fresh
-live payout workflow before it can claim runtime proof; private repositories remain
+  live settlement workflows now provide runtime proof; private repositories remain
 out of scope.
 The reactive external verification and settlement path is implemented and fail-closed.
 The dApp includes an experimental DevNet-only embedded signer because a public Rialo

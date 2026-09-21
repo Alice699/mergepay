@@ -693,11 +693,11 @@ rialo! {
                 // read above; CI and review endpoints are fetched only after GitHub
                 // reports the PR as merged. A five-minute policy throttle therefore
                 // created a blind window where a PR merged minutes before its deadline
-                // could still be refunded. Keep all workflows on a 10-second cadence
+                // could still be refunded. Keep all workflows on a 5-second cadence
                 // for near-real-time DevNet settlement and clamp one final proof
                 // request ahead of the deadline so the REX collection window can
                 // finish before the refund branch becomes due.
-                let proof_interval_ms = 10_000u64;
+                let proof_interval_ms = 5_000u64;
                 let regular_next_check = current_unix_ms_u64
                     .checked_add(proof_interval_ms)
                     .unwrap_or(self.deadline_unix_ms);
@@ -731,7 +731,7 @@ rialo! {
                     // default REX collection window is 300ms, which is too
                     // short for a cold DNS/TLS request and caused otherwise
                     // valid merged proofs to become non-unanimous timeouts.
-                    request_delay_ms: 15_000u64
+                    request_delay_ms: 5_000u64
                 ]
                 CALL [handle_merge_response beneficiary: beneficiary report: report];
                 Ok(())

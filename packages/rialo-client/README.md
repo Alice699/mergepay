@@ -38,7 +38,7 @@ import {
 
 const mergePay = createMergePayClient({
   network: "devnet",
-  programId: "Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx",
+  programId: "EJPnYc1o5BPL3A9PLSBNVcNZg6e9qNH1adQBM6ZG3s31",
 });
 
 const instruction = mergePay.buildStatus({

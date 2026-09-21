@@ -98,10 +98,10 @@ function settlementReceiptHref(
   return `${routes.settlementReceipt(slug)}?${query.toString()}`;
 }
 
-const LIVE_WORKFLOW_POLL_INTERVAL_MS = 2_500;
+const LIVE_WORKFLOW_POLL_INTERVAL_MS = 1_000;
 const PENDING_TRANSACTION_POLL_INTERVAL_MS = 1_500;
 const CLAIM_DISCOVERY_POLL_INTERVAL_MS = 2_500;
-const LIVE_WORKFLOW_MAX_BACKOFF_MS = 15_000;
+const LIVE_WORKFLOW_MAX_BACKOFF_MS = 8_000;
 
 function formatLastVerified(value: number | null): string {
   if (value === null) return "not verified yet";

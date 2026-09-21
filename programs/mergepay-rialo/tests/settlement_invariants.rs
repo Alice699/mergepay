@@ -348,11 +348,11 @@ fn custom_rex_and_callback_keep_every_ambiguous_result_fail_closed() {
         "handler fn handle_merge_response",
     );
     assert!(
-        check.contains("request_delay_ms: 15_000u64"),
+        check.contains("request_delay_ms: 5_000u64"),
         "the external GitHub REX duty must use a bounded production-sized collection window",
     );
     assert!(
-        check.contains("let proof_interval_ms = 10_000u64"),
+        check.contains("let proof_interval_ms = 5_000u64"),
         "policy-enabled workflows must use a near-real-time automatic-proof cadence",
     );
     assert!(
@@ -367,7 +367,7 @@ fn custom_rex_and_callback_keep_every_ambiguous_result_fail_closed() {
 
 #[test]
 fn automatic_policy_checks_leave_no_five_minute_blind_window() {
-    const INTERVAL_MS: u64 = 10_000;
+    const INTERVAL_MS: u64 = 5_000;
     const FINAL_LEAD_MS: u64 = 20_000;
 
     let schedule_next = |now: u64, deadline: u64| {
@@ -383,7 +383,7 @@ fn automatic_policy_checks_leave_no_five_minute_blind_window() {
     let deadline = 1_000_000;
     assert_eq!(
         schedule_next(deadline - 121_000, deadline),
-        deadline - 111_000
+        deadline - 116_000
     );
     assert_eq!(
         schedule_next(deadline - 25_000, deadline),
