@@ -32,7 +32,7 @@ export default function DocsPage() {
             </div>
             <div className="docs-program__footer">
               <span>Autonomous payout and refund</span>
-              <strong>Strong-proof live</strong>
+              <strong>Proof-backed</strong>
             </div>
           </div>
         </ScrollReveal>

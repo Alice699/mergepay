@@ -52,7 +52,7 @@ export default function BountiesPage() {
           <ul>
             <li><span>Network</span><strong className="state state--good">DevNet</strong></li>
             <li><span>Marketplace program</span><CopyValue value={marketplaceDeployment.programId} /></li>
-            <li><span>Autonomous settlement</span><strong className="state state--good">Strong-proof live</strong></li>
+            <li><span>Autonomous settlement</span><strong className="state state--good">Proof-backed</strong></li>
             <li><span>Account decoder</span><strong className="state state--good">Live on-chain</strong></li>
           </ul>
           <p className="panel-note">Discovery reads verified Rialo accounts. The active DevNet program handles merged-PR payout and deadline refund autonomously.</p>
