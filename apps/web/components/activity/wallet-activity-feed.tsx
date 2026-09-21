@@ -14,7 +14,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
-import { formatRlo, shortenAddress } from "@/lib/format";
+import { formatLocalDateTime, formatRlo, shortenAddress } from "@/lib/format";
 import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 import { CopyValue } from "@/components/ui/copy-value";
 import { TransactionProof } from "@/components/ui/transaction-proof";
@@ -309,7 +309,7 @@ function ActivityRow({ item }: Readonly<{ item: MergePayActivityItem }>) {
         <div>
           <h3>{actionLabel}</h3>
           <p>{actionDetails[item.action]}</p>
-          <time dateTime={time.iso}>{time.label}</time>
+          <time dateTime={time.iso} suppressHydrationWarning>{time.label}</time>
         </div>
       </div>
       <div className="wallet-activity__result">
@@ -454,13 +454,6 @@ function formatActivityTime(blockTime: bigint | null): { iso: string; label: str
   if (Number.isNaN(date.getTime())) return { iso: "", label: "Time unavailable" };
   return {
     iso: date.toISOString(),
-    label: new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      month: "short",
-      timeZone: "UTC",
-      year: "numeric",
-    }).format(date),
+    label: formatLocalDateTime(date),
   };
 }

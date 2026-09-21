@@ -38,7 +38,7 @@ import { useWallet } from "@/hooks/use-wallet";
 import { useWorkflow } from "@/hooks/use-workflow";
 import { routes } from "@/lib/constants";
 import { publishAppNotification } from "@/lib/app-notifications";
-import { formatDeadline, formatRlo, shortenAddress } from "@/lib/format";
+import { formatDeadline, formatLocalTime, formatRlo, shortenAddress } from "@/lib/format";
 import { CopyValue } from "@/components/ui/copy-value";
 
 interface WorkflowDetailProps {
@@ -105,12 +105,7 @@ const LIVE_WORKFLOW_MAX_BACKOFF_MS = 8_000;
 
 function formatLastVerified(value: number | null): string {
   if (value === null) return "not verified yet";
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    timeZoneName: "short",
-  }).format(new Date(value));
+  return formatLocalTime(value);
 }
 
 function WorkflowObserverNotice({
@@ -1174,7 +1169,7 @@ export function WorkflowDetail({
             <li><span>Sync</span><strong className={syncGood ? "state state--good" : "state state--warn"}>{syncLabel}</strong></li>
             {displaySponsor ? <li><span>Sponsor</span><strong className="mono" title={displaySponsor}>{shortenAddress(displaySponsor, 6)}</strong></li> : null}
           </ul>
-          <p className="panel-note">{sourceNote}</p>
+          <p className="panel-note" suppressHydrationWarning>{sourceNote}</p>
         </aside>
       </div>
     </div>

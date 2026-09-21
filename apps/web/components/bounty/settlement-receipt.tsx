@@ -27,7 +27,7 @@ import { useWallet } from "@/hooks/use-wallet";
 import { useWorkflow } from "@/hooks/use-workflow";
 import { TransactionProof } from "@/components/ui/transaction-proof";
 import { routes } from "@/lib/constants";
-import { formatDeadline, formatRlo } from "@/lib/format";
+import { formatDeadline, formatLocalTime, formatRlo } from "@/lib/format";
 import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 
 const RECEIPT_POLL_INTERVAL_MS = 1_000;
@@ -259,7 +259,7 @@ function VerifiedSettlementReceipt({
           <h2 id="settlement-receipt-title">
             {paid ? "Bounty paid." : "Escrow refunded."}
           </h2>
-          <p>
+          <p suppressHydrationWarning>
             {paid
               ? hasStrongProof
                 ? "The exact bounty amount was released only after unanimous REX evidence reproduced every locked GitHub condition."
@@ -423,12 +423,7 @@ function PendingSettlementReceipt({
   const workflowUrl = slug ? workflowDetailHref(slug, workflow) : routes.settlements;
   const lastVerified = lastUpdatedAt === null
     ? "not verified yet"
-    : new Intl.DateTimeFormat("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        timeZoneName: "short",
-      }).format(new Date(lastUpdatedAt));
+    : formatLocalTime(lastUpdatedAt);
   const syncLabel = syncStatus === "paused"
     ? "Sync paused"
     : syncStatus === "stale"

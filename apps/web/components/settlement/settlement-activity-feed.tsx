@@ -26,7 +26,7 @@ import { CopyValue } from "@/components/ui/copy-value";
 import { useAdaptivePolling } from "@/hooks/use-adaptive-polling";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
-import { formatRlo } from "@/lib/format";
+import { formatLocalDateTime, formatLocalTime, formatRlo } from "@/lib/format";
 import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 import { routes } from "@/lib/constants";
 import { TransactionProof } from "@/components/ui/transaction-proof";
@@ -480,7 +480,7 @@ export function SettlementActivityFeed() {
             <div>
               <span className="panel-label">VERIFIED ONCHAIN</span>
               <strong>{items.length} {items.length === 1 ? "settlement" : "settlements"}</strong>
-              <small>{state.lastChecked ? `Last verified ${formatCheckedTime(state.lastChecked)}` : "Checking now"}</small>
+              <small suppressHydrationWarning>{state.lastChecked ? `Last verified ${formatLocalTime(state.lastChecked)}` : "Checking now"}</small>
             </div>
             <div className="settlement-activity__legend" aria-label="Settlement outcomes">
               <span data-outcome="paid"><i aria-hidden="true" /> Paid</span>
@@ -556,7 +556,7 @@ function SettlementRow({ item }: Readonly<{ item: MergePaySettlementItem }>) {
         <div className="settlement-activity__meta">
           <span><i aria-hidden="true" /> {source}</span>
           <span>{stateFlag}</span>
-          <time dateTime={time.iso}>{time.label}</time>
+          <time dateTime={time.iso} suppressHydrationWarning>{time.label}</time>
         </div>
       </div>
       <div className="settlement-activity__actions">
@@ -700,22 +700,6 @@ function formatSettlementTime(blockTime: bigint | null): { iso: string; label: s
 
   return {
     iso: date.toISOString(),
-    label: new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      month: "short",
-      timeZone: "UTC",
-      year: "numeric",
-    }).format(date),
+    label: formatLocalDateTime(date),
   };
-}
-
-function formatCheckedTime(value: number): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    timeZone: "UTC",
-  }).format(new Date(value));
 }

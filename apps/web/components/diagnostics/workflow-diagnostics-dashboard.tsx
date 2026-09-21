@@ -31,7 +31,7 @@ import { TransactionProof } from "@/components/ui/transaction-proof";
 import { useAdaptivePolling } from "@/hooks/use-adaptive-polling";
 import { useNetwork } from "@/hooks/use-network";
 import { routes } from "@/lib/constants";
-import { formatRlo } from "@/lib/format";
+import { formatLocalDateTime, formatLocalTime, formatRlo } from "@/lib/format";
 import { getRialoScanSearchUrl } from "@/lib/rialo-scan";
 
 const DIAGNOSTIC_PAGE_SIZE = 25;
@@ -387,9 +387,9 @@ export function WorkflowDiagnosticsDashboard() {
           <span>Active program · {network.label}</span>
           <CopyValue value={network.client.programId} />
         </div>
-        <small>
+        <small suppressHydrationWarning>
           {state.lastChecked
-            ? `Last reconciled ${formatCheckedTime(state.lastChecked)}`
+            ? `Last reconciled ${formatLocalTime(state.lastChecked)}`
             : "Waiting for the first verified read"}
         </small>
       </div>
@@ -422,7 +422,7 @@ export function WorkflowDiagnosticsDashboard() {
           detail={
             network.rpcLastSuccessfulAt === null
               ? "No successful health read in this session"
-              : `Last success ${formatCheckedTime(network.rpcLastSuccessfulAt)} · ${network.rpcConsecutiveFailures} consecutive failures`
+              : `Last success ${formatLocalTime(network.rpcLastSuccessfulAt)} · ${network.rpcConsecutiveFailures} consecutive failures`
           }
         />
         <ReliabilityMetric
@@ -632,7 +632,7 @@ function ReliabilityMetric({
       <div>
         <span>{label}</span>
         <strong>{value}</strong>
-        <small>{detail}</small>
+        <small suppressHydrationWarning>{detail}</small>
       </div>
     </div>
   );
@@ -707,7 +707,7 @@ function DiagnosticRow({
         <div>
           <span>Latest activity</span>
           <strong>{item.latestActivity ? actionLabel(item.latestActivity.action) : "Unavailable"}</strong>
-          <small>{latestTime.label}</small>
+          <small suppressHydrationWarning>{latestTime.label}</small>
         </div>
         <div>
           <span>Escrow</span>
@@ -882,31 +882,12 @@ function formatChainTime(value: bigint | null): { iso: string; label: string } {
   if (Number.isNaN(date.getTime())) return { iso: "", label: "Time unavailable" };
   return {
     iso: date.toISOString(),
-    label: new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      month: "short",
-      timeZone: "UTC",
-    }).format(date),
+    label: formatLocalDateTime(date),
   };
 }
 
 function formatDeadlineCompact(value: bigint): string {
   const date = new Date(Number(value));
   if (Number.isNaN(date.getTime())) return "unavailable";
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    timeZone: "UTC",
-  }).format(date);
-}
-
-function formatCheckedTime(value: number): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    timeZone: "UTC",
-  }).format(new Date(value));
+  return formatLocalDateTime(date);
 }

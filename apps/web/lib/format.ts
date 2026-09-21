@@ -47,7 +47,9 @@ export function formatTimeZoneLabel(date = new Date()): string {
   const namedZones: Record<string, string> = {
     "Asia/Jakarta": "WIB",
     "Asia/Makassar": "WITA",
+    "Asia/Ujung_Pandang": "WITA",
     "Asia/Jayapura": "WIT",
+    "Asia/Pontianak": "WIB",
     "Etc/UTC": "UTC",
     UTC: "UTC",
   };
@@ -62,22 +64,65 @@ export function formatTimeZoneLabel(date = new Date()): string {
   );
 }
 
+function validDate(value: Date | number): Date | null {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+export function formatLocalDate(value: Date | number): string {
+  const date = validDate(value);
+  if (!date) return "Time unavailable";
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+export function formatLocalDateTime(
+  value: Date | number,
+  includeSeconds = false,
+): string {
+  const date = validDate(value);
+  if (!date) return "Time unavailable";
+
+  const formatted = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    ...(includeSeconds ? { second: "2-digit" } : {}),
+    year: "numeric",
+  }).format(date);
+  return `${formatted} ${formatTimeZoneLabel(date)}`;
+}
+
+export function formatLocalTime(
+  value: Date | number,
+  includeSeconds = true,
+): string {
+  const date = validDate(value);
+  if (!date) return "Time unavailable";
+
+  const formatted = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    ...(includeSeconds ? { second: "2-digit" } : {}),
+  }).format(date);
+  return `${formatted} ${formatTimeZoneLabel(date)}`;
+}
+
 export function formatDeadline(deadlineUnixMs: bigint): string {
   const date = validDateFromUnixMs(deadlineUnixMs);
   if (!date) return "Unavailable";
 
-  const formatted = new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-  return `${formatted} ${formatTimeZoneLabel(date)}`;
+  return formatLocalDateTime(date);
 }
 
 export function formatDeadlineDate(deadlineUnixMs: bigint): string {
   const date = validDateFromUnixMs(deadlineUnixMs);
   if (!date) return "Unavailable";
 
-  return `${new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-  }).format(date)} ${formatTimeZoneLabel(date)}`;
+  return `${formatLocalDate(date)} ${formatTimeZoneLabel(date)}`;
 }
