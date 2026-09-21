@@ -967,6 +967,10 @@ test("keeps program diagnostics onchain, filterable, and strictly read-only", as
   assert.match(diagnosticsPage, /0 transactions/);
   assert.match(dashboard, /getWorkflowDiagnosticsPage/);
   assert.match(dashboard, /useAdaptivePolling/);
+  assert.match(dashboard, /workflow-diagnostics--empty/);
+  assert.match(dashboard, /No live workflows yet/);
+  assert.match(dashboard, /routes\.createBounty/);
+  assert.match(dashboard, /routes\.guide/);
   assert.match(dashboard, /Reconcile now/);
   assert.match(dashboard, /Status/);
   assert.match(dashboard, /Age/);

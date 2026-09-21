@@ -18557,6 +18557,20 @@ body:has(.docs-page, .guide-page, .ledger-page) .footer-deployment {
   line-height: 1.65;
 }
 
+.workflow-diagnostics__empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.workflow-diagnostics__empty-actions .button {
+  min-height: 2.75rem;
+}
+
+.workflow-diagnostics--empty > :is(.workflow-diagnostics__summary, .workflow-diagnostics__reliability, .workflow-diagnostics__tools, .workflow-diagnostics__filters) {
+  display: none;
+}
+
 .workflow-diagnostics__loading {
   min-height: 19rem;
   display: grid;
@@ -18811,6 +18825,12 @@ body:has(.docs-page, .guide-page, .ledger-page) .footer-deployment {
     align-content: center;
     justify-items: start;
     padding: 2rem 1.15rem;
+  }
+
+  .workflow-diagnostics__empty-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .workflow-diagnostics__loading {

@@ -323,6 +323,7 @@ export function WorkflowDiagnosticsDashboard() {
     networkFilter !== "all" ||
     errorFilter !== "all";
   const isBusy = state.status === "loading" || state.refreshing;
+  const hasLoadedWorkflows = state.items.length > 0;
   const syncTone = network.rpcStatus !== "available"
     ? "offline"
     : state.error || state.readErrors > 0
@@ -344,7 +345,7 @@ export function WorkflowDiagnosticsDashboard() {
   }
 
   return (
-    <section className="workflow-diagnostics" aria-busy={isBusy} aria-labelledby="diagnostics-title">
+    <section className={`workflow-diagnostics${hasLoadedWorkflows ? "" : " workflow-diagnostics--empty"}`} aria-busy={isBusy} aria-labelledby="diagnostics-title">
       <header className="workflow-diagnostics__header">
         <div>
           <p className="panel-label">PROGRAM-WIDE ACCOUNT HEALTH</p>
@@ -547,10 +548,13 @@ export function WorkflowDiagnosticsDashboard() {
         />
       ) : visibleItems.length === 0 ? (
         <DiagnosticEmpty
-          action={hasFilters ? <button className="button button--dark" onClick={resetFilters} type="button">Clear filters</button> : undefined}
-          icon={<CheckCircle2 aria-hidden="true" size={21} strokeWidth={1.7} />}
-          title={hasFilters ? "No workflow matches these filters" : "No workflow was discovered"}
-          description={hasFilters ? "The loaded onchain records are still available; adjust or clear the current filters." : "No confirmed create_bounty transaction exists in the loaded program history."}
+          action={hasFilters ? <button className="button button--dark" onClick={resetFilters} type="button">Clear filters</button> : <div className="workflow-diagnostics__empty-actions">
+            <Link className="button" href={routes.createBounty}>Create a bounty</Link>
+            <Link className="button button--dark" href={routes.guide}>View guide</Link>
+          </div>}
+          icon={hasFilters ? <CheckCircle2 aria-hidden="true" size={21} strokeWidth={1.7} /> : <Waypoints aria-hidden="true" size={21} strokeWidth={1.7} />}
+          title={hasFilters ? "No workflow matches these filters" : "No live workflows yet"}
+          description={hasFilters ? "The loaded onchain records are still available; adjust or clear the current filters." : "Create your first bounty to start an onchain workflow. Once it is funded, it will appear here for read-only monitoring."}
         />
       ) : (
         <div className="workflow-diagnostics__list" aria-live="polite">
@@ -568,7 +572,9 @@ export function WorkflowDiagnosticsDashboard() {
         <div>
           <Activity aria-hidden="true" size={15} strokeWidth={1.8} />
           <span>
-            {state.readErrors > 0
+            {!hasLoadedWorkflows
+              ? "No workflow history yet"
+              : state.readErrors > 0
               ? `${state.readErrors} incomplete ${state.readErrors === 1 ? "read" : "reads"}`
               : "All loaded account reads completed"}
           </span>
