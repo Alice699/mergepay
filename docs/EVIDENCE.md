@@ -3,7 +3,7 @@
 Historical runtime-proven autonomous settlement:
 `6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5`
 
-The latest policy-locked deployment is `AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx`
+The latest policy-locked deployment is `Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx`
 with REX bytecode account `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK`. It uses the
 storage-safe settlement ABI and a bounded 15-second REX collection window. Fresh live
 payout and refund evidence for this exact pair is still pending; the workflows below

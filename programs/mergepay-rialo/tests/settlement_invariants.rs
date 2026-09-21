@@ -352,8 +352,8 @@ fn custom_rex_and_callback_keep_every_ambiguous_result_fail_closed() {
         "the external GitHub REX duty must use a bounded production-sized collection window",
     );
     assert!(
-        check.contains("let proof_interval_ms = 30_000u64"),
-        "policy-enabled workflows must not retain a five-minute automatic-proof blind window",
+        check.contains("let proof_interval_ms = 10_000u64"),
+        "policy-enabled workflows must use a near-real-time automatic-proof cadence",
     );
     assert!(
         check.contains("self.deadline_unix_ms.saturating_sub(20_000)"),
@@ -367,7 +367,7 @@ fn custom_rex_and_callback_keep_every_ambiguous_result_fail_closed() {
 
 #[test]
 fn automatic_policy_checks_leave_no_five_minute_blind_window() {
-    const INTERVAL_MS: u64 = 30_000;
+    const INTERVAL_MS: u64 = 10_000;
     const FINAL_LEAD_MS: u64 = 20_000;
 
     let schedule_next = |now: u64, deadline: u64| {
@@ -383,10 +383,10 @@ fn automatic_policy_checks_leave_no_five_minute_blind_window() {
     let deadline = 1_000_000;
     assert_eq!(
         schedule_next(deadline - 121_000, deadline),
-        deadline - 91_000
+        deadline - 111_000
     );
     assert_eq!(
-        schedule_next(deadline - 31_000, deadline),
+        schedule_next(deadline - 25_000, deadline),
         deadline - 20_000
     );
     assert!(schedule_next(deadline - 121_000, deadline) < deadline);

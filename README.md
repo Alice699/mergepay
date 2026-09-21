@@ -92,11 +92,11 @@ historical evidence.
 | Item | Current value |
 | --- | --- |
 | Network | Rialo DevNet |
-| Active program | `AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx` |
+| Active program | `Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx` |
 | REX bytecode account | `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK` |
 | Program format | RISC-V / PolkaVM |
 | Rialo release | `stable@0.18.1` |
-| Deployed artifact | `242,877` bytes at slot `15,705,856` |
+| Deployed artifact | `252,425` bytes at slot `18,493,851` |
 | REX collection window | `15,000 ms` bounded request window |
 | Automatic merged-PR payout | Pending fresh live workflow |
 | Automatic deadline refund | Pending fresh live workflow |
@@ -178,7 +178,7 @@ The checked-in template targets the active DevNet deployment:
 NEXT_PUBLIC_RIALO_NETWORK=devnet
 NEXT_PUBLIC_RIALO_RPC_URL=/api/rialo
 RIALO_RPC_UPSTREAM_URL=https://devnet.rialo.io
-NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx
+NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx
 NEXT_PUBLIC_MERGEPAY_REX_BYTECODE_ACCOUNT=GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK
 ```
 

@@ -110,7 +110,7 @@ sponsor-selected bounty locked until refund.
   Both terminal branches are DevNet-proven; sponsor-triggered check/refund actions
   remain explicit fallbacks and are idempotent when an automatic branch wins the race.
 - The native timestamp subscription currently receives an active window of roughly 100
-  commits. MergePay re-arms merge polling every 30 seconds; DevNet proof demonstrates
+  commits. MergePay re-arms merge polling every 10 seconds; DevNet proof demonstrates
   the current behavior but does not guarantee production liveness under future runtime
   versions or network outages.
 - The current PR and merge proof paths target public repositories only. GitHub OAuth

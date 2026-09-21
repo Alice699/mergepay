@@ -18,12 +18,12 @@ signals across transactions.
 
 ## What is live
 
-- Active policy-locked autonomous-settlement deployment: `AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx`
+- Active policy-locked autonomous-settlement deployment: `Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx`
 - Active custom REX bytecode account: `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK`
 - Previous runtime-proven deployment: `6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5` (historical)
 - Previous runtime-proven review deployment: `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB` (historical)
 - Previous reset deployment: `4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F`
-- Active metadata: `242877`-byte RISC-V executable, slot `15705856`, matching REX component deployed
+- Active metadata: `252425`-byte RISC-V executable, slot `18493851`, matching REX component deployed
 - RISC-V / PolkaVM Venus program built against `0.18.1`
 - Sponsor-created and funded workflow PDA
 - Policy-locked public settlement proof through a custom REX WASM component with a

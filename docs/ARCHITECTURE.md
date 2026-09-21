@@ -168,7 +168,7 @@ are validated, and recorded lineage proves both merged-PR payout and deadline re
 without a manual button click.
 
 Rialo's generated timestamp predicate uses an active window of roughly 100 commits;
-the explicit 30-second re-arm is therefore part of the liveness design, not an
+the explicit 10-second re-arm is therefore part of the liveness design, not an
 assumption that one subscription survives until an arbitrary long deadline.
 
 ## Why one payer owns the workflow

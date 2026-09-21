@@ -21,7 +21,7 @@ const binding = {
   owner: "Alice699",
   repo: "mergepay-demo",
   pullNumber: 13,
-  programId: "AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx",
+  programId: "Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx",
   network: "devnet",
 };
 

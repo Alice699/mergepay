@@ -130,14 +130,29 @@
     "runtimeProof": null,
     "supersedes": "9LXQeM5vvn4Xh9k6wdrGe71ynCvdCLogXrQoScugiEHJ"
   },
-  "autonomousSettlementCandidate": {
+  "previousAutonomousSettlementCandidateV8": {
     "programId": "AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx",
-    "status": "deployed-latest-awaiting-live-auto-payout-e2e",
+    "status": "superseded-by-10-second-heartbeat",
     "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v6-deadline-safe",
     "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
     "bytes": 252425,
     "sha256": "232C9E297E0B365AA3281B3CF29A4E3D5D8A9B8C9B36D23F72C10AA56D682149",
     "deployedSlot": 17415907,
+    "dataLength": 252473,
+    "executableDataLength": 252425,
+    "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
+    "balanceRlo": 1.75810296,
+    "rexBytecodeAccount": "GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK",
+    "supersedes": "FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q"
+  },
+  "autonomousSettlementCandidate": {
+    "programId": "Amf1rCvjvMpKKwQNTwsbQUm7fZkhNP9wdwfVhEPw12Zx",
+    "status": "deployed-latest-awaiting-live-auto-payout-e2e",
+    "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v6-deadline-safe",
+    "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
+    "bytes": 252425,
+    "sha256": "D30FA4496AD7F743415298445295B6466EF9012B1BF8A053B22CC5993AEB3E2C",
+    "deployedSlot": 18493851,
     "dataLength": 252473,
     "executableDataLength": 252425,
     "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
@@ -155,7 +170,7 @@
       "executable": true
     },
     "runtimeProof": null,
-    "supersedes": "FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q"
+    "supersedes": "AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx"
   },
   "previousRuntimeCandidate": {
     "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",
