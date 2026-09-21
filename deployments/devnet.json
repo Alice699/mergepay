@@ -1,6 +1,6 @@
 {
   "network": "devnet",
-  "updatedAt": "2026-09-16",
+  "updatedAt": "2026-09-19",
   "reviewCandidate": {
     "programId": "6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB",
     "status": "fully-tested-hardened",
@@ -103,9 +103,9 @@
     "runtimeProof": null,
     "supersedes": "Buu7BgpxJiZXV9bU2pJBpQWUn2iEuyaSkD6xenGNxeDn"
   },
-  "autonomousSettlementCandidate": {
+  "previousAutonomousSettlementCandidateV7": {
     "programId": "FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q",
-    "status": "deployed-latest-awaiting-live-e2e",
+    "status": "superseded-by-deadline-safe-heartbeat",
     "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v5-storage-safe",
     "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
     "bytes": 242877,
@@ -129,6 +129,33 @@
     },
     "runtimeProof": null,
     "supersedes": "9LXQeM5vvn4Xh9k6wdrGe71ynCvdCLogXrQoScugiEHJ"
+  },
+  "autonomousSettlementCandidate": {
+    "programId": "AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx",
+    "status": "deployed-latest-awaiting-live-auto-payout-e2e",
+    "abi": "marketplace-claims-v1-autonomous-settlement-heartbeat-v6-deadline-safe",
+    "path": "programs/mergepay-rialo/target/rialo-build/mergepay-rialo-riscv/mergepay_rialo.polkavm",
+    "bytes": 252425,
+    "sha256": "232C9E297E0B365AA3281B3CF29A4E3D5D8A9B8C9B36D23F72C10AA56D682149",
+    "deployedSlot": 17415907,
+    "dataLength": 252473,
+    "executableDataLength": 252425,
+    "authority": "2RGascNSeBgUxpkk57zQzQSeBZoUBiuT1HSRtuKTatEo",
+    "balanceRlo": 1.75810296,
+    "rexBytecodeAccount": "GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK",
+    "rexComponents": {
+      "programId": "GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK",
+      "bytecodeAccount": "GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK",
+      "component": "verify_settlement",
+      "bytes": 107806,
+      "sha256": "3EBE5ABDAA338D92AEB3F36E342F0BFB672BF6DE964213041EE918E25E3F43FA",
+      "dataLength": 107854,
+      "executableDataLength": 107806,
+      "balanceRlo": 0.75155472,
+      "executable": true
+    },
+    "runtimeProof": null,
+    "supersedes": "FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q"
   },
   "previousRuntimeCandidate": {
     "programId": "4VWR2cKxy5gGjcm74i36T2DKH9xPzHqKoydgaL9Q4Z6F",

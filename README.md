@@ -92,7 +92,7 @@ historical evidence.
 | Item | Current value |
 | --- | --- |
 | Network | Rialo DevNet |
-| Active program | `FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q` |
+| Active program | `AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx` |
 | REX bytecode account | `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK` |
 | Program format | RISC-V / PolkaVM |
 | Rialo release | `stable@0.18.1` |
@@ -178,7 +178,7 @@ The checked-in template targets the active DevNet deployment:
 NEXT_PUBLIC_RIALO_NETWORK=devnet
 NEXT_PUBLIC_RIALO_RPC_URL=/api/rialo
 RIALO_RPC_UPSTREAM_URL=https://devnet.rialo.io
-NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q
+NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx
 NEXT_PUBLIC_MERGEPAY_REX_BYTECODE_ACCOUNT=GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK
 ```
 

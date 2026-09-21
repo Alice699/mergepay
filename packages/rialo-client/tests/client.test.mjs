@@ -50,9 +50,21 @@ const settlementPolicy = {
 };
 
 test("keeps generated client constants aligned with the checked-in Venus manifest", () => {
+  const runtimeDispatchOrder = {
+    status: 0,
+    create_bounty: 1,
+    request_claim: 2,
+    fund: 3,
+    accept_claim: 4,
+    check_merge: 5,
+    prepare_funding: 7,
+    refund: 9,
+  };
+
   assert.equal(manifest.version, MERGEPAY_MANIFEST_VERSION);
+  assert.deepEqual(MERGEPAY_INSTRUCTION_DISCRIMINANTS, runtimeDispatchOrder);
   for (const [name, discriminant] of Object.entries(
-    MERGEPAY_INSTRUCTION_DISCRIMINANTS,
+    runtimeDispatchOrder,
   )) {
     assert.equal(manifest.instructions[name].discriminant, discriminant, name);
   }
@@ -122,20 +134,20 @@ test("keeps generated client constants aligned with the checked-in Venus manifes
 test("derives the workflow and merge-check callback auxiliary PDAs from the ABI", () => {
   assert.deepEqual(deriveWorkflowPda(MERGEPAY_PROGRAM_ID, payer, slug), {
     address: workflowPda,
-    bump: 253,
+    bump: 255,
   });
 
   const accounts = deriveCheckMergeAccounts(MERGEPAY_PROGRAM_ID, payer, slug);
-  assert.equal(accounts.subscription.address, "GAbKXcuNsQhPEYNZcWuM1bHXzKWiaJ1YikJUbLjfKCNx");
-  assert.equal(accounts.retrySubscription.address, "B4ZDyJVpWQyeabBPsJbK4PtSjH8ALxCocmARCQqLfjfn");
-  assert.equal(accounts.rex.address, "9frhs8e36X2zwMQdiKfVsVrxaTbJUHSNzXZpnp3pq85q");
+  assert.equal(accounts.subscription.address, "9i5ydrY6zsrjQfxQqo9YwktjzEmZUKN2jKgyM8h3ruEU");
+  assert.equal(accounts.retrySubscription.address, "GhUjbqo8DAQ9v5PaZGyN5Mmm2L3HSMMHKjFyHpTg9oJd");
+  assert.equal(accounts.rex.address, "FvU7w4CAEacaeuXTuHBpyv5nQy9HXhbiYPeEVVqqpXUR");
   assert.equal(
     Buffer.from(accounts.subscriptionSlug).toString("hex"),
-    "6982149ae4370f94e82f3673736a30cf945a3054c1df310d79433cb5bf3441f1",
+    "8aa00463dcb2a2c8e4c48af1dc9cb9f30835a3d47ff6285586745b78397bb248",
   );
   assert.equal(
     Buffer.from(accounts.rexSlug).toString("hex"),
-    "c12194c7066fea7265fac498b386e3a04f2907c85d78df56b645e59662983353",
+    "69a06a0ade2128dc24c1110edb028ce7ae4cfe5c6175d343aaa2856200d8e202",
   );
   assert.equal(
     Buffer.from(deriveMultiAccountSlug(workflowPda, 0, 5)).toString("hex"),
@@ -176,7 +188,7 @@ test("builds the exact external instruction wire format", () => {
   const check = buildCheckMergeInstruction(base);
   assert.equal(
     Buffer.from(check.data).toString("hex"),
-    `02000000${slug}`,
+    `05000000${slug}`,
   );
   assert.deepEqual(check.accounts.map((account) => account.pubkey.toString()), [
     payer,
@@ -189,7 +201,7 @@ test("builds the exact external instruction wire format", () => {
   const retryCheck = buildCheckMergeInstruction({ ...base, branchNumber: 1 });
   assert.equal(
     Buffer.from(retryCheck.data).toString("hex"),
-    `02000000${slug}`,
+    `05000000${slug}`,
   );
   assert.deepEqual(retryCheck.accounts.map((account) => account.pubkey.toString()), [
     payer,
@@ -210,7 +222,7 @@ test("builds the exact external instruction wire format", () => {
     ...settlementPolicy,
   });
   assert.equal(create.data.length, 224);
-  assert.equal(Buffer.from(create.data.slice(0, 4)).toString("hex"), "04000000");
+  assert.equal(Buffer.from(create.data.slice(0, 4)).toString("hex"), "01000000");
   assert.deepEqual(create.accounts.map((account) => account.pubkey.toString()), [
     payer,
     workflowPda,
@@ -229,7 +241,7 @@ test("builds the exact external instruction wire format", () => {
   });
   assert.equal(
     Buffer.from(prepareFunding.data.slice(0, 4)).toString("hex"),
-    "03000000",
+    "07000000",
   );
   assert.equal(
     Buffer.from(prepareFunding.data.slice(36, 44)).readBigUInt64LE(),
@@ -247,14 +259,14 @@ test("builds the exact external instruction wire format", () => {
   );
 
   const fund = buildFundInstruction(base);
-  assert.equal(Buffer.from(fund.data.slice(0, 4)).toString("hex"), "01000000");
+  assert.equal(Buffer.from(fund.data.slice(0, 4)).toString("hex"), "03000000");
   assert.equal(fund.data.length, 36);
   assert.deepEqual(fund.accounts.map((account) => account.pubkey.toString()), [
     payer,
     workflowPda,
     "11111111111111111111111111111111",
     "Subscriber111111111111111111111111111111111",
-    "HGeGQBQ4HjmuP5SCKAXGFkfVQTXoqVBpAJTUmmZosg8W",
+    "Hcq34qvCnfcFoKSXSaaWoaek1H62HcuukqUqAovriZVt",
   ]);
 
   const refund = buildRefundInstruction(base);
@@ -275,7 +287,7 @@ test("builds the exact external instruction wire format", () => {
     claimantGithubId: 123456789,
     rexBytecodeAccount,
   });
-  assert.equal(Buffer.from(request.data.slice(0, 4)).toString("hex"), "05000000");
+  assert.equal(Buffer.from(request.data.slice(0, 4)).toString("hex"), "02000000");
   assert.equal(Buffer.from(request.data.slice(-40, -32)).readBigUInt64LE(), 123456789n);
   assert.deepEqual(
     request.data.slice(-32),
@@ -294,7 +306,7 @@ test("builds the exact external instruction wire format", () => {
     workflowSlug: slug,
     claimWorkflow,
   });
-  assert.equal(Buffer.from(accept.data.slice(0, 4)).toString("hex"), "06000000");
+  assert.equal(Buffer.from(accept.data.slice(0, 4)).toString("hex"), "04000000");
   assert.deepEqual(accept.accounts.map((account) => account.pubkey.toString()), [
     payer,
     workflowPda,
@@ -500,7 +512,7 @@ test("derives wallet activity from Rialo signature and transaction records", asy
                 {
                   programIdIndex: 2,
                   accounts: [0, 1],
-                  data: Buffer.from([1, 0, 0, 0]).toString("base64"),
+                  data: Buffer.from([3, 0, 0, 0]).toString("base64"),
                 },
               ],
             },
@@ -939,7 +951,7 @@ test("discovers an open bounty from program history and decoded account state", 
   const slugHex = Buffer.from(slugBytes).toString("hex");
   const openWorkflow = deriveWorkflowPda(MERGEPAY_PROGRAM_ID, payer, slugHex).address;
   const instructionBytes = new Uint8Array(37);
-  instructionBytes.set([4, 0, 0, 0], 0);
+  instructionBytes.set([1, 0, 0, 0], 0);
   instructionBytes.set(slugBytes, 4);
 
   const stateWriter = new BincodeWriter();

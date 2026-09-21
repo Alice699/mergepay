@@ -18,7 +18,7 @@ signals across transactions.
 
 ## What is live
 
-- Active policy-locked autonomous-settlement deployment: `FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q`
+- Active policy-locked autonomous-settlement deployment: `AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx`
 - Active custom REX bytecode account: `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK`
 - Previous runtime-proven deployment: `6LwYmJtjnrJqSRy6fgWHY7pUZcYtrQ6FD8qwyCeKWe5` (historical)
 - Previous runtime-proven review deployment: `6QHxmfBi9DEhrcdg65c87Hp9H5Ny3xSTCT4b9vaDTsFB` (historical)

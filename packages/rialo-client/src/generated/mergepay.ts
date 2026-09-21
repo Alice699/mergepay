@@ -12,7 +12,7 @@ export const MERGEPAY_MANIFEST_VERSION = "1.1" as const;
 
 /** Current DevNet marketplace program; live payout/refund E2E is tracked separately. */
 export const MERGEPAY_PROGRAM_ID =
-  "FfPSHGDNyYPYxiMJ4UBXV1PLBNGd7vRMe2xSXRxzWS8Q" as const;
+  "AnziYs8KPzdHwjfTSJLev7bkfrNCDUjPRdDr2EqiJTnx" as const;
 
 export const MERGEPAY_WELL_KNOWN_ADDRESSES = {
   systemProgram: "11111111111111111111111111111111",
@@ -29,12 +29,12 @@ export const MERGEPAY_WELL_KNOWN_ADDRESSES = {
  */
 export const MERGEPAY_INSTRUCTION_DISCRIMINANTS = {
   status: 0,
-  fund: 1,
-  check_merge: 2,
-  prepare_funding: 3,
-  create_bounty: 4,
-  request_claim: 5,
-  accept_claim: 6,
+  create_bounty: 1,
+  request_claim: 2,
+  fund: 3,
+  accept_claim: 4,
+  check_merge: 5,
+  prepare_funding: 7,
   refund: 9,
 } as const;
 

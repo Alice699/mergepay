@@ -351,6 +351,46 @@ fn custom_rex_and_callback_keep_every_ambiguous_result_fail_closed() {
         check.contains("request_delay_ms: 15_000u64"),
         "the external GitHub REX duty must use a bounded production-sized collection window",
     );
+    assert!(
+        check.contains("let proof_interval_ms = 30_000u64"),
+        "policy-enabled workflows must not retain a five-minute automatic-proof blind window",
+    );
+    assert!(
+        check.contains("self.deadline_unix_ms.saturating_sub(20_000)"),
+        "the heartbeat must schedule a final proof early enough for REX to finish before refund",
+    );
+    assert!(
+        check.contains("regular_next_check.min(final_proof_unix_ms)"),
+        "the final pre-deadline proof must take precedence over a later regular check",
+    );
+}
+
+#[test]
+fn automatic_policy_checks_leave_no_five_minute_blind_window() {
+    const INTERVAL_MS: u64 = 30_000;
+    const FINAL_LEAD_MS: u64 = 20_000;
+
+    let schedule_next = |now: u64, deadline: u64| {
+        let regular = now.saturating_add(INTERVAL_MS);
+        let final_proof = deadline.saturating_sub(FINAL_LEAD_MS);
+        if final_proof > now {
+            regular.min(final_proof)
+        } else {
+            regular
+        }
+    };
+
+    let deadline = 1_000_000;
+    assert_eq!(
+        schedule_next(deadline - 121_000, deadline),
+        deadline - 91_000
+    );
+    assert_eq!(
+        schedule_next(deadline - 31_000, deadline),
+        deadline - 20_000
+    );
+    assert!(schedule_next(deadline - 121_000, deadline) < deadline);
+    assert!(schedule_next(deadline - 31_000, deadline) < deadline);
 }
 
 #[test]

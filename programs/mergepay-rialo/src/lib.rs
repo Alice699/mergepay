@@ -689,16 +689,23 @@ rialo! {
                     return Ok(());
                 }
 
-                let proof_interval_ms = if self.require_ci_success
-                    || self.minimum_approvals > 0
-                {
-                    300_000
-                } else {
-                    60_000
-                };
-                self.next_merge_check_unix_ms = current_unix_ms_u64
+                // Before a merge, every policy only performs the single pull-request
+                // read above; CI and review endpoints are fetched only after GitHub
+                // reports the PR as merged. A five-minute policy throttle therefore
+                // created a blind window where a PR merged minutes before its deadline
+                // could still be refunded. Keep all workflows on a 30-second cadence
+                // and clamp one final proof request ahead of the deadline so the REX
+                // collection window can finish before the refund branch becomes due.
+                let proof_interval_ms = 30_000u64;
+                let regular_next_check = current_unix_ms_u64
                     .checked_add(proof_interval_ms)
                     .unwrap_or(self.deadline_unix_ms);
+                let final_proof_unix_ms = self.deadline_unix_ms.saturating_sub(20_000);
+                self.next_merge_check_unix_ms = if final_proof_unix_ms > current_unix_ms_u64 {
+                    regular_next_check.min(final_proof_unix_ms)
+                } else {
+                    regular_next_check
+                };
                 self.checks = self.checks.saturating_add(1);
                 msg!("MergePay settlement proof check #{} scheduled", self.checks);
 
