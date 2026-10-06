@@ -2,6 +2,7 @@
 
 import {
   Check,
+  ChevronDown,
   CircleAlert,
   GitCommitHorizontal,
   GitPullRequest,
@@ -21,7 +22,8 @@ import { useNetwork } from "@/hooks/use-network";
 import { asError, describeRialoError } from "@/lib/errors";
 import { MINIMUM_CREATE_BALANCE_KELVIN, routes } from "@/lib/constants";
 import { webConfig } from "@/lib/config";
-import { formatTimeZoneLabel, parseRloToKelvin } from "@/lib/format";
+import { formatDeadline, formatRlo, formatTimeZoneLabel, parseRloToKelvin } from "@/lib/format";
+import { DeadlineCountdown } from "@/components/bounty/deadline-countdown";
 import { generateWorkflowSlug } from "@/lib/validation";
 import type { CreateBountyFormValues } from "../schema";
 
@@ -114,8 +116,20 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
   const [formError, setFormError] = useState<Error | null>(null);
   const [workflowSlug, setWorkflowSlug] = useState(initialWorkflowSlug);
   const [timeZoneLabel, setTimeZoneLabel] = useState("local time");
+  const [amountRlo, setAmountRlo] = useState("");
+  const [deadlineLocal, setDeadlineLocal] = useState("");
+  const [requireCiSuccess, setRequireCiSuccess] = useState(false);
+  const [minimumApprovals, setMinimumApprovals] = useState("0");
   const isSubmitting = createBounty.status === "pending";
   const isBusy = isSubmitting || targetPreview.status === "loading";
+  const parsedDeadline = Date.parse(deadlineLocal);
+  const reviewDeadline = Number.isSafeInteger(parsedDeadline) ? BigInt(parsedDeadline) : null;
+  let reviewAmount: string | null = null;
+  try {
+    reviewAmount = formatRlo(BigInt(parseRloToKelvin(amountRlo)));
+  } catch {
+    // An incomplete input is not a valid reward; submission keeps its own validation.
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -284,7 +298,7 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
         <legend className="sr-only">GitHub target</legend>
         <div className="form-section__heading">
           <span className="mono">01</span>
-          <div><p className="form-section__eyebrow mono">SOURCE CONDITION</p><h2>GitHub target</h2><p>One public pull request per bounty.</p></div>
+          <div><p className="form-section__eyebrow mono">VERIFY THE SOURCE</p><h2>GitHub target</h2><p>Choose one public pull request. Verification locks its exact commit and target branch.</p></div>
         </div>
         <div className="form-grid form-grid--three">
           <label className="form-field"><span>Owner <b aria-hidden="true">*</b></span><input name="githubOwner" autoComplete="off" maxLength={100} onChange={handleTargetChanged} pattern="[A-Za-z0-9._-]+" placeholder="Repository owner" required spellCheck={false} /></label>
@@ -318,32 +332,28 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
         <legend className="sr-only">Settlement terms</legend>
         <div className="form-section__heading">
           <span className="mono">02</span>
-          <div><p className="form-section__eyebrow mono">IMMUTABLE STATE</p><h2>Settlement terms</h2><p>These values are committed to the workflow account.</p></div>
+          <div><p className="form-section__eyebrow mono">SET THE AGREEMENT</p><h2>Reward &amp; conditions</h2><p>The reward, deadline, and payout policy cannot be edited after creation.</p></div>
         </div>
         <div className="form-grid form-grid--two">
-          <div className="form-field form-grid__wide form-field--notice">
-            <span>Contributor claim</span>
-            <div className="form-field__notice">
-              <strong>The payout address is selected after the PR author claims this bounty.</strong>
-              <small>MergePay verifies the public GitHub pull request, then the sponsor approves the contributor wallet before funding. The beneficiary is locked once approved.</small>
-            </div>
-          </div>
+          <label className="form-field"><span>Bounty amount <b aria-hidden="true">*</b></span><div className="input-affix"><input aria-describedby="amount-hint" name="amountRlo" inputMode="decimal" min="0.000000001" onChange={(event) => setAmountRlo(event.target.value)} placeholder="0.001" required step="0.000000001" type="text" value={amountRlo} /><b>RLO</b></div><small id="amount-hint">Exact reward. Escrow is funded in a separate step.</small></label>
+          <label className="form-field"><span>Deadline <b aria-hidden="true">*</b></span><input aria-describedby="deadline-hint" name="deadlineUnixMs" onChange={(event) => setDeadlineLocal(event.target.value)} required type="datetime-local" value={deadlineLocal} /><small id="deadline-hint">Your local time · {reviewDeadline !== null && timeZoneLabel !== "local time" ? formatTimeZoneLabel(new Date(Number(reviewDeadline))) : timeZoneLabel}.</small></label>
+          <p className="bounty-deadline-note form-grid__wide"><CircleAlert aria-hidden="true" size={16} /><span>The deadline is fixed at creation and keeps running through claim and funding. Payout requires valid proof before it expires.</span></p>
           <div className="settlement-policy form-grid__wide">
             <div className="settlement-policy__heading">
               <span aria-hidden="true"><LockKeyhole size={18} /></span>
               <div>
-                <strong>Locked payout policy</strong>
-                <p>The exact commit and target branch are always required. Add CI or review rules when the bounty needs stronger assurance.</p>
+                <strong>Payout policy</strong>
+                <p>The locked commit, target branch, and merge are always required. Add optional CI or review conditions below.</p>
               </div>
             </div>
             <div className="settlement-policy__options">
               <label className="settlement-policy__toggle">
-                <input name="requireCiSuccess" type="checkbox" />
+                <input checked={requireCiSuccess} name="requireCiSuccess" onChange={(event) => setRequireCiSuccess(event.target.checked)} type="checkbox" />
                 <span><strong>Require successful CI</strong><small>At least one GitHub status or check run must exist; all latest signals must finish successfully.</small></span>
               </label>
               <label className="form-field">
                 <span>Required approvals</span>
-                <select defaultValue="0" name="minimumApprovals">
+                <select name="minimumApprovals" onChange={(event) => setMinimumApprovals(event.target.value)} value={minimumApprovals}>
                   <option value="0">No approval requirement</option>
                   <option value="1">1 current-commit approval</option>
                   <option value="2">2 current-commit approvals</option>
@@ -354,9 +364,26 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
             </div>
             <p className="settlement-policy__warning"><CircleAlert aria-hidden="true" size={14} /> A force-push or target-branch change makes the proof fail closed. The sponsor can recover escrow after the deadline.</p>
           </div>
-          <label className="form-field"><span>Bounty amount <b aria-hidden="true">*</b></span><div className="input-affix"><input aria-describedby="amount-hint" name="amountRlo" inputMode="decimal" min="0.000000001" placeholder="0.001" required step="0.000000001" type="text" /><b>RLO</b></div><small id="amount-hint">The contributor receives this exact amount in RLO.</small></label>
-          <label className="form-field"><span>Deadline <b aria-hidden="true">*</b></span><input aria-describedby="deadline-hint" name="deadlineUnixMs" required type="datetime-local" /><small id="deadline-hint">Uses your local time · {timeZoneLabel}.</small></label>
-          <div className="form-field form-grid__wide">
+          <div className="bounty-contributor-note form-grid__wide"><LockKeyhole aria-hidden="true" size={16} /><p><strong>Receiving wallet is approved later.</strong> The PR author claims the bounty first. You approve their wallet before depositing the reward.</p></div>
+        </div>
+      </fieldset>
+
+      <fieldset className="form-section bounty-review">
+        <legend className="sr-only">Review bounty</legend>
+        <div className="form-section__heading">
+          <span className="mono">03</span>
+          <div><p className="form-section__eyebrow mono">BEFORE YOU SIGN</p><h2>Review bounty</h2><p>Confirm the terms that will be recorded on Rialo.</p></div>
+        </div>
+        <dl className="bounty-review__summary" aria-label="Bounty terms summary">
+          <div className="bounty-review__target"><dt>Verified pull request</dt><dd>{targetPreview.status === "success" ? <><a href={targetPreview.preview.htmlUrl} rel="noreferrer" target="_blank">{targetPreview.preview.owner}/{targetPreview.preview.repo} <span>#{targetPreview.preview.number}</span></a><small>{targetPreview.preview.title}</small></> : <span className="bounty-review__placeholder">Verify the GitHub target first</span>}</dd></div>
+          <div><dt>Exact reward</dt><dd>{reviewAmount === null ? <span className="bounty-review__placeholder">Enter an amount</span> : <strong>{reviewAmount} <small>RLO</small></strong>}</dd></div>
+          <div><dt>Deadline</dt><dd>{reviewDeadline === null ? <span className="bounty-review__placeholder">Choose a deadline</span> : <><strong>{formatDeadline(reviewDeadline)}</strong><DeadlineCountdown deadlineUnixMs={reviewDeadline} /></>}</dd></div>
+          <div className="bounty-review__policy"><dt>Payout conditions</dt><dd><span>Exact commit + target branch + merge</span><span>{requireCiSuccess ? "Successful CI required" : "CI not required"} · {minimumApprovals === "0" ? "No approval minimum" : `${minimumApprovals} approval${minimumApprovals === "1" ? "" : "s"} required`}</span></dd></div>
+        </dl>
+        <p className="bounty-review__funding">Creation records the terms only. Your wallet covers account rent and transaction fees; the bounty reward is deposited after claim approval.</p>
+        <details className="bounty-disclosure bounty-workflow-id">
+          <summary><span>Advanced · Workflow ID</span><ChevronDown aria-hidden="true" size={16} /></summary>
+          <div className="form-field bounty-disclosure__body">
             <div className="form-field__label-row">
               <label htmlFor="workflow-id">Workflow ID <b aria-hidden="true">*</b></label>
               <button
@@ -385,7 +412,7 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
             />
             <small id="workflow-id-hint">Generated automatically for this on-chain workflow. Generate a new ID if you need to retry.</small>
           </div>
-        </div>
+        </details>
       </fieldset>
 
       <div className="form-submit">

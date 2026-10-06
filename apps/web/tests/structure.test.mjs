@@ -773,7 +773,14 @@ test("keeps the complete bounty workflow inside the Liquid Slate system", async 
 
   assert.match(createPage, /bounty-create__layout/);
   assert.match(createPage, /bounty-create__terms/);
-  assert.match(detailPage, /bounty-detail-hero__identity/);
+  assert.match(detailPage, /Bounty details/);
+  assert.match(detailPage, /About the workflow/);
+  assert.doesNotMatch(detailPage, /bounty-detail-hero__identity/);
+  // Load the workspace stylesheet as a Vite module, not an app-root PostCSS import.
+  const layout = await readFile(new URL("app/layout.tsx", webRoot), "utf8");
+  assert.match(layout, /import "\.\/bounty-workspace\.css"/);
+  assert.doesNotMatch(styles, /@import "\.\/bounty-workspace\.css"/);
+  await access(new URL("app/bounty-workspace.css", webRoot));
   assert.match(receiptPage, /bounty-receipt-page/);
   assert.match(legacyReceiptPage, /redirect/);
   assert.match(workflowDetail, /RequestClaimAction/);

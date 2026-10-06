@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { RadioTower } from "lucide-react";
+import { ChevronDown, GitPullRequest } from "lucide-react";
 import { WorkflowDetail } from "@/components/bounty/workflow-detail";
 import { WorkflowLifecycle } from "@/components/bounty/workflow-lifecycle";
-import { CopyValue } from "@/components/ui/copy-value";
 import { isWorkflowSlug } from "@/lib/validation";
 
 export const metadata: Metadata = { title: "Bounty details" };
@@ -37,41 +36,25 @@ export default async function BountyDetailPage({
           : "create";
 
   return (
-    <main className="page-main page-width liquid-slate-page ledger-page bounty-flow-page bounty-detail-page">
+    <main className="page-main page-width liquid-slate-page ledger-page bounty-flow-page bounty-detail-page bounty-workspace-page">
       <div className="page-hero ledger-hero bounty-flow-hero bounty-detail-hero">
         <div className="ledger-hero__copy bounty-flow-hero__copy">
           <div className="ledger-eyebrow bounty-flow-eyebrow">
             <span>
-              <i aria-hidden="true" /> Workflow detail
+              <i aria-hidden="true" /> Bounty overview
             </span>
-            <b>{valid ? "DevNet / Live account" : "Invalid identifier"}</b>
+            <b>{valid ? "DevNet · Live account" : "Invalid identifier"}</b>
           </div>
-          <h1>
-            <span>{valid ? "Onchain" : "Invalid"}</span>
-            <em>{valid ? "state." : "workflow."}</em>
-          </h1>
-          <p>{valid ? "Follow the verified workflow from contributor claim through funding, autonomous merge checks, and final settlement." : "MergePay workflow IDs must contain exactly 64 hexadecimal characters."}</p>
+          <h1>{valid ? "Bounty details" : "Invalid workflow"}</h1>
+          <p>{valid ? "Track the reward, deadline, and next step from the verified Rialo account." : "MergePay workflow IDs must contain exactly 64 hexadecimal characters."}</p>
         </div>
-        {valid ? (
-          <aside className="bounty-flow-hero__card bounty-detail-hero__identity" aria-label="Workflow identifier">
-            <div className="bounty-flow-hero__card-head">
-              <span className="bounty-flow-hero__card-icon" aria-hidden="true">
-                <RadioTower size={20} strokeWidth={1.6} />
-              </span>
-              <span className="bounty-flow-hero__card-state"><i aria-hidden="true" /> Live read</span>
-            </div>
-            <div className="bounty-flow-hero__card-body">
-              <span>WORKFLOW ID</span>
-              <CopyValue value={slug} />
-              <p>Decoded from the exact Rialo account. No cached workflow state.</p>
-            </div>
-          </aside>
-        ) : (
-          <Link className="button bounty-detail-hero__back" href="/bounties">Back to bounties</Link>
-        )}
+        <Link className="bounty-back-link" href="/bounties"><GitPullRequest aria-hidden="true" size={15} /> All bounties</Link>
       </div>
       {valid ? <WorkflowDetail callbackSignature={callbackSignature} claimWorkflowHint={claimWorkflow} slug={slug} sponsorHint={sponsor} transactionKind={transactionKind} transactionSignature={transactionSignature} workflowAddressHint={account} /> : null}
-      <section className="section detail-lifecycle"><div className="section-heading"><p className="eyebrow">Protocol lifecycle</p><h2>How a verified record moves.</h2><p>This describes contract behavior, not the unverified state of the requested workflow.</p></div><WorkflowLifecycle /></section>
+      <details className="bounty-disclosure detail-lifecycle">
+        <summary><span>About the workflow</span><ChevronDown aria-hidden="true" size={16} /></summary>
+        <div className="bounty-disclosure__body"><div className="section-heading"><p className="eyebrow">Protocol lifecycle</p><h2>From claim to settlement</h2><p>This is the protocol flow, not the current state of this bounty.</p></div><WorkflowLifecycle /></div>
+      </details>
     </main>
   );
 }

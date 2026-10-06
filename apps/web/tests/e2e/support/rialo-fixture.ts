@@ -2,6 +2,7 @@ import type { Page, Route } from "@playwright/test";
 import {
   BincodeWriter,
   MERGEPAY_PROGRAM_ID,
+  MERGEPAY_UNASSIGNED_BENEFICIARY,
   PublicKey,
   buildCheckMergeInstruction,
   buildFundInstruction,
@@ -20,6 +21,7 @@ const PAGE_TRANSITION_DELAY_MS = 350;
 
 type RpcScenario = "empty" | "activity" | "activity-checks" | "settlements";
 export type WorkflowLifecycleState =
+  | "open"
   | "approved"
   | "funded"
   | "paid"
@@ -303,6 +305,7 @@ export async function installRialoRpcMock(
 
 export async function installWorkflowLifecycleRpcMock(
   page: Page,
+  options: { initialState?: WorkflowLifecycleState; deadlineUnixMs?: bigint; withPolicy?: boolean } = {},
 ): Promise<WorkflowLifecycleRpcController> {
   const slug = "f".repeat(64);
   const sponsor = MOCK_WALLET_ADDRESS;
@@ -311,7 +314,7 @@ export async function installWorkflowLifecycleRpcMock(
     sponsor,
     slug,
   ).address;
-  let lifecycleState: WorkflowLifecycleState = "approved";
+  let lifecycleState: WorkflowLifecycleState = options.initialState ?? "approved";
   let workflowReadCount = 0;
   const plannedWorkflowReads: PlannedWorkflowRead[] = [];
 
@@ -321,6 +324,16 @@ export async function installWorkflowLifecycleRpcMock(
 
     if (request.method === "getHealth") {
       await fulfillResult(route, request, "ok");
+      return;
+    }
+
+    if (request.method === "getBalance") {
+      await fulfillResult(route, request, { value: "7837706240" });
+      return;
+    }
+
+    if (request.method === "getSignaturesForAddress") {
+      await fulfillResult(route, request, []);
       return;
     }
 
@@ -352,7 +365,7 @@ export async function installWorkflowLifecycleRpcMock(
         return;
       }
       await fulfillResult(route, request, {
-        value: createWorkflowLifecycleAccount(stateForRead),
+        value: createWorkflowLifecycleAccount(stateForRead, options),
       });
       return;
     }
@@ -468,6 +481,7 @@ function createSettlementRecords(): SettlementRecord[] {
 
 function createWorkflowLifecycleAccount(
   state: WorkflowLifecycleState,
+  options: { deadlineUnixMs?: bigint; withPolicy?: boolean } = {},
 ): Record<string, unknown> {
   const funded = state === "funded" || state === "paid" || state === "refunded";
   const paid = state === "paid";
@@ -476,12 +490,12 @@ function createWorkflowLifecycleAccount(
   writer
     .writeU64(1n)
     .writeFixedArray(PublicKey.fromString(MOCK_WALLET_ADDRESS).toBytes(), 32)
-    .writeFixedArray(PublicKey.fromString(BENEFICIARY_ADDRESS).toBytes(), 32)
+    .writeFixedArray(PublicKey.fromString(state === "open" ? MERGEPAY_UNASSIGNED_BENEFICIARY : BENEFICIARY_ADDRESS).toBytes(), 32)
     .writeString("Alice699")
     .writeString("mergepay-live-lifecycle")
     .writeU64(7n)
     .writeU64(1_000_000_000n)
-    .writeU64(2_000_000_000_000n)
+    .writeU64(options.deadlineUnixMs ?? 2_000_000_000_000n)
     .writeBool(funded)
     .writeBool(paid)
     .writeBool(paid)
@@ -489,8 +503,26 @@ function createWorkflowLifecycleAccount(
     .writeU64(paid ? 2n : 0n)
     .writeBool(false)
     .writeFixedArray(new Uint8Array(32), 32)
-    .writeString("biawakLamat")
-    .writeU64(136351960n);
+    .writeString(state === "open" ? "" : "biawaklahat")
+    .writeU64(state === "open" ? 0n : 136351960n);
+  if (options.withPolicy) {
+    writer
+      .writeVecBytes(new Uint8Array())
+      .writeVecBytes(new Uint8Array())
+      .writeU64(0n)
+      .writeString("a".repeat(40))
+      .writeString("main")
+      .writeBool(true)
+      .writeU64(1n)
+      .writeU64(paid ? 6n : funded ? 1n : 0n)
+      .writeString(funded ? "a".repeat(40) : "")
+      .writeString(funded ? "main" : "")
+      .writeString(paid ? "b".repeat(40) : "")
+      .writeBool(paid)
+      .writeU64(paid ? 1n : 0n)
+      .writeU64(paid ? 1_800_000_002_000n : funded ? 1_800_000_001_000n : 0n)
+      .writeFixedArray(new Uint8Array(32), 32);
+  }
   const accountBytes = writer.toBytes();
 
   return {

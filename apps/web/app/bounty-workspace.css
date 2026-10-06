@@ -1,0 +1,358 @@
+/* Bounty workspace: scoped to creation and detail, not receipts or discovery. */
+.bounty-workspace-page.bounty-flow-page.ledger-page {
+  --bounty-text: #e4e4e4;
+  --bounty-muted: #a7adb3;
+  --bounty-secondary: #919ba5;
+  width: min(calc(100% - 4rem), 76rem);
+  padding-block: clamp(2.5rem, 5vw, 4rem) 4rem;
+}
+
+.bounty-workspace-page.bounty-flow-page::after { display: none; }
+.bounty-workspace-page.ledger-page::before { right: 0; width: min(100%, 48rem); }
+
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-flow-hero {
+  min-height: auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.bounty-workspace-page.bounty-flow-page.ledger-page .ledger-eyebrow {
+  color: var(--bounty-secondary);
+  font-size: 0.6875rem;
+}
+
+.bounty-workspace-page.bounty-flow-page.ledger-page .ledger-hero h1 {
+  margin-top: 0.875rem;
+  font-size: clamp(2.25rem, 4vw, 3.25rem);
+  font-weight: 560;
+  letter-spacing: -0.055em;
+  line-height: 1.15;
+}
+
+.bounty-workspace-page.bounty-flow-page.ledger-page .ledger-hero__copy > p {
+  max-width: 42rem;
+  margin-top: 0.75rem;
+  color: var(--bounty-muted);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.bounty-back-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  border: 1px solid rgb(228 228 228 / 0.16);
+  border-radius: 0.625rem;
+  padding: 0.5rem 0.875rem;
+  color: #e4e4e4;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.bounty-back-link:hover { background: rgb(228 228 228 / 0.055); }
+
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.bounty-form, .workflow-record) {
+  padding: 0;
+  border-radius: 1rem;
+  background: linear-gradient(145deg, #11171b, #0b0e10 65%);
+  box-shadow: inset 0 1px rgb(228 228 228 / 0.035);
+}
+
+.bounty-workspace-page.bounty-flow-page.ledger-page .button {
+  min-height: 2.75rem;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+}
+
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.panel-label, .eyebrow) {
+  color: var(--bounty-secondary);
+  font-size: 0.625rem;
+  letter-spacing: 0.075em;
+}
+
+/* Native disclosures keep every technical value inspectable and keyboard-accessible. */
+.bounty-disclosure { min-width: 0; }
+.bounty-disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  padding: 0.875rem 1.75rem;
+  color: #b9c0c6;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  list-style: none;
+  cursor: pointer;
+}
+.bounty-disclosure > summary::-webkit-details-marker { display: none; }
+.bounty-disclosure > summary:hover { background: rgb(228 228 228 / 0.025); color: #e4e4e4; }
+.bounty-disclosure > summary > span { min-width: 0; }
+.bounty-disclosure > summary > svg:last-child { flex-shrink: 0; margin-left: auto; transition: transform 180ms ease; }
+.bounty-disclosure[open] > summary > svg:last-child { transform: rotate(180deg); }
+.bounty-disclosure__body { padding: 1rem 1.75rem 1.5rem; }
+.bounty-disclosure > summary:focus-visible,
+.bounty-workspace-page .bounty-back-link:focus-visible,
+.bounty-workspace-page .bounty-target-link:focus-visible,
+.bounty-create__guide:focus-visible {
+  border-radius: 0.375rem;
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
+/* Detail: actual status, principal and absolute deadline before the role-specific action. */
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-detail { margin-top: 1.5rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-detail__grid { grid-template-columns: minmax(0, 1fr); gap: 0.875rem; margin-top: 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-confirmation { min-height: auto; margin-bottom: 1rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-confirmation div span { color: var(--bounty-muted); font-size: 0.8125rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__header {
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 1.75rem;
+}
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__header .eyebrow { margin-bottom: 0.625rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__header h2 {
+  color: var(--bounty-text);
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 560;
+  line-height: 1.25;
+  letter-spacing: -0.045em;
+}
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__header p:last-child {
+  max-width: 48rem;
+  margin-top: 0.75rem;
+  color: var(--bounty-muted);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.bounty-target-link { display: inline-flex; align-items: center; gap: 0.5rem; max-width: 100%; margin-top: 0.75rem; color: #cbd3d8; font-size: 0.875rem; }
+.bounty-target-link strong { min-width: 0; overflow-wrap: anywhere; font-weight: 550; }
+.bounty-target-link > svg { flex: 0 0 auto; color: #919ba5; }
+.bounty-target-link > span { color: #a7adb3; white-space: nowrap; }
+.bounty-target-link:hover { color: var(--accent); }
+.bounty-status { display: inline-flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; margin-top: 0.125rem; border: 1px solid #77828a50; border-radius: 999px; padding: 0.5rem 0.75rem; background: #77828a0e; color: #c3cbd0; font-size: 0.75rem; font-weight: 550; }
+.bounty-status::before { width: 0.375rem; height: 0.375rem; border-radius: 50%; background: currentColor; content: ""; }
+.bounty-status[data-tone="success"] { border-color: #68c99450; background: #68c9940c; color: #80dba6; }
+.bounty-status[data-tone="warning"] { border-color: #e7b76250; background: #e7b7620c; color: #e7bd79; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__grid > div { min-height: 0; border-right: 1px solid var(--line); padding: 1.25rem 1.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview > div:last-child { border-right: 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__grid dt { color: var(--bounty-secondary); font-size: 0.625rem; letter-spacing: 0.05em; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__grid dd { gap: 0.5rem; margin-top: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__grid dd > strong { white-space: normal; overflow-wrap: anywhere; color: var(--bounty-text); font-size: 0.9375rem; line-height: 1.4; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview dd > .bounty-overview__amount { font-size: clamp(1.5rem, 2.8vw, 2rem); font-weight: 550; line-height: 1; font-variant-numeric: tabular-nums; }
+.bounty-overview__amount small { color: #919ba5; font-size: 0.75rem; font-weight: 500; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record[data-outcome="paid"] .bounty-overview dd > .bounty-overview__amount { color: #80dba6; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record[data-outcome="refunded"] .bounty-overview dd > .bounty-overview__amount { color: #e7bd79; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__grid dd > span { color: var(--bounty-muted); font-family: var(--font-display); font-size: 0.75rem; line-height: 1.5; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__grid .copy-value { width: min(100%, 19rem); min-height: 2.25rem; border-radius: 0.5rem; font-size: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-countdown { color: var(--bounty-text); font-size: 1.125rem; font-weight: 550; font-variant-numeric: tabular-nums; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-countdown[data-urgent="true"] { color: #e7bd79; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview dd > .bounty-countdown { font-size: 1.125rem; font-weight: 550; font-variant-numeric: tabular-nums; }
+.bounty-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin: 0; border-bottom: 1px solid var(--line); padding: 1rem 1.75rem; list-style: none; }
+.bounty-progress li { display: flex; align-items: center; gap: 0.625rem; min-width: 0; color: #919ba5; font-size: 0.75rem; }
+.bounty-progress li > span:first-child { display: grid; place-items: center; flex: 0 0 auto; width: 1.5rem; height: 1.5rem; border: 1px solid #919ba54a; border-radius: 50%; font-size: 0.625rem; }
+.bounty-progress strong { font-weight: 500; }
+.bounty-progress [data-complete="true"] { color: #b8c4c0; }
+.bounty-progress [data-complete="true"] > span:first-child { border-color: #68c99440; background: #68c9940b; color: #80dba6; }
+.bounty-progress [data-current="true"] { color: #e4e4e4; }
+.bounty-progress [data-current="true"] > span:first-child { border-color: #a9ddd380; color: #a9ddd3; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-next-action > section { border-top: 0; border-bottom: 1px solid var(--line); padding: 1.5rem 1.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund, .workflow-check, .workflow-refund) { grid-template-columns: minmax(0, 1fr) minmax(0, 0.45fr) auto; gap: 1.5rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund__copy, .workflow-check__copy, .workflow-refund__copy, .workflow-claim__copy) h3 { font-size: 1.125rem; line-height: 1.35; }
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund__copy, .workflow-check__copy, .workflow-refund__copy, .workflow-claim__copy) > p:last-child { color: var(--bounty-muted); font-size: 0.8125rem; line-height: 1.6; }
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund__amount, .workflow-check__target, .workflow-refund__amount) { border-left: 0; padding-left: 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund__amount, .workflow-check__target, .workflow-refund__amount) > span { color: var(--bounty-secondary); font-size: 0.625rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund__amount, .workflow-check__target, .workflow-refund__amount) > strong { font-size: 0.9375rem; overflow-wrap: anywhere; }
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund__submit, .workflow-check__submit, .workflow-refund__submit) > span { font-size: 0.625rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-claim--shared { grid-template-columns: minmax(0, 1fr) minmax(12rem, 0.45fr); gap: 1.5rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-claim__record > span { color: var(--bounty-secondary); font-size: 0.625rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-claim__observer-value { color: var(--bounty-text); font-size: 0.875rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-settlement { grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-settlement h3 { font-size: 1.125rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-settlement p:last-child { color: var(--bounty-muted); font-size: 0.8125rem; }
+
+/* Proof result stays visible; policy, validator observations and addresses expand below. */
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof { background: transparent; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof__header { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.875rem; padding: 1.25rem 1.75rem 0.5rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof__header h3 { font-size: 0.9375rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof__header p:last-child { color: var(--bounty-muted); font-size: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof__status { font-size: 0.625rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof :is(dt, dd) { font-size: 0.6875rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof dt { color: var(--bounty-secondary); letter-spacing: 0.025em; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof dd { color: var(--bounty-text); }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof dd :is(a, code) { font-size: inherit; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof__policy,
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof__evidence { border-top: 1px solid var(--line); }
+.bounty-account-details > summary { border-top: 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-account-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-account-grid > div:nth-child(even) { border-right: 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__footer { padding: 1.25rem 1.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__footer .panel-label { color: var(--bounty-secondary); font-size: 0.625rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__balance > p:last-child { color: var(--bounty-muted); }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-live-source { padding: 0; border-radius: 0.75rem; background: rgb(228 228 228 / 0.015); }
+.bounty-live-source summary > span { display: flex; align-items: center; gap: 0.625rem; }
+.bounty-live-source summary > strong { margin-left: auto; color: #919ba5; font-size: 0.75rem; font-weight: 500; }
+.bounty-live-source summary > strong[data-good="true"] { color: #80dba6; }
+.bounty-live-source summary > svg:last-child { margin-left: 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-live-source ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem 1.75rem; margin: 0; border-top: 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-live-source li { gap: 0.75rem; min-width: 0; min-height: 2.5rem; padding: 0.375rem 0; color: var(--bounty-muted); font-size: 0.8125rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-live-source li > strong { font-size: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-live-source .panel-note { margin-top: 0.875rem; color: var(--bounty-muted); font-size: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .detail-lifecycle { display: block; margin-top: 1.5rem; border: 1px solid var(--line); border-radius: 0.75rem; padding: 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .detail-lifecycle .section-heading { margin-top: 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .detail-lifecycle .section-heading h2 { font-size: 1.25rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .detail-lifecycle .section-heading > p:last-child { color: var(--bounty-muted); font-size: 0.8125rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .workflow-read-state { padding: 2rem 1.75rem; }
+
+/* Create: source → agreement → review. No change to signing or funding. */
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__layout { grid-template-columns: minmax(0, 1fr) 18rem; gap: 1.25rem; margin-top: 1.5rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-section { padding: 1.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading { grid-template-columns: 2rem minmax(0, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading > span { width: 2rem; height: 2rem; border-radius: 0.625rem; font-size: 0.6875rem; color: var(--bounty-muted); }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-section__eyebrow { margin-bottom: 0.375rem !important; color: var(--bounty-secondary) !important; font-size: 0.625rem !important; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading h2 { margin-bottom: 0.5rem; font-size: 1.375rem; letter-spacing: -0.035em; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading p { color: var(--bounty-muted); font-size: 0.8125rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-grid { gap: 1.25rem 1rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.form-field > span, .form-field__label-row label) { color: #c3cbd0; font-size: 0.8125rem; font-weight: 500; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-field small { margin-top: 0.5rem; color: var(--bounty-secondary); font-size: 0.75rem; line-height: 1.5; }
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.form-field input, .form-field select, .input-affix input) {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.875rem;
+  border-radius: 0.625rem;
+  border-color: rgb(228 228 228 / 0.15);
+  padding: 0.75rem;
+  background: #090d10;
+  color: var(--bounty-text);
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+}
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.form-field input, .form-field select):focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px rgb(169 221 211 / 0.1); outline: 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .input-affix input { padding-right: 3.5rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .input-affix > b { top: 50%; transform: translateY(-50%); color: var(--bounty-secondary); font-size: 0.6875rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target { gap: 1rem; margin-top: 1.25rem; padding: 1rem; border-radius: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__lead strong { color: var(--bounty-text); font-size: 0.8125rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__lead p { color: var(--bounty-muted); font-size: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__facts { gap: 1rem; padding-top: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__facts dt { color: var(--bounty-secondary); font-size: 0.625rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__facts dd { margin-top: 0.375rem; color: var(--bounty-text); font-size: 0.6875rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__facts code { overflow-wrap: anywhere; }
+.bounty-deadline-note { display: flex; align-items: flex-start; gap: 0.625rem; margin: 0; border: 1px solid #e7b76230; border-radius: 0.625rem; padding: 0.875rem; background: #e7b76206; color: #cebfaa; font-size: 0.75rem; line-height: 1.6; }
+.bounty-deadline-note > svg { flex-shrink: 0; margin-top: 0.125rem; color: #e7bd79; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy { border-radius: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__heading { gap: 0.75rem; padding: 1rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page :is(.settlement-policy__heading strong, .settlement-policy__toggle strong) { font-size: 0.8125rem; font-weight: 550; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__heading p { color: var(--bounty-muted); font-size: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__options { gap: 1rem; padding: 1rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__toggle { padding: 0.875rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__toggle input { width: 1rem; height: 1rem; min-height: 0; margin-top: 0.125rem; accent-color: var(--accent); }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__toggle small { color: var(--bounty-secondary); font-size: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__warning { padding: 0.875rem 1rem; color: var(--bounty-secondary); font-size: 0.6875rem; }
+.bounty-contributor-note { display: flex; align-items: flex-start; gap: 0.625rem; color: #a7adb3; font-size: 0.75rem; line-height: 1.6; }
+.bounty-contributor-note svg { flex: 0 0 auto; margin-top: 0.25rem; }
+.bounty-contributor-note p { margin: 0; }
+.bounty-contributor-note strong { color: #c3cbd0; font-weight: 550; }
+.bounty-review__summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; margin: 0; border: 1px solid var(--line); border-radius: 0.75rem; background: #090d1040; }
+.bounty-review__summary > div { min-width: 0; padding: 1rem; }
+.bounty-review__summary > div:nth-child(2) { border-right: 1px solid var(--line); }
+.bounty-review__target { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
+.bounty-review__policy { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+.bounty-review__summary dt { color: #919ba5; font-size: 0.625rem; font-family: var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; }
+.bounty-review__summary dd { display: grid; gap: 0.375rem; margin: 0.625rem 0 0; color: #cbd3d8; font-size: 0.8125rem; line-height: 1.5; overflow-wrap: anywhere; }
+.bounty-review__summary dd > strong { color: #e4e4e4; font-size: 0.875rem; font-weight: 550; }
+.bounty-review__summary dd > a { width: fit-content; color: #cbd3d8; font-weight: 550; }
+.bounty-review__summary dd > a:hover { color: var(--accent); text-decoration: underline; }
+.bounty-review__summary dd > :is(small, span:last-child) { color: #a7adb3; font-size: 0.75rem; }
+.bounty-review__placeholder { color: #919ba5 !important; font-weight: 400; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review .bounty-countdown { font-size: 0.75rem; font-weight: 500; }
+.bounty-review__funding { margin: 1rem 0; color: #a7adb3; font-size: 0.75rem; line-height: 1.6; }
+.bounty-workflow-id { border: 1px solid var(--line); border-radius: 0.625rem; }
+.bounty-workflow-id > summary { padding: 0.75rem 1rem; min-height: 2.75rem; font-size: 0.75rem; }
+.bounty-workflow-id .bounty-disclosure__body { padding: 0.75rem 1rem 1rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-field input[readonly] { font-family: var(--font-mono); font-size: 0.6875rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit { min-height: 0; border-top: 1px solid var(--line); gap: 1.25rem; padding: 1.25rem 1.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit p { color: var(--bounty-text); font-size: 0.8125rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit span { color: var(--bounty-muted); font-size: 0.75rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__terms { border-radius: 1rem; padding: 1.25rem; background: rgb(228 228 228 / 0.02); box-shadow: none; }
+.bounty-create__terms-head { flex-direction: column; align-items: flex-start; gap: 0.375rem; }
+.bounty-create__terms-head h2 { margin: 0; color: #e4e4e4; font-size: 1rem; font-weight: 550; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__terms-head > span { color: var(--bounty-secondary); font-family: var(--font-display); font-size: 0.75rem; text-transform: none; letter-spacing: 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel ol { margin-top: 1rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel li { grid-template-columns: 1.5rem minmax(0, 1fr); gap: 0.75rem; padding: 1rem 0; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel li > span { width: 1.5rem; height: 1.5rem; font-size: 0.6875rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel strong { margin-bottom: 0.375rem; color: var(--bounty-text); font-size: 0.8125rem; font-weight: 550; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel p { color: var(--bounty-muted); font-size: 0.75rem; line-height: 1.6; }
+.bounty-create__devnet { display: flex; align-items: flex-start; gap: 0.625rem; margin: 1rem 0; border-top: 1px solid var(--line); padding-top: 1rem; }
+.bounty-create__devnet svg { flex-shrink: 0; margin-top: 0.125rem; color: #e7bd79; }
+.bounty-create__guide { display: inline-flex; align-items: center; gap: 0.5rem; color: #cbd3d8; font-size: 0.75rem; }
+.bounty-create__guide:hover { color: var(--accent); }
+
+@media (max-width: 64rem) {
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__layout { grid-template-columns: minmax(0, 1fr); }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__terms { position: static; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.5rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview > div:nth-child(2) { border-right: 0; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview > div:last-child { grid-column: 1 / -1; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund, .workflow-check, .workflow-refund) { grid-template-columns: minmax(0, 1fr) auto; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund__amount, .workflow-check__target, .workflow-refund__amount) { display: none; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__footer { grid-template-columns: minmax(0, 1fr); }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-live-source ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 45rem) {
+  .bounty-workspace-page.bounty-flow-page.ledger-page { width: calc(100% - 2rem); padding-top: 2rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-flow-hero { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .bounty-back-link { width: fit-content; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .ledger-eyebrow { flex-wrap: wrap; gap: 0.75rem; font-size: 0.625rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .ledger-hero h1 { margin-top: 0.75rem; font-size: clamp(2rem, 8vw, 2.75rem); line-height: 1.15; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .ledger-hero__copy > p { font-size: 0.8125rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__header { flex-direction: column; gap: 1rem; padding: 1.25rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__header h2 { font-size: 1.5rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__grid > div { padding: 1rem 1.25rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview dd > .bounty-overview__amount { font-size: 1.625rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview dd > .bounty-countdown { font-size: 0.9375rem; }
+  .bounty-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.875rem; padding: 1rem 1.25rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-next-action > section { padding: 1.25rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund, .workflow-check, .workflow-refund, .workflow-claim--shared, .workflow-settlement) { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund__submit, .workflow-check__submit, .workflow-refund__submit) { align-items: flex-start; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-claim__record { border-left: 0; padding-left: 0; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page :is(.workflow-fund__submit, .workflow-check__submit, .workflow-refund__submit) > .button { width: 100%; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-settlement__icon { display: none; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-settlement__action { width: 100%; grid-column: auto; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof__header { grid-template-columns: auto minmax(0, 1fr); gap: 0.75rem; padding: 1.25rem 1.25rem 0.5rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-proof__status { grid-column: 2; width: fit-content; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-account-grid { grid-template-columns: minmax(0, 1fr); }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-account-grid > div { border-right: 0; }
+  .bounty-disclosure > summary { padding-inline: 1.25rem; }
+  .bounty-disclosure__body { padding-inline: 1.25rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-live-source ul { grid-template-columns: minmax(0, 1fr); }
+  .bounty-live-source summary > strong { font-size: 0.6875rem; }
+  .bounty-live-source summary > span { font-size: 0.75rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-record__footer { padding: 1rem 1.25rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-confirmation { grid-template-columns: auto minmax(0, 1fr); gap: 0.75rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-confirmation > .copy-value { grid-column: 2; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .form-section { padding: 1.25rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading h2 { font-size: 1.25rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target { grid-template-columns: minmax(0, 1fr); }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__verify { width: 100%; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__facts { grid-template-columns: minmax(0, 1fr); }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__options { grid-template-columns: minmax(0, 1fr); }
+  .bounty-review__summary { grid-template-columns: minmax(0, 1fr); }
+  .bounty-review__summary > div:nth-child(2) { border-right: 0; border-bottom: 1px solid var(--line); }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .form-submit { flex-direction: column; align-items: stretch; gap: 1rem; padding: 1.25rem; }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel ol { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 23rem) {
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview { grid-template-columns: minmax(0, 1fr); }
+  .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview > div { border-right: 0; }
+  .bounty-live-source summary { flex-wrap: wrap; }
+  .bounty-live-source summary > strong { order: 3; width: 100%; margin-left: 0; }
+  .bounty-live-source summary > svg:last-child { margin-left: auto; }
+}

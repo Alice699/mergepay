@@ -9,8 +9,10 @@ import {
 } from "@mergepay/rialo-client";
 import {
   Check,
+  ChevronDown,
   CircleAlert,
   GitCommitHorizontal,
+  GitPullRequest,
   LoaderCircle,
   LockKeyhole,
   RadioTower,
@@ -40,6 +42,8 @@ import { routes } from "@/lib/constants";
 import { publishAppNotification } from "@/lib/app-notifications";
 import { formatDeadline, formatLocalTime, formatRlo, shortenAddress } from "@/lib/format";
 import { CopyValue } from "@/components/ui/copy-value";
+import { DeadlineCountdown } from "@/components/bounty/deadline-countdown";
+import { bountyPresentation } from "@/lib/bounty-presentation";
 
 interface WorkflowDetailProps {
   slug: string;
@@ -55,22 +59,6 @@ interface ConfirmedTransaction {
   signature: string;
   callbackSignature: string | null;
   kind: "create" | "fund" | "check" | "refund" | "claim" | "accept_claim";
-}
-
-function workflowStatus(workflow: DecodedMergePayWorkflow) {
-  if (workflow.state.paid) return { label: "Paid", className: "state--good" };
-  if (workflow.state.refunded) return { label: "Refunded", className: "state--good" };
-  if (workflow.state.mergeConfirmed) {
-    return { label: "Merge confirmed", className: "state--good" };
-  }
-  if (workflow.state.funded) return { label: "Funded", className: "state--good" };
-  if (workflow.state.beneficiary !== MERGEPAY_UNASSIGNED_BENEFICIARY) {
-    return { label: "Claimed", className: "state--good" };
-  }
-  if (workflow.state.claimRequest) {
-    return { label: "Claim requested", className: "state--warn" };
-  }
-  return { label: "Open claim", className: "state--warn" };
 }
 
 interface ClaimDiscoveryState {
@@ -219,6 +207,8 @@ function SettlementProofPanel({
         </strong>
       </header>
 
+      <details className="bounty-disclosure bounty-proof-details">
+        <summary><span>Locked policy &amp; evidence</span><ChevronDown aria-hidden="true" size={16} /></summary>
       <dl className="workflow-proof__policy">
         <div>
           <dt>Locked head</dt>
@@ -241,6 +231,7 @@ function SettlementProofPanel({
           <div className="workflow-proof__checked"><dt>Last REX proof</dt><dd suppressHydrationWarning>{formatDeadline(state.proofCheckedUnixMs)}</dd></div>
         </dl>
       ) : null}
+      </details>
     </section>
   );
 }
@@ -274,12 +265,20 @@ function WorkflowRecord({
   onRetryClaimDiscovery: () => void;
   onSelectClaim: (claimAddress: string) => void;
 }>) {
-  const status = workflowStatus(workflow);
   const { state } = workflow;
   const deadlinePassed = useDeadlinePassed(state.deadlineUnixMs);
   const isUnclaimed = state.beneficiary === MERGEPAY_UNASSIGNED_BENEFICIARY;
   const isSponsor = useWallet().address === state.sponsor;
   const terminalState = state.paid ? "paid" : state.refunded ? "refunded" : null;
+  const status = bountyPresentation(state, isUnclaimed, deadlinePassed);
+  const githubUrl = `https://github.com/${encodeURIComponent(state.githubOwner)}/${encodeURIComponent(state.githubRepo)}/pull/${state.pullNumber.toString()}`;
+  const progress = [
+    ["Created", state.initialized],
+    ["Claim approved", !isUnclaimed],
+    ["Escrow funded", state.funded],
+    ["Settled", Boolean(terminalState)],
+  ] as const;
+  const currentStep = progress.findIndex(([, complete]) => !complete);
   const checks = [
     ["Created", state.initialized],
     ["Claim approved", !isUnclaimed],
@@ -290,57 +289,50 @@ function WorkflowRecord({
   ] as const;
 
   return (
-    <section className="panel workflow-record" aria-live="polite">
+    <section className="panel workflow-record" data-outcome={terminalState ?? "active"}>
       <div className="workflow-record__header">
         <div>
-          <p className="eyebrow">Verified account</p>
-          <h2>Workflow is live.</h2>
-          <p>The fields below were decoded from this exact Rialo workflow account.</p>
+          <p className="eyebrow">Verified on Rialo</p>
+          <h2>{status.title}</h2>
+          <a className="bounty-target-link" href={githubUrl} rel="noreferrer" target="_blank"><GitPullRequest aria-hidden="true" size={17} /><strong>{state.githubOwner}/{state.githubRepo}</strong><span>#{state.pullNumber.toString()}</span></a>
+          <p>{status.copy}</p>
         </div>
-        <strong className={"state " + status.className}>{status.label}</strong>
+        <strong aria-live="polite" className="bounty-status" data-tone={status.tone}>{status.label}</strong>
       </div>
 
-      <dl className="workflow-record__grid">
+      <dl className="workflow-record__grid bounty-overview">
         <div>
-          <dt>GitHub target</dt>
+          <dt>{terminalState === "paid" ? "Reward paid" : terminalState === "refunded" ? "Reward returned" : "Bounty reward"}</dt>
           <dd>
-            <strong>{state.githubOwner + "/" + state.githubRepo}</strong>
-            <span>Pull request #{state.pullNumber.toString()}</span>
+            <strong className="bounty-overview__amount">{formatRlo(state.amountKelvin)} <small>RLO</small></strong>
+            <span>{terminalState ? "Exact bounty principal" : state.funded ? "Locked in escrow" : "Not funded yet"}</span>
           </dd>
         </div>
         <div>
-          <dt>Bounty amount</dt>
+          <dt>{terminalState ? "Original deadline" : "Time remaining"}</dt>
           <dd>
-            <strong>{formatRlo(state.amountKelvin)} RLO</strong>
-            <span>Exact reward for the approved contributor</span>
+            {terminalState ? <strong>Workflow settled</strong> : <DeadlineCountdown deadlineUnixMs={state.deadlineUnixMs} />}
+            <span suppressHydrationWarning>{formatDeadline(state.deadlineUnixMs)}</span>
           </dd>
         </div>
         <div>
-          <dt>Deadline</dt>
-          <dd><strong suppressHydrationWarning>{formatDeadline(state.deadlineUnixMs)}</strong></dd>
-        </div>
-        <div>
-          <dt>Workflow account</dt>
-          <dd><CopyValue value={workflow.address} /></dd>
-        </div>
-        <div>
-          <dt>Sponsor</dt>
-          <dd><CopyValue value={state.sponsor} /></dd>
-        </div>
-        <div>
-          <dt>Beneficiary</dt>
-          {isUnclaimed ? (
+          <dt>{terminalState === "refunded" ? "Returned to sponsor" : "Receiving wallet"}</dt>
+          {terminalState === "refunded" ? <dd><CopyValue value={state.sponsor} /><span>Sponsor wallet</span></dd> : isUnclaimed ? (
             <dd><strong>Waiting for approved claim</strong><span>Contributor wallet is not assigned</span></dd>
           ) : (
             <dd>
               <CopyValue value={state.beneficiary} />
-              {state.claimantGithub ? <span>@{state.claimantGithub}{state.claimantGithubId > 0n ? ` · GitHub ${state.claimantGithubId.toString()}` : ""}</span> : null}
+              <span>{state.claimantGithub ? `@${state.claimantGithub}` : "Approved contributor"}</span>
             </dd>
           )}
         </div>
       </dl>
 
-      {state.expectedHeadSha ? <SettlementProofPanel workflow={workflow} /> : null}
+      <ol className="bounty-progress" aria-label="Bounty progress">
+        {progress.map(([label, complete], index) => <li data-complete={complete} data-current={!deadlinePassed && !terminalState && index === currentStep} key={label}><span aria-hidden="true">{complete ? <Check size={12} /> : index + 1}</span><strong>{label}</strong><span className="sr-only">{complete ? ": complete" : ": pending"}</span></li>)}
+      </ol>
+
+      <div className="bounty-next-action" aria-label="Bounty next step">
 
       {isUnclaimed && !state.claimRequest && !isSponsor && !claimWorkflowHint ? (
         <RequestClaimAction
@@ -387,7 +379,7 @@ function WorkflowRecord({
 
       {!isUnclaimed && !state.funded && !state.paid && !state.refunded && !isSponsor ? (
         <WorkflowObserverNotice
-          copy="The sponsor approved your wallet. Escrow funding is the next step; this page will update automatically when it is confirmed."
+          copy="The sponsor approved the contributor wallet. Escrow funding is the next step; this page will update automatically when it is confirmed."
           label="CLAIM APPROVED / NEXT STEP"
           title="Waiting for sponsor funding"
           value={state.beneficiary}
@@ -424,14 +416,13 @@ function WorkflowRecord({
 
       {state.funded && !state.paid && !state.refunded && deadlinePassed && !isSponsor ? (
         <WorkflowObserverNotice
-          copy="The deadline has passed. The sponsor can recover the escrow, and this page will show the refund as soon as Rialo confirms it."
+          copy="Payout is closed. Rialo's automatic refund is pending; the sponsor can also request a refund. This page updates when the refund is verified."
           label="DEADLINE PASSED / NEXT STEP"
-          title="Waiting for sponsor refund"
+          title="Refund is pending"
           value="Refund pending on Rialo"
           valueLabel="Settlement status"
         />
       ) : null}
-
       {terminalState ? (
         <section className="workflow-settlement" data-outcome={terminalState}>
           <span className="workflow-settlement__icon" aria-hidden="true">
@@ -452,6 +443,18 @@ function WorkflowRecord({
           </Link>
         </section>
       ) : null}
+      </div>
+
+      {state.expectedHeadSha ? <SettlementProofPanel workflow={workflow} /> : null}
+
+      <details className="bounty-disclosure bounty-account-details">
+        <summary><span>Account details</span><ChevronDown aria-hidden="true" size={16} /></summary>
+        <dl className="workflow-record__grid bounty-account-grid">
+          <div><dt>Workflow account</dt><dd><CopyValue value={workflow.address} /></dd></div>
+          <div><dt>Sponsor</dt><dd><CopyValue value={state.sponsor} /></dd></div>
+          <div><dt>Workflow ID</dt><dd><CopyValue value={workflowSlug} /></dd></div>
+          {!isUnclaimed ? <div><dt>Contributor</dt><dd><CopyValue value={state.beneficiary} />{state.claimantGithubId > 0n ? <span>GitHub ID {state.claimantGithubId.toString()}</span> : null}</dd></div> : null}
+        </dl>
 
       <div className="workflow-record__footer">
         <div className="workflow-record__balance">
@@ -470,6 +473,7 @@ function WorkflowRecord({
           </ul>
         </div>
       </div>
+      </details>
     </section>
   );
 }
@@ -1159,8 +1163,10 @@ export function WorkflowDetail({
           </section>
         )}
 
-        <aside className="panel readiness-panel">
-          <p className="panel-label">LIVE DATA SOURCE</p>
+        <aside className="panel readiness-panel bounty-live-source">
+          <details className="bounty-disclosure">
+            <summary><span><RadioTower aria-hidden="true" size={16} /> Live data source</span><strong data-good={syncGood}>{syncLabel} · {network.label.replace("Rialo ", "")}</strong><ChevronDown aria-hidden="true" size={16} /></summary>
+          <div className="bounty-disclosure__body">
           <ul>
             <li><span>Identifier</span><strong className="state state--good">Valid</strong></li>
             <li><span>Network</span><strong>{network.label.replace("Rialo ", "")}</strong></li>
@@ -1170,6 +1176,8 @@ export function WorkflowDetail({
             {displaySponsor ? <li><span>Sponsor</span><strong className="mono" title={displaySponsor}>{shortenAddress(displaySponsor, 6)}</strong></li> : null}
           </ul>
           <p className="panel-note" suppressHydrationWarning>{sourceNote}</p>
+          </div>
+          </details>
         </aside>
       </div>
     </div>
