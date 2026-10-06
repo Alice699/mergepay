@@ -34,7 +34,7 @@ export default function GuidePage() {
             <span>Code merged.</span>
             <em>Value settled.</em>
           </h1>
-          <p>MergePay is a Rialo-native marketplace for public GitHub pull-request bounties. Sponsors publish a clear brief, contributors prove they authored the target PR, and the sponsor approves the payout wallet before RLO is funded.</p>
+          <p>MergePay is a Rialo-native marketplace for public GitHub pull-request bounties. Sponsors lock a PR revision, reward, deadline, and optional CI or review requirements. The PR author verifies their GitHub identity, requests a payout wallet, and gets sponsor approval before funding.</p>
         </ScrollReveal>
         <ScrollReveal className="guide-hero__signal-reveal" delay={100} variant="scale">
           <div className="guide-hero__signal" aria-label="MergePay product summary">
@@ -63,8 +63,8 @@ export default function GuidePage() {
               <div>
                 <p className="eyebrow">The product</p>
                 <h2>A bounty that can prove why it paid.</h2>
-                <p>Most GitHub bounties rely on a person or a private backend to coordinate the work, identify the contributor, and decide where payment goes. MergePay moves the terms into a Rialo workflow account: repository, pull request, amount, deadline, and an open claim state are committed before funding.</p>
-                <p>The contributor verifies the public PR author and signs a claim with the receiving wallet. MergePay detects that onchain claim on the sponsor page, where the sponsor approves it before funding. Funding arms Rialo&apos;s native heartbeat: a merged pull request pays the approved wallet automatically, while reaching the deadline first refunds the sponsor automatically.</p>
+                <p>MergePay records the bounty terms in a Rialo workflow account: repository, pull request, exact head commit, target branch, reward, deadline, and selected CI or review policy. The payout wallet remains open until the sponsor approves a contributor claim.</p>
+                <p>The PR author connects GitHub, verifies the target PR, and signs a claim with a separate receiving wallet. The sponsor reviews that onchain claim, approves the beneficiary, and funds escrow. Funding arms Rialo&apos;s native heartbeat. Payout requires a valid REX proof that satisfies every locked condition and is processed before the deadline. If a funded workflow reaches its deadline without payout, the native workflow refunds the sponsor.</p>
               </div>
             </section>
           </ScrollReveal>
@@ -74,14 +74,15 @@ export default function GuidePage() {
               <div className="guide-section__index">02 / Workflow</div>
               <div>
                 <p className="eyebrow">Using MergePay</p>
-                <h2>Five steps from brief to settlement.</h2>
+                <h2>Five steps from PR to settlement.</h2>
                 <div className="guide-steps">
-                  <GuideStep number="01" icon={<WalletCards aria-hidden="true" size={18} strokeWidth={1.7} />} title="Connect a wallet" copy="Connect a Rialo extension or unlock the embedded DevNet wallet. The active address becomes the sponsor for workflows it creates, or the contributor wallet for a claim." />
-                  <GuideStep number="02" icon={<Plus aria-hidden="true" size={18} strokeWidth={1.9} />} title="Post the bounty" copy="Enter a public GitHub owner, repository, pull request number, amount, deadline, and generated workflow ID. The beneficiary is intentionally left open for a contributor claim." />
-                  <GuideStep number="03" icon={<GitPullRequest aria-hidden="true" size={18} strokeWidth={1.7} />} title="Claim the PR" copy="The PR author connects GitHub. MergePay compares the authenticated GitHub user ID with the exact public pull request, then the contributor signs a claim record with the wallet that should be paid." />
-                  <GuideStep number="04" icon={<KeyRound aria-hidden="true" size={18} strokeWidth={1.7} />} title="Review, approve, and fund" copy="The sponsor page detects confirmed claims automatically. It shows the GitHub identity, payout wallet, exact bounty terms, claim PDA, and Rialo Scan transaction, then rechecks the public PR author by stable GitHub user ID. If several matching claims exist, the sponsor must choose one explicitly. Approval and funding remain separate transactions, and the beneficiary cannot change after approval." />
-                  <GuideStep number="05" icon={<ReceiptText aria-hidden="true" size={18} strokeWidth={1.7} />} title="Watch and verify" copy="Rialo keeps checking after funding. A unanimous merged proof pays the contributor; reaching the deadline first refunds the sponsor. The live workflow updates without a page reload, and the separate Settlements page shows only confirmed paid or refunded outcomes." />
+                  <GuideStep number="01" icon={<WalletCards aria-hidden="true" size={18} strokeWidth={1.7} />} title="Connect a wallet" copy="Connect a Rialo extension or unlock the embedded DevNet wallet. Use different sponsor and contributor wallets, with enough test RLO for transactions. The sponsor also covers the reward and workflow storage." />
+                  <GuideStep number="02" icon={<Plus aria-hidden="true" size={18} strokeWidth={1.9} />} title="Verify and create the bounty" copy="Enter the public GitHub owner, repository, and PR number, then select Verify target to lock the head SHA and target branch. Choose the reward, future deadline, Require successful CI, and Required approvals as needed. The workflow ID is generated automatically; the beneficiary stays open." />
+                  <GuideStep number="03" icon={<GitPullRequest aria-hidden="true" size={18} strokeWidth={1.7} />} title="Claim the PR" copy="The PR author connects GitHub and the receiving wallet, then selects Verify PR. The app matches the authenticated numeric GitHub user ID to the PR author and issues a short-lived, one-time authorization. Sign the claim before the bounty deadline; a session, wallet, or target change requires fresh verification." />
+                  <GuideStep number="04" icon={<KeyRound aria-hidden="true" size={18} strokeWidth={1.7} />} title="Review, approve, and fund" copy="The sponsor page discovers confirmed claims and shows the identity, wallet, exact terms, claim PDA, and source transaction. It rechecks the public PR author before approval. Choose explicitly if several claims match. Approval locks the beneficiary; funding is a separate transaction. Both must finish before the deadline." />
+                  <GuideStep number="05" icon={<ReceiptText aria-hidden="true" size={18} strokeWidth={1.7} />} title="Watch and verify" copy="Rialo checks after funding. Payout needs matching head SHA and branch, a merged PR, any selected CI and approval requirements, and a valid proof processed before the deadline. Otherwise, an unpaid funded workflow is refunded after expiry. The visible detail page refreshes decoded state; the separate Settlements page shows only confirmed paid or refunded outcomes." />
                 </div>
+                <p><strong>Plan around the deadline.</strong> It is an absolute time selected when creating the bounty; funding does not restart it. The form uses your browser&apos;s local time zone, and the workflow stores a Unix timestamp. Allow time for claim, approval, funding, CI, and REX processing. Merging before the deadline alone does not guarantee payout if the proof callback arrives after it.</p>
                 <div className="guide-cta-row">
                   <Link className="button" href="/bounties/new">Create a bounty <Plus aria-hidden="true" className="ui-icon" size={15} strokeWidth={2} /></Link>
                   <Link className="text-link" href="/settlements">View settlements <ReceiptText aria-hidden="true" className="ui-icon" size={15} strokeWidth={1.8} /></Link>
@@ -98,9 +99,9 @@ export default function GuidePage() {
                 <p className="eyebrow">Why Rialo</p>
                 <h2>The chain is part of the verification loop.</h2>
                 <div className="guide-reasons">
-                  <GuideReason title="REX can attest external conditions" copy="Rialo REX is the bridge between GitHub's public PR, CI, and review evidence and an onchain callback. MergePay consumes a compact validator report inside the program instead of trusting a private payout server." />
-                  <GuideReason title="Escrow is a program state" copy="The sponsor, approved contributor, amount, deadline, claim proof, and settlement flags live in Rialo workflow accounts. Anyone with the account address can inspect the same state." />
-                  <GuideReason title="Failure stays visible" copy="A missing account, unavailable decoder, mixed report, or non-merged pull request does not become a payout. The program and UI keep uncertain funds locked." />
+                  <GuideReason title="REX checks external conditions" copy="The custom REX verifier reads public GitHub PR, CI, and review evidence. The program requires all outputs in the received REX report to be usable and identical, then validates the compact proof against the locked policy. A private payout server cannot authorize settlement." />
+                  <GuideReason title="Escrow is program state" copy="Bounty terms, the approved beneficiary, claim records, observed proof, and settlement flags live in Rialo accounts. Native timers keep the funded workflow running without an open browser. Anyone with the account address can inspect its state." />
+                  <GuideReason title="Uncertainty is not a payout" copy="An invalid or inconsistent REX result cannot authorize payment. RPC or decoder failures are surfaced in the UI; they do not themselves lock funds or stop native execution. An unpaid funded workflow remains eligible for deadline refund." />
                 </div>
               </div>
             </section>
@@ -116,10 +117,11 @@ export default function GuidePage() {
                 <div className="guide-limits">
                   <GuideLimit title="DevNet only" copy="The active deployment is unaudited and uses test RLO. Do not send production funds." />
                   <GuideLimit title="Public GitHub only" copy="The current REX settlement path reads public PR, CI, and review endpoints. Authenticated private-repository settlement is outside this MVP." />
-                  <GuideLimit title="Settlement is asynchronous" copy="The native heartbeat and REX callback run automatically after funding, but DevNet and GitHub response time mean a terminal receipt may not appear instantly. Manual check and refund controls remain idempotent fallbacks." />
-                  <GuideLimit title="GitHub identity scope" copy="Contributor claims require read-only GitHub OAuth and an exact author-ID match for a public PR. MergePay does not request repository write access or support private repositories yet." />
-                  <GuideLimit title="Rialo and GitHub are dependencies" copy="A slow RPC, unavailable REX path, changed GitHub response, or missing account can delay or prevent a decision." />
-                  <GuideLimit title="Rent remains in the account" copy="Settlement returns or pays the bounty amount, while the workflow account retains the reserve required by Rialo." />
+                  <GuideLimit title="Locked revision and policy" copy="A different head commit or target branch does not satisfy the original bounty. Create a new workflow for new terms. CI and approvals are payment conditions, not a guarantee of code quality or security." />
+                  <GuideLimit title="Settlement is asynchronous" copy="Native checks and REX callbacks run after funding, but there is no guaranteed time from merge to payout. Run check now requests a check only while the workflow is active and before expiry. Refund is available after the deadline. Neither control bypasses the program's rules." />
+                  <GuideLimit title="GitHub identity scope" copy="GitHub OAuth and the app verify the public PR author before claim and sponsor approval. These are application checks, not an onchain identity attestation. The program enforces sponsor authority, matching terms, and the beneficiary lock. No repository write access is requested." />
+                  <GuideLimit title="Rialo and GitHub are dependencies" copy="GitHub or REX failures can prevent a valid payout proof. RPC or decoder failures can delay what the UI displays. Neither a page error nor an old displayed proof establishes the current onchain outcome." />
+                  <GuideLimit title="Storage balance remains" copy="Settlement pays or returns the bounty principal. It does not close the workflow account or return its remaining storage balance; transaction and storage costs are separate from the reward." />
                   <GuideLimit title="Embedded wallet is browser-local" copy="The local signer is encrypted in this browser and limited to DevNet. Back up the wallet before moving devices." />
                 </div>
               </div>
@@ -136,8 +138,8 @@ export default function GuidePage() {
                 <div className="guide-review__grid">
                   <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Live wallet-scoped activity</span></div>
                   <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Wallet-scoped paid/refunded history</span></div>
-                  <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Fail-closed merge and refund branches</span></div>
-                  <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Autonomous payout and refund E2E proven</span></div>
+                  <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Policy-checked payout and deadline refund</span></div>
+                  <div><Check aria-hidden="true" size={16} strokeWidth={2} /><span>Inspectable payout and refund outcomes</span></div>
                 </div>
                 <div className="guide-program">
                   <span className="panel-label">ACTIVE MARKETPLACE PROGRAM</span>
