@@ -607,7 +607,10 @@ test("uses the real Rialo wallet and transaction boundary", async () => {
   assert.match(wallet, /Create local wallet/);
   assert.match(wallet, /Add funds/);
   assert.match(wallet, /DevNet faucet adds 1 RLO per request/);
-  assert.match(wallet, /wallet-quick-actions__amount/);
+  assert.match(wallet, /wallet-portfolio__actions/);
+  assert.match(wallet, /src="\/rialo-logo\.png"/);
+  assert.match(wallet, /Rialo native token/);
+  assert.match(wallet, /No market price displayed/);
   assert.match(wallet, /Wallet settings/);
   assert.match(wallet, /WalletRobotMark/);
   assert.match(wallet, /Refresh wallet balance/);

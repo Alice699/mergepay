@@ -2,9 +2,11 @@
 
 import {
   AlertCircle,
+  ArrowDownToLine,
   Check,
   Copy,
   Download,
+  History,
   LoaderCircle,
   LockKeyhole,
   Plus,
@@ -15,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
@@ -416,9 +419,10 @@ function ConnectedWalletView({
   rpcStatus: "checking" | "available" | "unavailable";
   wallet: ReturnType<typeof useWallet>;
 }) {
-  const balance = wallet.balance.formatted ?? "0";
-  const balancePending = wallet.balance.status === "loading";
-  const balanceUnavailable = wallet.balance.status === "error";
+  const [receiveOpen, setReceiveOpen] = useState(false);
+  const balance = wallet.balance.formatted;
+  const balancePending = wallet.balance.status === "idle" || wallet.balance.status === "loading";
+  const balanceUnavailable = wallet.balance.status === "error" || networkSupported === false;
   const connectionState =
     networkSupported === false ? "unavailable" : rpcStatus;
   const rpcTitle =
@@ -444,93 +448,41 @@ function ConnectedWalletView({
     networkSupported !== false;
 
   return (
-    <section className="wallet-sheet">
-      <header className="wallet-sheet__header">
-        <div aria-label="MergePay wallet" className="wallet-sheet__brand">
-          <span aria-hidden="true" className="wallet-sheet__brand-mark">
-            <WalletRobotMark size={25} />
+    <section className="wallet-portfolio">
+      <header className="wallet-portfolio__header">
+        <div aria-label="MergePay wallet" className="wallet-portfolio__account">
+          <span aria-hidden="true" className="wallet-portfolio__avatar">
+            {isEmbedded ? <WalletRobotMark size={27} /> : <b>{accountName.slice(0, 1).toUpperCase()}</b>}
           </span>
-          <span>
-            <strong>MergePay</strong>
-            <small>Secure DevNet wallet</small>
-          </span>
+          <div>
+            <strong title={accountName}>{accountName}</strong>
+            <button aria-label={`Copy wallet address ${address}`} onClick={onCopyAddress} title={address} type="button">
+              <code>{shortenAddress(address, 6)}</code>
+              <Copy aria-hidden="true" size={12} />
+            </button>
+          </div>
         </div>
-        <div className="wallet-sheet__header-actions">
-          <span className="wallet-sheet__network" data-state={connectionState}>
-            <i aria-hidden="true" />
-            {networkLabel}
-          </span>
-          <button
-            aria-label="Close wallet"
-            className="wallet-sheet__close"
-            onClick={onClose}
-            type="button"
-          >
-            <X aria-hidden="true" size={15} strokeWidth={1.8} />
-          </button>
+        <div className="wallet-portfolio__header-actions">
+          {isEmbedded && <button aria-label="Wallet settings" onClick={onManage} title="Wallet settings" type="button"><Settings2 aria-hidden="true" size={18} /></button>}
+          <button aria-label="Close wallet" onClick={onClose} title="Close wallet" type="button"><X aria-hidden="true" size={18} /></button>
         </div>
       </header>
 
-      <div className="wallet-account">
-        <span aria-hidden="true" className="wallet-account__avatar">
-          {isEmbedded ? (
-            <WalletRobotMark size={27} />
-          ) : (
-            <b>{accountName.slice(0, 1).toUpperCase()}</b>
-          )}
-        </span>
-        <div>
-          <strong>{accountName}</strong>
-          <button
-            aria-label={`Copy wallet address ${address}`}
-            onClick={onCopyAddress}
-            title={address}
-            type="button"
-          >
-            <code>{shortenAddress(address, 6)}</code>
-            <Copy aria-hidden="true" size={12} strokeWidth={1.8} />
-          </button>
-        </div>
-        <span className="wallet-account__state" data-active={networkSupported !== false}>
-          <i aria-hidden="true" />
-          {accountState}
-        </span>
-      </div>
-
-      <div className="wallet-balance" aria-live="polite">
-        <div className="wallet-balance__heading">
+      <div className="wallet-portfolio__balance" aria-live="polite" aria-label="Wallet balance">
+        <div className="wallet-portfolio__balance-heading">
           <span>Available balance</span>
-          <button
-            aria-label="Refresh wallet balance"
-            disabled={balancePending || rpcStatus !== "available" || networkSupported === false}
-            onClick={onRefresh}
-            type="button"
-          >
-            <RefreshCw
-              aria-hidden="true"
-              className={balancePending ? "ui-icon--spin" : undefined}
-              size={12}
-              strokeWidth={1.8}
-            />
-            {balancePending ? "Syncing" : "Sync"}
+          <button aria-label="Refresh wallet balance" disabled={balancePending || rpcStatus !== "available" || networkSupported === false} onClick={onRefresh} title="Refresh balance" type="button">
+            <RefreshCw aria-hidden="true" className={balancePending ? "ui-icon--spin" : undefined} size={14} />
           </button>
         </div>
-        <div data-state={balancePending ? "loading" : balanceUnavailable ? "unavailable" : "ready"}>
-          {balancePending ? (
-            <span className="wallet-balance__pending">
-              <LoaderCircle aria-hidden="true" className="ui-icon--spin" size={17} />
-              Updating balance
-            </span>
-          ) : balanceUnavailable ? (
-            <strong className="is-unavailable">Unavailable</strong>
-          ) : (
-            <>
-              <strong>{balance}</strong>
-              <small>RLO</small>
-            </>
-          )}
+        <div className="wallet-portfolio__amount" data-compact={(balance?.length ?? 0) > 12} data-state={balanceUnavailable ? "unavailable" : balancePending ? "loading" : "ready"}>
+          {balanceUnavailable ? <strong className="wallet-portfolio__balance-message">Unavailable</strong> : balancePending ? (
+            <span className="wallet-portfolio__balance-message"><LoaderCircle aria-hidden="true" className="ui-icon--spin" size={18} /> Updating balance</span>
+          ) : <><strong title={`${balance} RLO`}>{balance ?? "—"}</strong><span>RLO</span></>}
         </div>
-        <small>Spendable native asset on {networkLabel}</small>
+        <div className="wallet-portfolio__network" data-state={connectionState}>
+          <i aria-hidden="true" /><span>{networkLabel}</span><span className="wallet-portfolio__account-state">{accountState}</span>
+        </div>
       </div>
 
       {(rpcStatus !== "available" || networkSupported === false) && (
@@ -558,85 +510,59 @@ function ConnectedWalletView({
         </div>
       )}
 
-      <div
-        aria-label="Wallet actions"
-        className="wallet-quick-actions"
-        data-layout={isEmbedded ? "embedded" : "extension"}
-        role="group"
-      >
+      <div aria-label="Wallet actions" className="wallet-portfolio__actions" data-layout={isEmbedded ? "embedded" : "extension"} role="group">
+        {isEmbedded && (
+          <button aria-label={funding === "requesting" ? "Funding wallet" : "Add funds"} disabled={!canRequestFunds} onClick={onRequestFunds} title="Add 1 RLO from the Rialo DevNet faucet" type="button">
+            {funding === "requesting" ? <LoaderCircle aria-hidden="true" className="ui-icon--spin" size={21} /> : <Plus aria-hidden="true" size={23} />}
+            <span>{funding === "requesting" ? "Adding…" : "Add funds"}</span>
+          </button>
+        )}
+        <button aria-controls="wallet-receive-address" aria-expanded={receiveOpen} onClick={() => setReceiveOpen(!receiveOpen)} type="button">
+          <ArrowDownToLine aria-hidden="true" size={21} /><span>Receive</span>
+        </button>
+        <Link href="/activity" onClick={onClose}><History aria-hidden="true" size={21} /><span>Activity</span></Link>
         {isEmbedded ? (
-          <>
-            <button
-              className="is-primary"
-              disabled={!canRequestFunds}
-              onClick={onRequestFunds}
-              title="Add 1 RLO from the Rialo DevNet faucet"
-              type="button"
-            >
-              <span aria-hidden="true">
-                {funding === "requesting" ? (
-                  <LoaderCircle className="ui-icon--spin" size={18} />
-                ) : (
-                  <Plus size={18} strokeWidth={1.8} />
-                )}
-              </span>
-              <span className="wallet-quick-actions__copy">
-                <strong>{funding === "requesting" ? "Funding wallet" : "Add funds"}</strong>
-                <small>DevNet faucet adds 1 RLO per request</small>
-              </span>
-              <span className="wallet-quick-actions__amount" aria-hidden="true">
-                <strong>+1</strong>
-                <small>RLO</small>
-              </span>
-            </button>
-            <button onClick={onCopyAddress} type="button">
-              <span aria-hidden="true"><Copy size={17} strokeWidth={1.8} /></span>
-              <span className="wallet-quick-actions__copy">
-                <strong>Copy address</strong>
-                <small>Signer ID</small>
-              </span>
-            </button>
-            <button onClick={onManage} type="button">
-              <span aria-hidden="true"><Settings2 size={18} strokeWidth={1.8} /></span>
-              <span className="wallet-quick-actions__copy">
-                <strong>Wallet settings</strong>
-                <small>Backup or lock</small>
-              </span>
-            </button>
-          </>
+          <button aria-label="Wallet settings" onClick={onManage} type="button"><Settings2 aria-hidden="true" size={21} /><span>Settings</span></button>
         ) : (
-          <>
-            <button onClick={onCopyAddress} type="button">
-              <span aria-hidden="true"><Copy size={17} strokeWidth={1.8} /></span>
-              <span className="wallet-quick-actions__copy">
-                <strong>Copy address</strong>
-                <small>Signer ID</small>
-              </span>
-            </button>
-            <button className="is-danger" onClick={onDisconnect} type="button">
-              <span aria-hidden="true"><Unplug size={17} strokeWidth={1.8} /></span>
-              <span className="wallet-quick-actions__copy">
-                <strong>Disconnect</strong>
-                <small>End this session</small>
-              </span>
-            </button>
-          </>
+          <button className="is-danger" onClick={onDisconnect} type="button"><Unplug aria-hidden="true" size={21} /><span>Disconnect</span></button>
         )}
       </div>
+      {isEmbedded && <p className="wallet-portfolio__faucet-note">DevNet faucet adds 1 RLO per request</p>}
 
-      <footer className="wallet-sheet__footer">
+      {receiveOpen && (
+        <section aria-label="Receive RLO" className="wallet-portfolio__receive" id="wallet-receive-address">
+          <div><h2>Receive RLO</h2><button aria-label="Close receiving address" onClick={() => setReceiveOpen(false)} type="button"><X aria-hidden="true" size={16} /></button></div>
+          <p>Only send RLO on {networkLabel} to this address.</p>
+          <code>{address}</code>
+          <button className="wallet-portfolio__copy" onClick={onCopyAddress} type="button"><Copy aria-hidden="true" size={15} /> Copy address</button>
+        </section>
+      )}
+
+      <section aria-labelledby="wallet-token-heading" className="wallet-portfolio__tokens">
+        <div className="wallet-portfolio__tokens-heading"><h2 id="wallet-token-heading">Tokens</h2><span>1 asset</span></div>
+        <div className="wallet-token" aria-label="Rialo native token" aria-live="polite" data-compact={(balance?.length ?? 0) > 12}>
+          {/* Official Rialo mark: https://rialo.io/images/webclip.png. */}
+          <Image alt="Rialo logo" className="wallet-token__logo" height={44} src="/rialo-logo.png" unoptimized width={44} />
+          <div className="wallet-token__identity"><strong>Rialo</strong><span>RLO <b>·</b> Native token</span></div>
+          <div className="wallet-token__amount" title={!balanceUnavailable && !balancePending && balance !== null ? `${balance} RLO` : undefined}>
+            <strong>{balanceUnavailable ? "Unavailable" : balancePending ? "Syncing…" : balance ?? "—"}</strong>
+            <span>{balanceUnavailable ? "Balance not verified" : "RLO"}</span>
+          </div>
+        </div>
+        <p>DevNet balance only. No market price displayed.</p>
+      </section>
+
+      <footer className="wallet-portfolio__footer">
         <span className="wallet-sheet__rpc" data-state={connectionState}>
           <i aria-hidden="true" />
           {rpcTitle}
         </span>
-        <span className="wallet-sheet__security">
+        <span className="wallet-portfolio__security">
           <LockKeyhole aria-hidden="true" size={13} strokeWidth={1.7} />
-          <span>
-            {isEmbedded ? "Encrypted locally" : "Wallet Standard"}
-            <b>{isEmbedded ? "15 min auto-lock" : "External signer"}</b>
-          </span>
+          <span>{isEmbedded ? "Encrypted locally" : "Wallet Standard"}</span>
         </span>
       </footer>
+      <p className="wallet-portfolio__session-note">{isEmbedded ? "15 min auto-lock" : "External signer"} <span>·</span> MergePay wallet</p>
     </section>
   );
 }

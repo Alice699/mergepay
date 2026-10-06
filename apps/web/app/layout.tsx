@@ -11,6 +11,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { RouteTransition } from "@/components/motion/route-transition";
 import { AppProviders } from "@/providers";
 import "./globals.css";
+import "./wallet.css";
 import "./bounty-workspace.css";
 
 const title = "MergePay — Code merged. Bounty settled.";
