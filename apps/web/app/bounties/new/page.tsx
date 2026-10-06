@@ -27,16 +27,16 @@ export default function CreateBountyPage() {
         <aside className="panel terms-panel bounty-create__terms">
           <div className="bounty-create__terms-head">
             <h2>After creation</h2>
-            <span>What happens next</span>
+            <span>From claim to settlement</span>
+            <Link className="bounty-create__guide" href="/guide"><BookOpen aria-hidden="true" size={14} /> Step-by-step guide</Link>
           </div>
-          <ol>
-            <li><span>1</span><p><strong>Share the bounty</strong>The PR author verifies their GitHub identity and submits a wallet claim.</p></li>
-            <li><span>2</span><p><strong>Approve the contributor</strong>You review the claim and lock the receiving wallet.</p></li>
-            <li><span>3</span><p><strong>Fund the escrow</strong>Deposit the exact reward to start autonomous settlement.</p></li>
-            <li><span>4</span><p><strong>Rialo settles</strong>Valid proof before the deadline pays the contributor. Otherwise, expired escrow is refunded.</p></li>
+          <ol aria-label="After creation steps">
+            <li><span>01</span><div><h3>Share the bounty</h3><p>The PR author verifies their GitHub identity and claims the bounty with a wallet.</p></div></li>
+            <li><span>02</span><div><h3>Approve the contributor</h3><p>Review the claim and lock the contributor’s receiving wallet.</p></div></li>
+            <li><span>03</span><div><h3>Fund the escrow</h3><p>Deposit the exact reward. Funding starts autonomous settlement.</p></div></li>
+            <li><span>04</span><div><h3>Rialo settles</h3><p>Valid onchain proof before expiry pays the contributor. Otherwise, escrow is refunded.</p></div></li>
           </ol>
-          <p className="bounty-create__devnet"><CircleAlert aria-hidden="true" size={16} /> DevNet only. Unaudited software; do not use production funds.</p>
-          <Link className="bounty-create__guide" href="/guide"><BookOpen aria-hidden="true" size={14} /> Read the step-by-step guide</Link>
+          <p className="bounty-create__devnet"><CircleAlert aria-hidden="true" size={16} /><span><strong>DevNet only.</strong> Unaudited software; do not use production funds.</span></p>
         </aside>
       </div>
     </main>

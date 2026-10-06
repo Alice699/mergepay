@@ -209,7 +209,7 @@
 .bounty-workspace-page.bounty-flow-page.ledger-page .workflow-read-state { padding: 2rem 1.75rem; }
 
 /* Create: source → agreement → review. No change to signing or funding. */
-.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__layout { grid-template-columns: minmax(0, 1fr) 18rem; gap: 1.25rem; margin-top: 1.5rem; }
+.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__layout { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; margin-top: 1.5rem; }
 .bounty-workspace-page.bounty-flow-page.ledger-page .form-section { padding: 1.75rem; }
 .bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading { grid-template-columns: 2rem minmax(0, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
 .bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading > span { width: 2rem; height: 2rem; border-radius: 0.625rem; font-size: 0.6875rem; color: var(--bounty-muted); }
@@ -252,10 +252,6 @@
 .bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__toggle input { width: 1rem; height: 1rem; min-height: 0; margin-top: 0.125rem; accent-color: var(--accent); }
 .bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__toggle small { color: var(--bounty-secondary); font-size: 0.75rem; }
 .bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__warning { padding: 0.875rem 1rem; color: var(--bounty-secondary); font-size: 0.6875rem; }
-.bounty-contributor-note { display: flex; align-items: flex-start; gap: 0.625rem; color: #a7adb3; font-size: 0.75rem; line-height: 1.6; }
-.bounty-contributor-note svg { flex: 0 0 auto; margin-top: 0.25rem; }
-.bounty-contributor-note p { margin: 0; }
-.bounty-contributor-note strong { color: #c3cbd0; font-weight: 550; }
 .bounty-review__summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; margin: 0; border: 1px solid var(--line); border-radius: 0.75rem; background: #090d1040; }
 .bounty-review__summary > div { min-width: 0; padding: 1rem; }
 .bounty-review__summary > div:nth-child(2) { border-right: 1px solid var(--line); }
@@ -290,6 +286,449 @@
 .bounty-create__devnet svg { flex-shrink: 0; margin-top: 0.125rem; color: #e7bd79; }
 .bounty-create__guide { display: inline-flex; align-items: center; gap: 0.5rem; color: #cbd3d8; font-size: 0.75rem; }
 .bounty-create__guide:hover { color: var(--accent); }
+
+/* Create workspace: roomy editing cards and a separate, persistent review. */
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page {
+  width: min(calc(100% - 4rem), 100rem);
+  padding-top: 3rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1.25rem;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-section {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid rgb(228 228 228 / 0.12);
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: #0e1418;
+  box-shadow: inset 0 1px rgb(228 228 228 / 0.025);
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__editor {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading {
+  gap: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading > span {
+  border-color: rgb(169 221 211 / 0.2);
+  background: rgb(169 221 211 / 0.04);
+  color: #b5d4cf;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading h2 {
+  margin-bottom: 0.375rem;
+  font-size: 1.5rem;
+  font-weight: 550;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading p {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-grid {
+  gap: 1rem 1.25rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-grid--three {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(5.5rem, 0.45fr);
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page :is(.form-field > span, .form-field__label-row label) {
+  font-size: 0.875rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page :is(.form-field input, .form-field select, .input-affix input) {
+  min-height: 3rem;
+  background: #0a0f12;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-field small {
+  color: #a0aab2;
+  font-size: 0.78125rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__lead strong {
+  font-size: 0.875rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__lead p {
+  font-size: 0.78125rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__verify {
+  min-height: 2.75rem;
+  border: 1px solid rgb(228 228 228 / 0.18);
+  background: #182126;
+  color: #e4e4e4;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__verify:hover:not(:disabled) {
+  border-color: rgb(169 221 211 / 0.45);
+  background: #1d2a30;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__facts dd {
+  font-size: 0.75rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__facts dd > svg {
+  flex-shrink: 0;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy {
+  overflow: visible;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding-top: 1rem;
+  background: transparent;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__heading {
+  border: 0;
+  padding: 0;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__heading p {
+  font-size: 0.8125rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__options {
+  gap: 1.25rem;
+  padding: 1rem 0 0;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__toggle {
+  gap: 0.75rem;
+  border-color: rgb(228 228 228 / 0.14);
+  padding: 1rem;
+  background: #0a1013;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__toggle:has(input:checked) {
+  border-color: rgb(169 221 211 / 0.4);
+  background: rgb(169 221 211 / 0.045);
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page :is(.settlement-policy__heading strong, .settlement-policy__toggle strong) {
+  font-size: 0.875rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__toggle small {
+  color: #a0aab2;
+  font-size: 0.78125rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-policy__warning {
+  margin-top: 0.875rem;
+  border: 0;
+  padding: 0;
+  font-size: 0.75rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review {
+  background: linear-gradient(155deg, #152129, #10171b 60%);
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review__summary {
+  grid-template-columns: minmax(0, 1fr);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review__summary > div {
+  grid-column: auto;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0.75rem 0;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review__summary > .bounty-review__reward {
+  padding-top: 0;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review__summary > div:last-child {
+  border-bottom: 0;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review__summary dt {
+  font-size: 0.6875rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review__summary dd {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review__reward dd {
+  min-height: 2.5rem;
+  align-content: center;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review__reward dd > strong {
+  font-size: 2rem;
+  font-weight: 550;
+  letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review__reward strong small {
+  color: #a0aab2;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-deadline-note {
+  margin-top: 0.75rem;
+  border: 0;
+  border-left: 2px solid #e7b76270;
+  border-radius: 0;
+  padding: 0.5rem 0.75rem;
+  background: rgb(231 183 98 / 0.035);
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review__funding {
+  font-size: 0.78125rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding: 1.25rem 0 0;
+  background: transparent;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit__status {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit__status .form-submit__status-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #72838d40;
+  border-radius: 0.625rem;
+  background: #72838d0c;
+  color: #b7c4cb;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit__status > div {
+  min-width: 0;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit__status p {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 550;
+  line-height: 1.4;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit__status > div > span {
+  margin-top: 0.25rem;
+  color: #a6b2ba;
+  font-size: 0.78125rem;
+  line-height: 1.55;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page :is(.form-submit__status--success, .form-submit__status--pending) .form-submit__status-icon {
+  border-color: #80dba630;
+  background: #80dba60a;
+  color: #80dba6;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit__status--error .form-submit__status-icon {
+  border-color: #ee898630;
+  background: #ee89860a;
+  color: #ee8986;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit .button {
+  width: 100%;
+  min-height: 3.25rem;
+  background: var(--accent);
+  color: #101a1d;
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit .button:disabled {
+  border-color: var(--line);
+  background: #1e2a30;
+  color: #a6b2ba;
+  opacity: 1;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__terms {
+  position: static;
+  width: 100%;
+  padding: 1.5rem;
+  background: rgb(228 228 228 / 0.015);
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__terms-head {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem 1rem;
+  text-align: left;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__terms-head h2 {
+  font-size: 1.25rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__guide {
+  margin-left: auto;
+  min-height: 2.25rem;
+  border: 1px solid #d4e0e318;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #d4e0e303;
+  font-size: 0.78125rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__guide:hover {
+  border-color: #d4e0e338;
+  background: #d4e0e308;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1.25rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel li {
+  grid-template-columns: 2rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.875rem;
+  border: 1px solid #d4e0e314;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  background: #0f1518;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel li > div {
+  min-width: 0;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel li > span {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.625rem;
+  background: rgb(169 221 211 / 0.035);
+  color: #b5c9c6;
+  font-family: var(--font-mono);
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel h3 {
+  margin: 0;
+  color: #dce2e5;
+  font-size: 0.875rem;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel li p {
+  margin: 0.5rem 0 0;
+  color: #a6b2ba;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__devnet {
+  margin-top: 1.25rem;
+  margin-bottom: 0;
+  padding-top: 1.125rem;
+}
+
+.bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__devnet strong {
+  display: inline;
+  margin: 0;
+  color: #d4bd98;
+  font-size: inherit;
+  font-weight: 550;
+}
+
+@media (min-width: 70rem) {
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-form {
+    grid-template-columns: minmax(0, 1fr) 24rem;
+  }
+
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-review {
+    position: sticky;
+    top: 6rem;
+  }
+
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__facts > div {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__facts dt {
+    flex-shrink: 0;
+  }
+
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__facts dd {
+    margin: 0;
+  }
+
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel ol {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 45rem) {
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page { width: calc(100% - 2rem); }
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-section { padding: 1.25rem; }
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-section__heading h2 { font-size: 1.25rem; }
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page :is(.form-grid--three, .form-grid--two) { grid-template-columns: minmax(0, 1fr); }
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target { grid-template-columns: minmax(0, 1fr); }
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .settlement-target__verify { width: 100%; }
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .form-submit { padding: 1.25rem 0 0; }
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__terms { padding: 1.25rem; }
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__terms-head > span { display: none; }
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__guide { margin-left: 0; }
+  .bounty-create-page.bounty-workspace-page.bounty-flow-page.ledger-page .terms-panel ol { grid-template-columns: minmax(0, 1fr); }
+}
 
 @media (max-width: 64rem) {
   .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-create__layout { grid-template-columns: minmax(0, 1fr); }
@@ -350,6 +789,9 @@
 }
 
 @media (max-width: 23rem) {
+  body:has(.bounty-create-page) .site-header__inner,
+  body:has(.bounty-create-page) .site-header__actions { gap: 0.5rem; }
+  body:has(.bounty-create-page) .wallet-button { padding-inline: 0.5rem; font-size: 0.75rem; }
   .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview { grid-template-columns: minmax(0, 1fr); }
   .bounty-workspace-page.bounty-flow-page.ledger-page .bounty-overview > div { border-right: 0; }
   .bounty-live-source summary { flex-wrap: wrap; }

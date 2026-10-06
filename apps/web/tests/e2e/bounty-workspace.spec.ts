@@ -115,6 +115,98 @@ test("an expired creation deadline is rejected before signing", async ({ page })
   await expect(page.getByRole("dialog", { name: /Review/ })).toHaveCount(0);
 });
 
+test("opens the wallet from the review without submitting or losing bounty terms", async ({ page }) => {
+  await prepareCreatePage(page, false);
+  await fillBounty(page);
+  await expect(page.locator(".form-submit__status")).toContainText("Wallet required");
+  const connect = page.locator(".form-submit").getByRole("button", { name: "Connect wallet", exact: true });
+  await expect(connect).toBeEnabled();
+  await expect(connect).toHaveAttribute("type", "button");
+  await connect.click();
+  await expect(page.getByRole("dialog", { name: "Rialo wallet" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: /Review transaction/ })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await connectMockWallet(page);
+  await expect(page.locator('input[name="amountRlo"]')).toHaveValue("2.123456789");
+  await expect(page.locator(".bounty-review__summary")).toContainText("Alice699/mergepay-demo #7");
+  await expect(page.locator(".form-submit").getByRole("button", { name: "Create bounty", exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => performance.getEntriesByType("navigation").length)).toBe(1);
+});
+
+test("a locked wallet has an actionable review and a responsive creation handoff", async ({ page }, testInfo) => {
+  await prepareCreatePage(page, false);
+  await page.locator(".form-submit").getByRole("button", { name: "Connect wallet", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Rialo wallet" });
+  await dialog.getByRole("button", { name: /Create local wallet/ }).click();
+  // A temporary browser-only key; this test never funds or sends a transaction.
+  await dialog.getByRole("textbox", { name: /^Wallet password/ }).fill("MergePay-e2e-vault-ui-only");
+  await dialog.getByRole("textbox", { name: /^Confirm password/ }).fill("MergePay-e2e-vault-ui-only");
+  await dialog.getByRole("checkbox").check();
+  await dialog.getByRole("button", { name: "Create wallet", exact: true }).click();
+  await expect(page.locator(".wallet-button")).toHaveAttribute("aria-label", /^Active wallet /);
+  await page.reload();
+  await expectBountyStyles(page);
+  await expect(page.locator(".form-submit__status")).toContainText("Wallet locked");
+  const unlock = page.locator(".form-submit").getByRole("button", { name: "Unlock wallet", exact: true });
+  await expect(unlock).toBeEnabled();
+  await expect(unlock).toHaveAttribute("type", "button");
+  await expect(page.getByRole("list", { name: "After creation steps" }).getByRole("heading", { level: 3 })).toHaveCount(4);
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.locator(".form-submit").screenshot({ path: testInfo.outputPath(`wallet-locked-${width}.png`) });
+    await page.locator(".bounty-create__terms").screenshot({ path: testInfo.outputPath(`after-creation-${width}.png`) });
+  }
+  await unlock.click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /Unlock local wallet/ })).toBeVisible();
+  await expect(page).toHaveURL(/\/bounties\/new$/);
+});
+
+test("Create Bounty has roomy editing cards, a separate review and a full-width handoff", async ({ page }, testInfo) => {
+  await prepareCreatePage(page);
+  for (const width of [1920, 1440, 1280]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    const source = await page.locator(".bounty-create__source").boundingBox();
+    const agreement = await page.locator(".bounty-create__agreement").boundingBox();
+    const review = await page.locator(".bounty-review").boundingBox();
+    const form = await page.locator(".bounty-form").boundingBox();
+    const handoff = await page.locator(".bounty-create__terms").boundingBox();
+    expect(source).not.toBeNull();
+    expect(agreement).not.toBeNull();
+    expect(review).not.toBeNull();
+    expect(form).not.toBeNull();
+    expect(handoff).not.toBeNull();
+    expect(Math.abs(source!.y - review!.y)).toBeLessThan(2);
+    expect(agreement!.y).toBeGreaterThan(source!.y + source!.height);
+    expect(Math.abs(source!.x - agreement!.x)).toBeLessThan(2);
+    expect(Math.abs(source!.width - agreement!.width)).toBeLessThan(2);
+    expect(review!.x).toBeGreaterThan(source!.x + source!.width);
+    expect(source!.width).toBeGreaterThan(review!.width * 1.8);
+    expect(await page.locator(".bounty-review .form-submit .button").count()).toBe(1);
+    expect(form!.height, JSON.stringify({ width, source, agreement, review, form })).toBeLessThan(850);
+    expect(handoff!.y).toBeGreaterThanOrEqual(form!.y + form!.height);
+    expect(Math.abs(handoff!.width - form!.width)).toBeLessThan(2);
+    const steps = await page.locator(".bounty-create__terms li").evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
+    expect(Math.max(...steps) - Math.min(...steps)).toBeLessThan(2);
+    const summary = await page.locator(".bounty-review__summary").boundingBox();
+    const target = await page.locator(".bounty-review__target").boundingBox();
+    const policy = await page.locator(".bounty-review__policy").boundingBox();
+    expect(summary).not.toBeNull();
+    expect(target).not.toBeNull();
+    expect(policy).not.toBeNull();
+    expect(Math.abs(summary!.width - target!.width)).toBeLessThan(3);
+    expect(Math.abs(summary!.width - policy!.width)).toBeLessThan(3);
+    await page.screenshot({ path: testInfo.outputPath(`create-empty-${width}.png`), fullPage: true });
+  }
+  await fillBounty(page);
+  await expect(page.locator(".bounty-form")).toHaveCSS("grid-template-columns", /\d/);
+  const filledLayout = await page.locator(".bounty-form, .bounty-create__editor, .bounty-review").evaluateAll((elements) => elements.map((element) => ({ name: element.className, height: element.getBoundingClientRect().height })));
+  expect((await page.locator(".bounty-form").boundingBox())!.height, JSON.stringify(filledLayout)).toBeLessThan(850);
+  await expect(page.getByRole("button", { name: "Create bounty", exact: true })).toBeEnabled();
+});
+
 for (const zone of [{ id: "UTC", label: "UTC" }, { id: "Asia/Jakarta", label: "WIB" }, { id: "Asia/Makassar", label: "WITA" }, { id: "Asia/Jayapura", label: "WIT" }]) {
   test.describe(`bounty time in ${zone.label}`, () => {
     test.use({ timezoneId: zone.id });
@@ -140,7 +232,7 @@ for (const screen of ["detail", "create"] as const) {
       await fillBounty(page);
       await page.getByRole("checkbox", { name: /Require successful CI/ }).check();
     }
-    for (const width of [1440, 768, 390, 320]) {
+    for (const width of screen === "create" ? [1920, 1440, 1280, 1024, 768, 390, 320] : [1440, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 1000 });
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await page.locator("h1").click();
@@ -164,13 +256,13 @@ async function openBounty(page: Page, rpc: { slug: string; sponsor: string; work
   await expectBountyStyles(page);
 }
 
-async function prepareCreatePage(page: Page) {
+async function prepareCreatePage(page: Page, connectWallet = true) {
   await installMockWallet(page);
   await installRialoRpcMock(page, "empty");
   await page.route("**/api/github/settlement-preview?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(preview) }));
   await page.goto("/bounties/new");
   await expectBountyStyles(page);
-  await connectMockWallet(page);
+  if (connectWallet) await connectMockWallet(page);
 }
 
 async function expectBountyStyles(page: Page) {

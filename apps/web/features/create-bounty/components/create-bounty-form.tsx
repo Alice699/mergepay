@@ -9,6 +9,7 @@ import {
   LoaderCircle,
   LockKeyhole,
   RefreshCw,
+  WalletCards,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -25,6 +26,7 @@ import { webConfig } from "@/lib/config";
 import { formatDeadline, formatRlo, formatTimeZoneLabel, parseRloToKelvin } from "@/lib/format";
 import { DeadlineCountdown } from "@/components/bounty/deadline-countdown";
 import { generateWorkflowSlug } from "@/lib/validation";
+import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 import type { CreateBountyFormValues } from "../schema";
 
 function readTargetValues(form: HTMLFormElement) {
@@ -221,7 +223,7 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
           : "idle";
 
   let statusTitle = "Ready to sign";
-  let statusCopy = "Your active signer will review the immutable terms.";
+  let statusCopy = "Review the locked terms in your wallet.";
   let buttonLabel = "Create bounty";
 
   if (wallet.status === "discovering") {
@@ -229,10 +231,10 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
     statusCopy = "Preparing the encrypted local vault and wallet discovery.";
   } else if (wallet.status === "locked") {
     statusTitle = "Wallet locked";
-    statusCopy = "Unlock your MergePay DevNet wallet before creating the workflow.";
+    statusCopy = "Unlock your DevNet wallet to continue.";
   } else if (wallet.status !== "connected" || !wallet.address) {
     statusTitle = "Wallet required";
-    statusCopy = "Create, unlock, or connect a Rialo wallet before continuing.";
+    statusCopy = "Connect a Rialo wallet to create this bounty.";
   } else if (!network.isExpectedNetwork || wallet.networkSupported === false) {
     statusTitle = "Wrong network";
     statusCopy = `Switch to ${network.label} before signing.`;
@@ -292,95 +294,109 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
     buttonLabel = "Try again";
   }
 
+  const needsWalletControl = ["locked", "disconnected", "unavailable"].includes(wallet.status);
+  const StatusIcon = wallet.status === "locked"
+    ? LockKeyhole
+    : needsWalletControl
+      ? WalletCards
+      : statusTone === "error"
+        ? CircleAlert
+        : statusTone === "pending"
+          ? LoaderCircle
+          : statusTone === "success" || !unavailable
+            ? Check
+            : LockKeyhole;
+
   return (
     <form ref={formRef} className="bounty-form" aria-label="Create a MergePay bounty" onSubmit={handleSubmit}>
-      <fieldset className="form-section">
-        <legend className="sr-only">GitHub target</legend>
-        <div className="form-section__heading">
-          <span className="mono">01</span>
-          <div><p className="form-section__eyebrow mono">VERIFY THE SOURCE</p><h2>GitHub target</h2><p>Choose one public pull request. Verification locks its exact commit and target branch.</p></div>
-        </div>
-        <div className="form-grid form-grid--three">
-          <label className="form-field"><span>Owner <b aria-hidden="true">*</b></span><input name="githubOwner" autoComplete="off" maxLength={100} onChange={handleTargetChanged} pattern="[A-Za-z0-9._-]+" placeholder="Repository owner" required spellCheck={false} /></label>
-          <label className="form-field"><span>Repository <b aria-hidden="true">*</b></span><input name="githubRepo" autoComplete="off" maxLength={100} onChange={handleTargetChanged} pattern="[A-Za-z0-9._-]+" placeholder="Repository name" required spellCheck={false} /></label>
-          <label className="form-field"><span>Pull request <b aria-hidden="true">*</b></span><input name="pullNumber" inputMode="numeric" min="1" onChange={handleTargetChanged} placeholder="PR number" required type="number" /></label>
-        </div>
-        <div className="settlement-target" data-status={targetPreview.status}>
-          <div className="settlement-target__lead">
-            <span className="settlement-target__icon" aria-hidden="true">
-              {targetPreview.status === "loading" ? <LoaderCircle className="ui-icon--spin" size={17} /> : targetPreview.status === "success" ? <Check size={17} /> : <GitPullRequest size={17} />}
-            </span>
-            <div>
-              <strong>{targetPreview.status === "success" ? targetPreview.preview.title : "Lock the exact pull-request revision"}</strong>
-              <p>{targetPreview.status === "success" ? `${targetPreview.preview.owner}/${targetPreview.preview.repo} · PR #${targetPreview.preview.number} · ${targetPreview.preview.state}` : targetPreview.status === "error" ? targetPreview.error.message : "MergePay will read GitHub before creating the onchain workflow."}</p>
-            </div>
+      <div className="bounty-create__editor">
+        <fieldset className="form-section bounty-create__source">
+          <legend className="sr-only">GitHub target</legend>
+          <div className="form-section__heading">
+            <span className="mono">01</span>
+            <div><h2>GitHub target</h2></div>
           </div>
-          <button className="button settlement-target__verify" disabled={isBusy} onClick={handleVerifyTarget} type="button">
-            {targetPreview.status === "loading" ? <LoaderCircle aria-hidden="true" className="ui-icon--spin" size={14} /> : <RefreshCw aria-hidden="true" size={14} />}
-            {targetPreview.status === "success" ? "Verify again" : "Verify target"}
-          </button>
-          {targetPreview.status === "success" ? (
-            <dl className="settlement-target__facts">
-              <div><dt>HEAD COMMIT</dt><dd title={targetPreview.preview.headSha}><GitCommitHorizontal aria-hidden="true" size={13} /> <code>{targetPreview.preview.headSha}</code></dd></div>
-              <div><dt>TARGET BRANCH</dt><dd><code>{targetPreview.preview.baseRef}</code></dd></div>
-            </dl>
-          ) : null}
-        </div>
-      </fieldset>
-
-      <fieldset className="form-section">
-        <legend className="sr-only">Settlement terms</legend>
-        <div className="form-section__heading">
-          <span className="mono">02</span>
-          <div><p className="form-section__eyebrow mono">SET THE AGREEMENT</p><h2>Reward &amp; conditions</h2><p>The reward, deadline, and payout policy cannot be edited after creation.</p></div>
-        </div>
-        <div className="form-grid form-grid--two">
-          <label className="form-field"><span>Bounty amount <b aria-hidden="true">*</b></span><div className="input-affix"><input aria-describedby="amount-hint" name="amountRlo" inputMode="decimal" min="0.000000001" onChange={(event) => setAmountRlo(event.target.value)} placeholder="0.001" required step="0.000000001" type="text" value={amountRlo} /><b>RLO</b></div><small id="amount-hint">Exact reward. Escrow is funded in a separate step.</small></label>
-          <label className="form-field"><span>Deadline <b aria-hidden="true">*</b></span><input aria-describedby="deadline-hint" name="deadlineUnixMs" onChange={(event) => setDeadlineLocal(event.target.value)} required type="datetime-local" value={deadlineLocal} /><small id="deadline-hint">Your local time · {reviewDeadline !== null && timeZoneLabel !== "local time" ? formatTimeZoneLabel(new Date(Number(reviewDeadline))) : timeZoneLabel}.</small></label>
-          <p className="bounty-deadline-note form-grid__wide"><CircleAlert aria-hidden="true" size={16} /><span>The deadline is fixed at creation and keeps running through claim and funding. Payout requires valid proof before it expires.</span></p>
-          <div className="settlement-policy form-grid__wide">
-            <div className="settlement-policy__heading">
-              <span aria-hidden="true"><LockKeyhole size={18} /></span>
+          <div className="form-grid form-grid--three">
+            <label className="form-field"><span>Owner <b aria-hidden="true">*</b></span><input name="githubOwner" autoComplete="off" maxLength={100} onChange={handleTargetChanged} pattern="[A-Za-z0-9._-]+" placeholder="Repository owner" required spellCheck={false} /></label>
+            <label className="form-field"><span>Repository <b aria-hidden="true">*</b></span><input name="githubRepo" autoComplete="off" maxLength={100} onChange={handleTargetChanged} pattern="[A-Za-z0-9._-]+" placeholder="Repository name" required spellCheck={false} /></label>
+            <label className="form-field"><span>Pull request <b aria-hidden="true">*</b></span><input name="pullNumber" inputMode="numeric" min="1" onChange={handleTargetChanged} placeholder="PR number" required type="number" /></label>
+          </div>
+          <div className="settlement-target" data-status={targetPreview.status}>
+            <div className="settlement-target__lead">
+              <span className="settlement-target__icon" aria-hidden="true">
+                {targetPreview.status === "loading" ? <LoaderCircle className="ui-icon--spin" size={17} /> : targetPreview.status === "success" ? <Check size={17} /> : <GitPullRequest size={17} />}
+              </span>
               <div>
-                <strong>Payout policy</strong>
-                <p>The locked commit, target branch, and merge are always required. Add optional CI or review conditions below.</p>
+                <strong>{targetPreview.status === "success" ? targetPreview.preview.title : "Verify this pull request"}</strong>
+                <p>{targetPreview.status === "success" ? `${targetPreview.preview.owner}/${targetPreview.preview.repo} · PR #${targetPreview.preview.number} · ${targetPreview.preview.state}` : targetPreview.status === "error" ? targetPreview.error.message : "Verification locks the exact commit and target branch."}</p>
               </div>
             </div>
-            <div className="settlement-policy__options">
-              <label className="settlement-policy__toggle">
-                <input checked={requireCiSuccess} name="requireCiSuccess" onChange={(event) => setRequireCiSuccess(event.target.checked)} type="checkbox" />
-                <span><strong>Require successful CI</strong><small>At least one GitHub status or check run must exist; all latest signals must finish successfully.</small></span>
-              </label>
-              <label className="form-field">
-                <span>Required approvals</span>
-                <select name="minimumApprovals" onChange={(event) => setMinimumApprovals(event.target.value)} value={minimumApprovals}>
-                  <option value="0">No approval requirement</option>
-                  <option value="1">1 current-commit approval</option>
-                  <option value="2">2 current-commit approvals</option>
-                  <option value="3">3 current-commit approvals</option>
-                </select>
-                <small>Only the latest decision from repository writers on the locked commit counts.</small>
-              </label>
-            </div>
-            <p className="settlement-policy__warning"><CircleAlert aria-hidden="true" size={14} /> A force-push or target-branch change makes the proof fail closed. The sponsor can recover escrow after the deadline.</p>
+            <button className="button settlement-target__verify" disabled={isBusy} onClick={handleVerifyTarget} type="button">
+              {targetPreview.status === "loading" ? <LoaderCircle aria-hidden="true" className="ui-icon--spin" size={14} /> : <RefreshCw aria-hidden="true" size={14} />}
+              {targetPreview.status === "success" ? "Verify again" : "Verify target"}
+            </button>
+            {targetPreview.status === "success" ? (
+              <dl className="settlement-target__facts">
+                <div><dt>HEAD COMMIT</dt><dd title={targetPreview.preview.headSha}><GitCommitHorizontal aria-hidden="true" size={13} /> <code>{targetPreview.preview.headSha}</code></dd></div>
+                <div><dt>TARGET BRANCH</dt><dd><code>{targetPreview.preview.baseRef}</code></dd></div>
+              </dl>
+            ) : null}
           </div>
-          <div className="bounty-contributor-note form-grid__wide"><LockKeyhole aria-hidden="true" size={16} /><p><strong>Receiving wallet is approved later.</strong> The PR author claims the bounty first. You approve their wallet before depositing the reward.</p></div>
-        </div>
-      </fieldset>
+        </fieldset>
 
+        <fieldset className="form-section bounty-create__agreement">
+          <legend className="sr-only">Settlement terms</legend>
+          <div className="form-section__heading">
+            <span className="mono">02</span>
+            <div><h2>Reward &amp; conditions</h2><p>Reward, deadline, and payout policy are locked at creation.</p></div>
+          </div>
+          <div className="form-grid form-grid--two">
+            <label className="form-field"><span>Bounty amount <b aria-hidden="true">*</b></span><div className="input-affix"><input aria-describedby="amount-hint" name="amountRlo" inputMode="decimal" min="0.000000001" onChange={(event) => setAmountRlo(event.target.value)} placeholder="0.001" required step="0.000000001" type="text" value={amountRlo} /><b>RLO</b></div><small id="amount-hint">Exact reward. Escrow is funded in a separate step.</small></label>
+            <label className="form-field"><span>Deadline <b aria-hidden="true">*</b></span><input aria-describedby="deadline-hint" name="deadlineUnixMs" onChange={(event) => setDeadlineLocal(event.target.value)} required type="datetime-local" value={deadlineLocal} /><small id="deadline-hint">Your local time · {reviewDeadline !== null && timeZoneLabel !== "local time" ? formatTimeZoneLabel(new Date(Number(reviewDeadline))) : timeZoneLabel}.</small></label>
+            <div className="settlement-policy form-grid__wide">
+              <div className="settlement-policy__heading">
+                <span aria-hidden="true"><LockKeyhole size={18} /></span>
+                <div>
+                  <strong>Payout policy</strong>
+                  <p>Exact commit, target branch, and merge are required. CI and reviews are optional.</p>
+                </div>
+              </div>
+              <div className="settlement-policy__options">
+                <label className="settlement-policy__toggle">
+                  <input checked={requireCiSuccess} name="requireCiSuccess" onChange={(event) => setRequireCiSuccess(event.target.checked)} type="checkbox" />
+                  <span><strong>Require successful CI</strong><small>At least one GitHub check or status must exist; all latest signals must succeed.</small></span>
+                </label>
+                <label className="form-field">
+                  <span>Required approvals</span>
+                  <select name="minimumApprovals" onChange={(event) => setMinimumApprovals(event.target.value)} value={minimumApprovals}>
+                    <option value="0">No approval requirement</option>
+                    <option value="1">1 current-commit approval</option>
+                    <option value="2">2 current-commit approvals</option>
+                    <option value="3">3 current-commit approvals</option>
+                  </select>
+                  <small>Only latest decisions from repository writers on the locked commit count.</small>
+                </label>
+              </div>
+              <p className="settlement-policy__warning"><CircleAlert aria-hidden="true" size={14} /> Changing the commit or target branch blocks payout. Expired escrow is refundable.</p>
+            </div>
+          </div>
+        </fieldset>
+
+      </div>
       <fieldset className="form-section bounty-review">
         <legend className="sr-only">Review bounty</legend>
         <div className="form-section__heading">
           <span className="mono">03</span>
-          <div><p className="form-section__eyebrow mono">BEFORE YOU SIGN</p><h2>Review bounty</h2><p>Confirm the terms that will be recorded on Rialo.</p></div>
+          <div><h2>Review bounty</h2></div>
         </div>
         <dl className="bounty-review__summary" aria-label="Bounty terms summary">
+          <div className="bounty-review__reward"><dt>Exact reward</dt><dd>{reviewAmount === null ? <span className="bounty-review__placeholder">Enter an amount</span> : <strong>{reviewAmount} <small>RLO</small></strong>}</dd></div>
           <div className="bounty-review__target"><dt>Verified pull request</dt><dd>{targetPreview.status === "success" ? <><a href={targetPreview.preview.htmlUrl} rel="noreferrer" target="_blank">{targetPreview.preview.owner}/{targetPreview.preview.repo} <span>#{targetPreview.preview.number}</span></a><small>{targetPreview.preview.title}</small></> : <span className="bounty-review__placeholder">Verify the GitHub target first</span>}</dd></div>
-          <div><dt>Exact reward</dt><dd>{reviewAmount === null ? <span className="bounty-review__placeholder">Enter an amount</span> : <strong>{reviewAmount} <small>RLO</small></strong>}</dd></div>
-          <div><dt>Deadline</dt><dd>{reviewDeadline === null ? <span className="bounty-review__placeholder">Choose a deadline</span> : <><strong>{formatDeadline(reviewDeadline)}</strong><DeadlineCountdown deadlineUnixMs={reviewDeadline} /></>}</dd></div>
+          <div className="bounty-review__deadline"><dt>Deadline</dt><dd>{reviewDeadline === null ? <span className="bounty-review__placeholder">Choose a deadline</span> : <><strong>{formatDeadline(reviewDeadline)}</strong><DeadlineCountdown deadlineUnixMs={reviewDeadline} /></>}</dd></div>
           <div className="bounty-review__policy"><dt>Payout conditions</dt><dd><span>Exact commit + target branch + merge</span><span>{requireCiSuccess ? "Successful CI required" : "CI not required"} · {minimumApprovals === "0" ? "No approval minimum" : `${minimumApprovals} approval${minimumApprovals === "1" ? "" : "s"} required`}</span></dd></div>
         </dl>
-        <p className="bounty-review__funding">Creation records the terms only. Your wallet covers account rent and transaction fees; the bounty reward is deposited after claim approval.</p>
+        <p className="bounty-deadline-note"><CircleAlert aria-hidden="true" size={15} /><span>Fixed at creation, including claim and funding. Valid proof must be processed onchain before expiry.</span></p>
+        <p className="bounty-review__funding">Creation covers account rent + fees only. Approve the contributor’s wallet before funding the reward.</p>
         <details className="bounty-disclosure bounty-workflow-id">
           <summary><span>Advanced · Workflow ID</span><ChevronDown aria-hidden="true" size={16} /></summary>
           <div className="form-field bounty-disclosure__body">
@@ -413,18 +429,24 @@ export function CreateBountyForm({ initialWorkflowSlug }: CreateBountyFormProps)
             <small id="workflow-id-hint">Generated automatically for this on-chain workflow. Generate a new ID if you need to retry.</small>
           </div>
         </details>
-      </fieldset>
-
-      <div className="form-submit">
-        <div className={`form-submit__status form-submit__status--${statusTone}`} aria-live="polite">
-          <i aria-hidden="true" />
-          <div><p>{statusTitle}</p><span>{statusCopy}</span></div>
+        <div className="form-submit">
+          <div className={`form-submit__status form-submit__status--${statusTone}`} aria-live="polite">
+            <span aria-hidden="true" className="form-submit__status-icon"><StatusIcon className={statusTone === "pending" ? "ui-icon--spin" : undefined} size={17} /></span>
+            <div><p>{statusTitle}</p><span>{statusCopy}</span></div>
+          </div>
+          {needsWalletControl ? (
+            <button aria-haspopup="dialog" className="button" onClick={requestWalletControlOpen} type="button">
+              {wallet.status === "locked" ? <LockKeyhole aria-hidden="true" size={16} /> : <WalletCards aria-hidden="true" size={16} />}
+              {wallet.status === "locked" ? "Unlock wallet" : "Connect wallet"}
+            </button>
+          ) : (
+            <button className="button" disabled={unavailable || isBusy || statusTone === "success"} type="submit">
+              {isBusy || transactionPhase === "reviewing" || transactionPhase === "signing" || transactionPhase === "submitting" ? <LoaderCircle aria-hidden="true" className="ui-icon ui-icon--spin" size={15} /> : statusTone === "success" ? <Check aria-hidden="true" size={15} /> : statusTone === "error" ? <CircleAlert aria-hidden="true" size={15} /> : <LockKeyhole aria-hidden="true" size={15} />}
+              {buttonLabel}
+            </button>
+          )}
         </div>
-        <button className="button" disabled={unavailable || isBusy || statusTone === "success"} type="submit">
-          {isBusy || transactionPhase === "reviewing" || transactionPhase === "signing" || transactionPhase === "submitting" ? <LoaderCircle aria-hidden="true" className="ui-icon ui-icon--spin" size={15} /> : statusTone === "success" ? <Check aria-hidden="true" size={15} /> : statusTone === "error" ? <CircleAlert aria-hidden="true" size={15} /> : <LockKeyhole aria-hidden="true" size={15} />}
-          {buttonLabel}
-        </button>
-      </div>
+      </fieldset>
     </form>
   );
 }
