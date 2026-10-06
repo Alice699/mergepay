@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const webRoot = new URL("../", import.meta.url);
@@ -108,4 +108,64 @@ test("display failures are separate from native execution", () => {
   assert.match(docs, /browser visibility affects display updates, not native execution/);
   assert.match(docs, /a slow RPC or decoder error does not stop native settlement/);
   assert.doesNotMatch(guide, /program and UI keep uncertain funds locked/);
+});
+
+test("README deployment values and recorded runs match repository evidence", async () => {
+  const repositoryRoot = new URL("../../", webRoot);
+  const [readme, deploymentJson, evidence] = await Promise.all([
+    readFile(new URL("README.md", repositoryRoot), "utf8"),
+    readFile(new URL("deployments/devnet.json", repositoryRoot), "utf8"),
+    readFile(new URL("docs/EVIDENCE.md", repositoryRoot), "utf8"),
+  ]);
+  const deployment = JSON.parse(deploymentJson).autonomousSettlementCandidate;
+  assert.ok(readme.includes(deployment.programId));
+  assert.ok(readme.includes(deployment.rexBytecodeAccount));
+  assert.ok(readme.includes(`${deployment.bytes.toLocaleString("en-US")} bytes`));
+  assert.ok(readme.includes(deployment.deployedSlot.toLocaleString("en-US")));
+  for (const workflow of [
+    "ExTgFzvmimca9QizRx9KqUGoNwA6tpUvCtvKHD3CU5ri",
+    "DRPYwPSLbuDjjwtpY9MExJDFs8EsCdGA7X75MMT2cbT1",
+  ]) {
+    assert.ok(readme.includes(workflow));
+    assert.ok(evidence.includes(workflow));
+  }
+  assert.match(readme, /application gates/);
+  assert.match(readme, /before the deadline/);
+  assert.doesNotMatch(readme, /Pending fresh live workflow|idempotent fallbacks|strong--proof--live--ready|15,000 ms/);
+});
+
+test("README diagram documents current policy proof instead of the legacy merge endpoint", async () => {
+  const svg = await readFile(
+    new URL("../../docs/assets/mergepay-settlement-flow.svg", webRoot),
+    "utf8",
+  );
+  assert.match(svg, /aria-labelledby="title description"/);
+  assert.match(svg, /<title id="title">MergePay bounty lifecycle<\/title>/);
+  assert.deepEqual(
+    [...svg.matchAll(/data-step="(\w+)"/g)].map(([, step]) => step),
+    ["create", "claim", "approve", "fund", "verify"],
+  );
+  assert.deepEqual(
+    [...svg.matchAll(/data-outcome="(\w+)"/g)].map(([, outcome]) => outcome),
+    ["paid", "refunded"],
+  );
+  assert.match(svg, /selected CI\/reviews/);
+  assert.match(svg, /before the deadline/);
+  assert.match(svg, /without a completed payout/);
+  assert.doesNotMatch(svg, /204|\/merge|url\(#hatch\)|NO TRUSTED SIGNER/);
+});
+
+test("README relative links and image assets resolve", async () => {
+  const repositoryRoot = new URL("../../", webRoot);
+  const readme = await readFile(new URL("README.md", repositoryRoot), "utf8");
+  const targets = [
+    ...[...readme.matchAll(/\]\(([^)\s]+)\)/g)].map(([, target]) => target),
+    ...[...readme.matchAll(/(?:src|href)="([^"]+)"/g)].map(([, target]) => target),
+  ];
+  const localPaths = [...new Set(targets
+    .filter((target) => !/^(?:https?:|#)/.test(target))
+    .map((target) => target.split("#")[0]))];
+  assert.ok(localPaths.includes("docs/assets/mergepay-settlement-flow.svg"));
+  assert.ok(localPaths.includes("docs/assets/mergepay-landing.png"));
+  await Promise.all(localPaths.map((path) => access(new URL(path, repositoryRoot))));
 });

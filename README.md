@@ -1,261 +1,242 @@
-<div align="center">
-  <img src="apps/web/public/favicon.svg" width="72" height="72" alt="MergePay robot head logo" />
-  <h1>MergePay</h1>
-  <p><strong>Onchain bounties for pull requests.</strong></p>
-  <p>
-    Fund public GitHub work in native RLO. MergePay verifies the contributor,
-    watches the pull request through Rialo REX, and settles escrow automatically.
-  </p>
+# MergePay
 
-  <p>
-    <a href="https://github.com/Alice699/mergepay/actions/workflows/ci.yml"><img src="https://github.com/Alice699/mergepay/actions/workflows/ci.yml/badge.svg" alt="MergePay CI status" /></a>
-    <img src="https://img.shields.io/badge/Rialo-DevNet-A9DDD3?style=flat-square&labelColor=0B0F0E" alt="Rialo DevNet" />
-    <img src="https://img.shields.io/badge/settlement-strong--proof--live--ready-58D68D?style=flat-square&labelColor=0B0F0E" alt="Strong-proof settlement live-ready" />
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-E8ECEA?style=flat-square&labelColor=0B0F0E" alt="Apache 2.0 license" /></a>
-  </p>
+GitHub pull-request bounties with native RLO escrow on Rialo.
 
-  <p>
-    <a href="#overview">Overview</a> ·
-    <a href="#how-it-works">How it works</a> ·
-    <a href="#devnet-proof">DevNet proof</a> ·
-    <a href="#run-locally">Run locally</a> ·
-    <a href="#security">Security</a>
-  </p>
-</div>
+[Live app](https://mergepay-mu.vercel.app) ·
+[User guide](https://mergepay-mu.vercel.app/guide) ·
+[Protocol reference](https://mergepay-mu.vercel.app/docs) ·
+[Recorded DevNet evidence](docs/EVIDENCE.md)
 
-<p align="center">
-  <img src="docs/assets/mergepay-landing.png" width="100%" alt="MergePay landing page showing its onchain pull-request bounty experience and two branded robots" />
-</p>
+[![CI](https://github.com/Alice699/mergepay/actions/workflows/ci.yml/badge.svg)](https://github.com/Alice699/mergepay/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-lightgrey.svg)](LICENSE)
 
 > [!IMPORTANT]
-> MergePay is an unaudited DevNet MVP. It uses test RLO and must not be used with production funds.
+> MergePay is an unaudited DevNet application. Use test RLO only, not production funds.
 
 ## Overview
 
-MergePay turns a public GitHub pull request into an auditable Rialo workflow. A sponsor
-publishes a bounty, a contributor proves that they authored the target pull request,
-and the sponsor locks the exact reward in escrow. After funding, a native Rialo timer
-checks GitHub through REX until one of two terminal outcomes is reached:
+A sponsor creates a bounty for an existing public pull request, approves the
+contributor's receiving wallet, and funds escrow. The bounty commits an exact PR
+revision, target branch, reward, deadline, and optional CI or review requirements.
 
-- a unanimous merged result releases the bounty to the approved contributor; or
-- the immutable deadline returns the escrow to the sponsor.
+After funding, a native Rialo workflow checks GitHub through REX. A valid proof
+that satisfies the locked policy and is processed before the deadline pays the
+contributor. If a funded workflow reaches its deadline without payout, escrow
+returns to the sponsor.
 
-The settlement path does not rely on a keeper, webhook server, cron job, trusted payout
-backend, or expiring GitHub App installation token. Sponsor-triggered check and refund
-actions remain available as idempotent fallbacks.
+Users can inspect the workflow account, transaction history, and shareable
+settlement receipt. Native automation does not depend on keeping the browser open.
 
-### Product highlights
-
-| Capability | What MergePay provides |
-| --- | --- |
-| Verified contributor | GitHub OAuth binds the public PR author to a specific Rialo receiving wallet. |
-| Sponsor claim review | The app exposes the contributor identity, payout wallet, exact terms, claim PDA, and Rialo Scan transaction, then rechecks the live public PR author ID before approval. |
-| Exact escrow | The sponsor approves one reviewed claim and funds the committed RLO amount onchain. |
-| Native automation | Rialo `AFTER` timers keep merge polling and deadline settlement alive after funding. |
-| Policy-locked proof | A custom REX WASM verifier checks the exact PR head, target branch, and optional CI/review policy before escrow can release. |
-| Live interface | Workflow state refreshes in place, transactions surface through notifications, wallet history is paginated, and terminal workflows expose shareable paid/refunded receipts. |
-| Reviewer-friendly wallet | A password-encrypted embedded signer provides DevNet onboarding without simulating funds or success states. |
+<details>
+  <summary>Application preview</summary>
+  <p>
+    <img src="docs/assets/mergepay-landing.png" width="100%" alt="MergePay application home page" />
+  </p>
+</details>
 
 ## How it works
 
-<p align="center">
-  <img src="docs/assets/mergepay-settlement-flow.svg" width="100%" alt="MergePay settlement rail showing a bounty moving through contributor identity, sponsor approval, funded escrow, Rialo REX verification, retry-safe proof handling, contributor payout, or sponsor refund" />
+<p>
+  <img src="docs/assets/mergepay-settlement-flow.svg" width="100%" alt="Bounty lifecycle: create, claim, approve, fund, then native REX verification leading to policy-checked payout or deadline refund" />
 </p>
 
-1. **Publish** — the sponsor verifies the public PR, then commits its exact head SHA, target branch, reward, deadline, and optional CI/review policy.
-2. **Claim** — the contributor signs in with GitHub and links the verified PR identity to a Rialo wallet.
-3. **Approve** — the sponsor reviews the exact identity, wallet, bounty terms, and transaction proof. Multiple matching claims require an explicit choice, and the public PR author ID is checked again before signing.
-4. **Fund** — MergePay prepares the workflow account, transfers the exact RLO escrow, and arms native settlement.
-5. **Verify** — a custom REX WASM component reads GitHub's PR details plus the selected commit-status, check-run, and review evidence.
-6. **Settle** — unanimous structured proof that reproduces every locked condition pays the contributor; reaching the deadline first refunds the sponsor. The decoded terminal state becomes a receipt with the exact amount and destination.
+1. **Create the bounty.** Select **Verify target** to lock the public PR's head
+   SHA and target branch. Set the reward, deadline, and optional CI/review policy.
+2. **Request a claim.** The PR author connects GitHub and a receiving wallet,
+   verifies the author ID, and signs a separate onchain claim record.
+3. **Approve the contributor.** The sponsor reviews the identity, wallet, terms,
+   claim account, and source transaction. The app rechecks the public PR author
+   before approval. Multiple matching claims require an explicit selection.
+4. **Fund escrow.** Approval locks the beneficiary. A separate funding transaction
+   runs `prepare_funding` and `fund` atomically, then arms the native workflow.
+5. **Settle.** Rialo checks the deadline and requests GitHub proof through REX.
+   The program validates the received report, locked policy, and accounts before
+   paying. Expiry without payout takes the sponsor refund path.
 
-### Why Rialo
+### Settlement rules
 
-On a conventional chain, this flow usually needs a GitHub listener, oracle adapter,
-keeper, payout signer, and refund scheduler. MergePay keeps the external signal,
-workflow state, timers, callback, and value transfer inside one reactive protocol flow:
+- The PR head SHA and target branch must match the committed revision. Selected
+  CI and approval requirements must also pass; merge alone is not sufficient.
+- All outputs in the received REX report must be usable and identical. Unmet or
+  inconclusive proof cannot authorize payout.
+- The deadline is an absolute time set when creating the bounty. Funding does
+  not restart it. Claim, approval, funding, and a valid payout callback must
+  complete before expiry; an earlier GitHub merge does not override a late callback.
+- `paid` and `refunded` are mutually exclusive. Only the bounty principal moves;
+  settlement does not close the workflow or return its remaining storage balance.
 
-```text
-GitHub PR + CI + reviews → custom REX WASM proof → reactive callback → onchain settlement
-```
+**Run check now** requests a proof check only while a funded workflow is active
+and before expiry. Sponsor refund is available after the deadline. Neither
+fallback bypasses the policy; repeating an already-completed refund does not
+release escrow again.
 
-Learn more about the model in Rialo's
-[reactive transactions overview](https://rialo.io/posts/reactive-transactions-a-model-for-native-automation-on-rialo/).
+## Why Rialo
 
-## DevNet proof
+The payment condition lives on GitHub, while the reward and settlement rules
+live onchain. Rialo provides both parts needed to connect them: REX for external
+evidence and native `AFTER` execution for a workflow that waits, checks, and resumes.
 
-The active deployment contains the policy-locked REX proof and the faster 5-second
-external collection window. Fresh live payout and refund workflows are recorded below;
-older runtime proofs remain historical evidence.
+The web app handles identity verification, wallet interactions, and account
+reads. The program handles escrow and settlement. The funded workflow does not
+need a separate application keeper, cron job, or privileged payout server.
+GitHub and Rialo remain dependencies; settlement is asynchronous, not a guaranteed
+instant response to merge.
 
-| Item | Current value |
-| --- | --- |
-| Network | Rialo DevNet |
-| Active program | `EJPnYc1o5BPL3A9PLSBNVcNZg6e9qNH1adQBM6ZG3s31` |
-| REX bytecode account | `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK` |
-| Program format | RISC-V / PolkaVM |
-| Rialo release | `stable@0.18.1` |
-| Deployed artifact | `252,425` bytes at slot `18,493,851` |
-| REX collection window | `15,000 ms` bounded request window |
-| Automatic merged-PR payout | Pending fresh live workflow |
-| Automatic deadline refund | Pending fresh live workflow |
-| Manual fallback after automatic refund | Covered by invariant tests; historical live proof retained |
-
-Full transaction signatures, workflow PDAs, callback logs, balances, artifact hash,
-and historical deployments are recorded in [DevNet evidence](docs/EVIDENCE.md) and
-[deployment metadata](deployments/devnet.json).
-
-> [!NOTE]
-> `Alice699/mergepay-demo#8` was correctly merged on GitHub, but its old deployment
-> used the Venus default 300 ms REX collection window. Three of four validator
-> requests timed out, so the fail-closed contract kept escrow locked and refunded it
-> at the deadline. The active deployment above uses a bounded 5-second window and
-> the matching custom REX component. Because #8 is already terminal, a new workflow
-> is needed to prove automatic payout on the fixed deployment.
+See Rialo's [reactive transactions overview](https://rialo.io/posts/reactive-transactions-a-model-for-native-automation-on-rialo/)
+for the underlying execution model.
 
 ## Architecture
 
-MergePay is a small monorepo with explicit boundaries between product UI, protocol
-integration, and onchain logic.
-
-```text
-apps/web/                    Vinext + React reviewer-facing dApp
-packages/rialo-client/       Typed ABI, PDA, RPC, and transaction boundary
-programs/mergepay-rialo/     Rialo Venus workflow and PolkaVM artifact builder
-deployments/                 Versioned DevNet deployment metadata
-docs/                        Architecture, security, evidence, and setup guides
-scripts/                     Repeatable deployment and verification utilities
-```
-
-| Layer | Technology | Responsibility |
+| Component | Location | Responsibility |
 | --- | --- | --- |
-| Web | React 19, Vinext, TypeScript | Marketplace, wallet UX, live workflow state, and transaction feedback. |
-| Client | `@rialo/ts-cdk`, typed MergePay package | Instruction encoding, PDA derivation, RPC reads, signing boundary, and confirmation. |
-| Program | Rust, Rialo Venus `0.18.1` | Escrow invariants, claims, native timers, REX callbacks, payout, and refund. |
-| External proof | Custom REX WASM + GitHub REST API | Validator-attested, deterministic proof of the locked PR revision, target branch, merge commit, and selected CI/review conditions. |
+| Web application | [`apps/web`](apps/web) | React 19, Vinext, and TypeScript. Bounty discovery, GitHub identity, wallet UX, and decoded workflow views. |
+| Typed client | [`packages/rialo-client`](packages/rialo-client) | Rialo CDK integration, instruction encoding, PDA derivation, RPC reads, and transaction confirmation. |
+| Rialo program | [`programs/mergepay-rialo`](programs/mergepay-rialo) | Rust and Venus `0.18.1`. Claims, escrow accounting, native timers, and REX callbacks. |
+| GitHub verifier | [`program source`](programs/mergepay-rialo/src/lib.rs) | Custom REX WASM reads PR details and, when required, commit statuses, check runs, and reviews. |
 
-The workflow PDA stores the immutable bounty terms and terminal state. Contributor
-claims use separate contributor-derived PDAs; the sponsor page discovers confirmed
-claims from onchain workflow history, requires an explicit selection when several match,
-and rechecks the selected public PR author before the sponsor approves it for funding. See
-[Architecture](docs/ARCHITECTURE.md) for account layouts, state
-transitions, callback ABI details, and retry behavior.
+The bounty and contributor claim use separate PDAs. The sponsor approves one
+claim; the program checks the matching terms and locks its beneficiary.
+Account layouts, state transitions, and callback details are documented in
+[Architecture](docs/ARCHITECTURE.md).
+
+## DevNet deployment and evidence
+
+The repository's default deployment is recorded in
+[`deployments/devnet.json`](deployments/devnet.json). This is deployment metadata,
+not a live network-health indicator.
+
+| Item | Recorded value |
+| --- | --- |
+| Network | Rialo DevNet |
+| Program | `EJPnYc1o5BPL3A9PLSBNVcNZg6e9qNH1adQBM6ZG3s31` |
+| REX bytecode account | `GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK` |
+| Executable format | RISC-V / PolkaVM |
+| Artifact size | 252,425 bytes |
+| Deployment slot | 18,508,684 |
+
+Recorded smoke tests from **21 September 2026** use the program above. Neither
+scenario used the sponsor's manual check or refund button.
+
+| Scenario | Workflow account | Recorded outcome |
+| --- | --- | --- |
+| Merged PR payout, `mergepay-demo#14` | `ExTgFzvmimca9QizRx9KqUGoNwA6tpUvCtvKHD3CU5ri` | `paid=true`, `refunded=false` |
+| Unmerged PR refund, `mergepay-demo#27` | `DRPYwPSLbuDjjwtpY9MExJDFs8EsCdGA7X75MMT2cbT1` | `refunded=true`, `paid=false` |
+
+[DevNet evidence](docs/EVIDENCE.md#fresh-5-second-cadence-live-smoke-test-2026-09-21)
+contains the transaction signatures and separates these runs from historical
+deployments. Artifact hashes and previous deployment records remain in the
+deployment registry. These records are test evidence, not an independent audit
+or a promise of future network availability.
 
 ## Run locally
 
-### Prerequisites
+### Requirements
 
-- Node.js `22.13` or newer
-- npm
-- GitHub OAuth credentials when testing contributor identity verification
-- Rust and the Rialo toolchain only when building the onchain program
+- Node.js **22.13 or newer** and npm.
+- GitHub OAuth credentials to test contributor identity verification.
+- Rust and the Rialo toolchain only for program checks and artifact builds.
 
-### Start the dApp
+### Setup
 
 ```bash
 git clone https://github.com/Alice699/mergepay.git
 cd mergepay
 npm ci
 cp apps/web/.env.example apps/web/.env.local
+```
+
+On PowerShell, use `Copy-Item apps/web/.env.example apps/web/.env.local` for the
+copy step.
+
+The template contains the public DevNet program, REX account, and RPC settings.
+Configure these server-side values for contributor verification:
+
+- `GITHUB_OAUTH_CLIENT_ID`
+- `GITHUB_OAUTH_CLIENT_SECRET`
+- `GITHUB_OAUTH_REDIRECT_URI`
+- `GITHUB_SESSION_SECRET`
+
+For a local OAuth app, register
+`http://localhost:3000/api/github/auth/callback` and use it as the redirect URI.
+Follow [GitHub OAuth setup](docs/GITHUB_OAUTH_SETUP.md) for the full configuration.
+Public settlement does not require a GitHub App installation token or private key.
+
+```bash
 npm run dev
 ```
 
-On PowerShell, copy the environment template with:
+Open **http://localhost:3000**. The root command builds the typed client before
+starting the web app; it does not deploy a new Rialo program.
 
-```powershell
-Copy-Item apps/web/.env.example apps/web/.env.local
-```
-
-Then open `http://localhost:3000`. The root development command builds the typed client
-before starting the web app.
-
-### Environment
-
-The checked-in template targets the active DevNet deployment:
-
-```dotenv
-NEXT_PUBLIC_RIALO_NETWORK=devnet
-NEXT_PUBLIC_RIALO_RPC_URL=/api/rialo
-RIALO_RPC_UPSTREAM_URL=https://devnet.rialo.io
-NEXT_PUBLIC_MERGEPAY_PROGRAM_ID=EJPnYc1o5BPL3A9PLSBNVcNZg6e9qNH1adQBM6ZG3s31
-NEXT_PUBLIC_MERGEPAY_REX_BYTECODE_ACCOUNT=GcTo6NvSBvszmBogd7y4x9NYMG8ACuVrKy6mcYtQSoJK
-```
-
-Contributor verification additionally uses `GITHUB_OAUTH_CLIENT_ID`,
-`GITHUB_OAUTH_CLIENT_SECRET`, `GITHUB_OAUTH_REDIRECT_URI`, and a strong
-`GITHUB_SESSION_SECRET`. Follow [GitHub OAuth setup](docs/GITHUB_OAUTH_SETUP.md) for the
-exact callback configuration.
-
-> [!NOTE]
-> GitHub OAuth is used for contributor identity binding. The active public-repository
-> settlement flow does **not** require `GITHUB_APP_ID`, an installation token, or a
-> GitHub App private key.
-
-Never commit `.env` files, OAuth secrets, private keys, or wallet exports.
+Never commit `.env.local`, OAuth secrets, private keys, or wallet backups.
 
 ## Verification
 
-Run the same primary checks used by CI:
+Run the web and client checks from the repository root:
 
 ```bash
 npm run typecheck
 npm run lint
 npm run test
 npm run build
-npm run check:program
 ```
 
-The GitHub Actions workflow verifies the web app, typed client, production build, and
-Rialo program on pushes to `main` and on pull requests.
-
-### Build and deploy the program
-
-The deployed artifact was produced on Ubuntu 24.04 under WSL2 with Rialo CLI `0.18.1`
-and the Rialo Rust toolchain:
+Additional suites:
 
 ```bash
-npm run build:program
-rialo -n devnet -a default client program deploy-venus programs/mergepay-rialo
+npm run test:e2e
+npm run test:program
 ```
 
-Deployment changes must also update `deployments/devnet.json` and include inspectable
-runtime evidence in `docs/EVIDENCE.md`.
+Browser tests use deterministic wallet and RPC fixtures; they do not transfer
+DevNet funds. Live settlement evidence is recorded separately. The Rust suite
+checks program invariants. [GitHub Actions](.github/workflows/ci.yml) runs the
+web, client, browser, and program suites on pull requests and pushes to `main`.
 
-## Security
+See the [program README](programs/mergepay-rialo/README.md) and
+[deployment scripts](scripts/README.md) for artifact builds and deployment
+procedures. New deployment records should include the program ID, artifact
+hash, and inspectable runtime evidence.
 
-MergePay is designed to fail closed:
+## Trust and limitations
 
-- payout requires a non-empty, unanimous successful REX report;
-- the callback account must match the committed beneficiary;
-- sponsor-only actions recheck the committed sponsor and workflow state;
-- `paid` and `refunded` flags prevent replayed settlement;
-- checked arithmetic and ownership checks protect escrow accounting;
-- only the committed escrow amount moves, preserving the workflow's state/rent balance;
-- OAuth tokens remain server-side, while embedded wallet keys remain encrypted in the browser.
+GitHub OAuth and author-ID checks are **application gates**, not an onchain
+GitHub identity attestation. The sponsor app rechecks the author before approval;
+the program independently enforces signer authority, account ownership, exact
+terms, and the beneficiary lock.
 
-Current scope is intentionally narrow: DevNet, native RLO, public GitHub repositories,
-one sponsor, one approved beneficiary, and one pull request per workflow. The program has
-not been audited. Read [Security and limitations](docs/SECURITY.md) before extending or
-deploying it beyond its current review environment.
+Settlement depends on Rialo's runtime, the received REX report, and GitHub's
+public REST responses. Invalid or inconsistent proof cannot authorize payout.
+An RPC or decoder failure can delay the UI without stopping native execution.
+
+Current scope:
+
+- DevNet, test RLO, public GitHub repositories, and one PR/beneficiary per workflow.
+- No private-repository settlement, split payouts, multi-PR milestones, or dispute arbitration.
+- CI and reviews are payment conditions, not a guarantee of code quality or security.
+- Transaction and storage costs are separate from the reward.
+- The embedded wallet is encrypted and browser-local, intended for DevNet testing.
+
+Read [Security and limitations](docs/SECURITY.md) before modifying the trust model
+or extending the application beyond this scope.
 
 ## Documentation
 
-| Document | Purpose |
+| Document | Contents |
 | --- | --- |
-| [Architecture](docs/ARCHITECTURE.md) | State machine, account model, timers, REX flow, and callback ABI. |
-| [Security](docs/SECURITY.md) | Invariants, trust assumptions, fail-closed behavior, and known limitations. |
-| [DevNet evidence](docs/EVIDENCE.md) | Transaction signatures, callback lineage, balances, and deployment proof. |
-| [GitHub OAuth setup](docs/GITHUB_OAUTH_SETUP.md) | Identity-verification app configuration and environment variables. |
-| [Builder submission](docs/BUILDER_SUBMISSION.md) | Concise reviewer narrative and demo checklist. |
+| [Architecture](docs/ARCHITECTURE.md) | Accounts, state machine, timers, REX flow, and callback ABI. |
+| [Security](docs/SECURITY.md) | Invariants, trust assumptions, and known limitations. |
+| [DevNet evidence](docs/EVIDENCE.md) | Recorded transactions, workflow accounts, and deployment history. |
+| [GitHub OAuth setup](docs/GITHUB_OAUTH_SETUP.md) | Identity configuration and callback setup. |
+| [Builder submission](docs/BUILDER_SUBMISSION.md) | Reviewer context and demo checklist. |
 | [Contributing](CONTRIBUTING.md) | Repository boundaries and review expectations. |
 
 ## Contributing
 
-Issues and pull requests are welcome. Keep changes within the owning package, add tests
-for behavioral changes, and run the verification commands before requesting review.
-Every new DevNet claim should include an inspectable transaction or callback in
-`docs/EVIDENCE.md`.
+Keep changes within the owning package, add tests for behavioral changes, and
+run the relevant checks before requesting review. Include inspectable evidence
+for new claims about live DevNet behavior.
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE).
+[Apache License 2.0](LICENSE).
