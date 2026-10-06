@@ -5,6 +5,7 @@ import {
   Activity,
   AlertCircle,
   Check,
+  ChevronDown,
   CircleDashed,
   Clock3,
   RefreshCw,
@@ -18,6 +19,7 @@ import { formatLocalDateTime, formatRlo, shortenAddress } from "@/lib/format";
 import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 import { CopyValue } from "@/components/ui/copy-value";
 import { TransactionProof } from "@/components/ui/transaction-proof";
+import { groupWalletActivity } from "@/lib/activity-groups";
 
 const ACTIVITY_PAGE_SIZE = 8;
 
@@ -43,7 +45,7 @@ const actionLabels: Record<MergePayInstructionName | "network", string> = {
   create_bounty: "Created bounty",
   prepare_funding: "Prepared escrow storage",
   fund: "Funded escrow",
-  check_merge: "Checked merge",
+  check_merge: "Requested merge check",
   refund: "Refunded escrow",
   status: "Read workflow",
   request_claim: "Requested bounty claim",
@@ -179,9 +181,9 @@ export function WalletActivityFeed() {
     >
       <div className="wallet-activity__header">
         <div>
-          <p className="panel-label">CONNECTED WALLET</p>
-          <h2 id="wallet-activity-title">Your activity</h2>
-          <p>Only transactions involving the active wallet are shown here. Records are newest first and older history is loaded from Rialo DevNet by page.</p>
+          <p className="panel-label">WALLET ACTIVITY</p>
+          <h2 id="wallet-activity-title">Transaction history</h2>
+          <p>Transactions for the connected wallet, newest first.</p>
         </div>
         <button
           aria-label="Refresh wallet activity"
@@ -265,13 +267,20 @@ export function WalletActivityFeed() {
         </>
       ) : (
         <>
+          <div className="wallet-activity__summary">
+            <strong>{state.items.length} {state.items.length === 1 ? "transaction" : "transactions"}</strong>
+            <span>Repeated checks are grouped on this page.</span>
+          </div>
           <div className="wallet-activity__list" aria-live="polite">
             <div className="wallet-activity__list-header">
               <span>ACTIVITY</span>
-              <span>STATUS</span>
+              <span>RESULT</span>
+              <span>TIME</span>
               <span>TRANSACTION</span>
             </div>
-            {state.items.map((item) => <ActivityRow item={item} key={item.signature} />)}
+            {groupWalletActivity(state.items).map((entry) => entry.kind === "transaction"
+              ? <ActivityRow item={entry.item} key={entry.item.signature} />
+              : <ActivityCheckGroup items={entry.items} key={entry.items[0]?.signature} />)}
           </div>
           <ActivityPagination
             count={state.items.length}
@@ -288,7 +297,7 @@ export function WalletActivityFeed() {
       {wallet.address ? (
         <div className="wallet-activity__note">
           <Activity aria-hidden="true" size={16} strokeWidth={1.7} />
-          <p>Activity is wallet-scoped and read-only. It does not replace the verified workflow record or invent a status when Rialo has not returned transaction details.</p>
+          <p>Confirmed means the transaction executed, not that a bounty was paid. <Link href="/settlements">View settlement receipts</Link> for verified outcomes.</p>
         </div>
       ) : null}
     </section>
@@ -309,18 +318,59 @@ function ActivityRow({ item }: Readonly<{ item: MergePayActivityItem }>) {
         <div>
           <h3>{actionLabel}</h3>
           <p>{actionDetails[item.action]}</p>
-          <time dateTime={time.iso} suppressHydrationWarning>{time.label}</time>
         </div>
       </div>
       <div className="wallet-activity__result">
         <span className={`state ${failed ? "state--bad" : "state--good"}`}>{failed ? "Failed" : "Confirmed"}</span>
-        <small>{item.error ?? (item.feeKelvin === null ? "Execution recorded" : `Fee ${formatRlo(item.feeKelvin)} RLO`)}</small>
+        <small title={item.error ?? undefined}>{item.error ?? (item.feeKelvin === null ? "Execution recorded" : `Fee ${formatRlo(item.feeKelvin)} RLO`)}</small>
+        {item.rexSignal === "inconclusive" ? <small className="wallet-activity__proof-warning">REX proof inconclusive</small> : null}
+      </div>
+      <div className="wallet-activity__time">
+        <time dateTime={time.iso} suppressHydrationWarning>{time.label}</time>
       </div>
       <div className="wallet-activity__transaction">
         <TransactionProof signature={item.signature} />
         {item.workflowAddress ? <small title={item.workflowAddress}>Workflow {shortenAddress(item.workflowAddress, 6)}</small> : null}
       </div>
     </article>
+  );
+}
+
+function ActivityCheckGroup({ items }: Readonly<{ items: readonly MergePayActivityItem[] }>) {
+  const latest = items[0];
+  if (!latest) return null;
+  const time = formatActivityTime(latest.blockTime);
+
+  return (
+    <details className="wallet-activity__group">
+      <summary className="wallet-activity__group-summary">
+        <div className="wallet-activity__action">
+          <span className="wallet-activity__status-mark" aria-hidden="true">
+            <RefreshCw size={16} strokeWidth={1.8} />
+          </span>
+          <div>
+            <h3>{items.length} merge checks</h3>
+            <p title={latest.workflowAddress ?? undefined}>Workflow {shortenAddress(latest.workflowAddress ?? "", 6)} · this page</p>
+          </div>
+        </div>
+        <div className="wallet-activity__result">
+          <span className="state state--good">Confirmed</span>
+          <small>Transactions, not payout proof</small>
+        </div>
+        <div className="wallet-activity__time">
+          <time dateTime={time.iso} suppressHydrationWarning>{time.label}</time>
+          <small>Latest check</small>
+        </div>
+        <span className="wallet-activity__group-toggle">
+          <span className="wallet-activity__group-show">Show transactions</span>
+          <span className="wallet-activity__group-hide">Hide transactions</span>
+          <ChevronDown aria-hidden="true" size={15} />
+        </span>
+      </summary>
+      <div className="wallet-activity__group-rows">
+        {items.map((item) => <ActivityRow item={item} key={item.signature} />)}
+      </div>
+    </details>
   );
 }
 
@@ -339,13 +389,15 @@ function ActivityPageLoadingState({ count }: Readonly<{ count: number }>) {
       <div className="wallet-activity__list wallet-activity__list--loading" aria-hidden="true">
         <div className="wallet-activity__list-header">
           <span>ACTIVITY</span>
-          <span>STATUS</span>
+          <span>RESULT</span>
+          <span>TIME</span>
           <span>TRANSACTION</span>
         </div>
         {Array.from({ length: count }, (_, index) => (
           <div className="wallet-activity__skeleton-row" key={index}>
             <span className="wallet-activity__skeleton wallet-activity__skeleton--action" />
             <span className="wallet-activity__skeleton wallet-activity__skeleton--result" />
+            <span className="wallet-activity__skeleton wallet-activity__skeleton--time" />
             <span className="wallet-activity__skeleton wallet-activity__skeleton--transaction" />
           </div>
         ))}

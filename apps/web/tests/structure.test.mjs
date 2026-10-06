@@ -805,8 +805,8 @@ test("keeps paid and refunded history wallet-scoped and terminal-only", async ()
   const styles = await readFile(new URL("app/globals.css", webRoot), "utf8");
 
   assert.match(settlementsPage, /SettlementActivityFeed/);
-  assert.match(settlementsPage, /paid = true/);
-  assert.match(settlementsPage, /refunded = true/);
+  assert.match(settlementsPage, /verified as paid or refunded/);
+  assert.doesNotMatch(settlementsPage, /paid = true|refunded = true/);
   assert.match(settlementsPage, /liquid-slate-page ledger-page/);
   assert.match(settlementsPage, /ledger-eyebrow/);
   assert.doesNotMatch(settlementsPage, /ScrollReveal/);
@@ -826,6 +826,8 @@ test("keeps paid and refunded history wallet-scoped and terminal-only", async ()
   assert.match(settlementFeed, /terminal transaction in Rialo Scan/);
   assert.match(settlementFeed, /settlementReceiptByAccount/);
   assert.match(settlementFeed, /tx: item\.signature/);
+  assert.match(settlementFeed, /settlement-activity__amount/);
+  assert.doesNotMatch(settlementFeed, /const stateFlag|Native merge heartbeat/);
   assert.match(client, /getWalletSettlementPage/);
   assert.match(client, /workflow\.state\.paid/);
   assert.match(client, /workflow\.state\.refunded/);
@@ -900,6 +902,9 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.match(activityFeed, /requestWalletControlOpen/);
   assert.match(activityFeed, /THIS FEED SHOWS/);
   assert.match(activityFeed, /TransactionProof/);
+  assert.match(activityFeed, /groupWalletActivity/);
+  assert.match(activityFeed, /<details className="wallet-activity__group"/);
+  assert.match(activityFeed, /Confirmed means the transaction executed, not that a bounty was paid/);
   assert.match(walletControl, /OPEN_WALLET_CONTROL_EVENT/);
   assert.match(styles, /\.wallet-activity__pagination/);
   assert.match(styles, /\.wallet-activity__empty-visual/);

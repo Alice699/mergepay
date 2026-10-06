@@ -355,12 +355,10 @@ export function SettlementActivityFeed() {
     >
       <header className="settlement-activity__header">
         <div>
-          <p className="panel-label">TERMINAL PROOF ONLY</p>
-          <h2 id="settlement-activity-title">Verified settlement receipts</h2>
+          <p className="panel-label">VERIFIED ONCHAIN</p>
+          <h2 id="settlement-activity-title">Settlement history</h2>
           <p>
-            Paid and refunded bounties involving this wallet. Open any receipt
-            to verify the workflow flags, destination, and terminal transaction
-            without relying on a wallet balance change.
+            Paid and refunded bounties involving this wallet. Each receipt links to its onchain proof.
           </p>
         </div>
         <div className="settlement-activity__header-actions">
@@ -478,13 +476,12 @@ export function SettlementActivityFeed() {
         <>
           <div className="settlement-activity__summary">
             <div>
-              <span className="panel-label">VERIFIED ONCHAIN</span>
               <strong>{items.length} {items.length === 1 ? "settlement" : "settlements"}</strong>
-              <small suppressHydrationWarning>{state.lastChecked ? `Last verified ${formatLocalTime(state.lastChecked)}` : "Checking now"}</small>
+              <small suppressHydrationWarning>{state.lastChecked ? `This page · last verified ${formatLocalTime(state.lastChecked)}` : "Checking now"}</small>
             </div>
             <div className="settlement-activity__legend" aria-label="Settlement outcomes">
-              <span data-outcome="paid"><i aria-hidden="true" /> Paid</span>
-              <span data-outcome="refunded"><i aria-hidden="true" /> Refunded</span>
+              <span data-outcome="paid"><i aria-hidden="true" /> {items.filter((item) => item.outcome === "paid").length} paid</span>
+              <span data-outcome="refunded"><i aria-hidden="true" /> {items.filter((item) => item.outcome === "refunded").length} refunded</span>
             </div>
           </div>
           <div className="settlement-activity__list" aria-live="polite">
@@ -506,9 +503,7 @@ export function SettlementActivityFeed() {
         <footer className="settlement-activity__note">
           <ReceiptText aria-hidden="true" size={16} strokeWidth={1.7} />
           <p>
-            Contributors can open the paid receipt, while sponsors can open the
-            refund receipt. Every receipt is decoded from Rialo and links to the
-            terminal transaction in Rialo Scan.
+            Each receipt verifies the amount, recipient, and terminal transaction in Rialo Scan.
           </p>
         </footer>
       ) : null}
@@ -518,7 +513,6 @@ export function SettlementActivityFeed() {
 
 function SettlementRow({ item }: Readonly<{ item: MergePaySettlementItem }>) {
   const paid = item.outcome === "paid";
-  const stateFlag = paid ? "paid = true" : "refunded = true";
   const time = formatSettlementTime(item.blockTime);
   const receiptQuery = new URLSearchParams({
     account: item.workflowAddress,
@@ -528,48 +522,40 @@ function SettlementRow({ item }: Readonly<{ item: MergePaySettlementItem }>) {
   const receiptHref = `${item.workflowSlug
     ? routes.settlementReceipt(item.workflowSlug)
     : routes.settlementReceiptByAccount}?${receiptQuery.toString()}`;
-  const source = item.action === "check_merge"
-    ? "Native merge heartbeat"
-    : item.action === "refund"
-      ? "Deadline refund branch"
-      : "Wallet-linked workflow state";
   const roleLabel = paid
     ? item.role === "beneficiary" ? "Paid to this wallet" : "Paid from this wallet"
     : item.role === "beneficiary" ? "Refunded for this wallet" : "Returned to this wallet";
 
   return (
-    <article className="settlement-activity__row" data-outcome={item.outcome}>
+    <article className="settlement-activity__row" data-outcome={item.outcome} aria-label={`${paid ? "Paid" : "Refunded"} bounty ${item.workflow.state.githubOwner}/${item.workflow.state.githubRepo} #${item.workflow.state.pullNumber.toString()}`}>
       <div className="settlement-activity__mark" aria-hidden="true">
         <Check size={17} strokeWidth={2.1} />
       </div>
       <div className="settlement-activity__main">
-        <div className="settlement-activity__row-heading">
-          <div>
-            <span className="settlement-outcome" data-outcome={item.outcome}>
-              {paid ? "PAID" : "REFUNDED"}
-            </span>
-            <h3>{item.workflow.state.githubOwner}/{item.workflow.state.githubRepo} <span>#{item.workflow.state.pullNumber.toString()}</span></h3>
-          </div>
-          <strong>{formatRlo(item.workflow.state.amountKelvin)} <small>RLO</small></strong>
-        </div>
+        <span className="settlement-outcome" data-outcome={item.outcome}>
+          {paid ? "Paid" : "Refunded"}
+        </span>
+        <h3 title={`${item.workflow.state.githubOwner}/${item.workflow.state.githubRepo}`}>{item.workflow.state.githubOwner}/{item.workflow.state.githubRepo}</h3>
         <p className="settlement-activity__role">{roleLabel}</p>
         <div className="settlement-activity__meta">
-          <span><i aria-hidden="true" /> {source}</span>
-          <span>{stateFlag}</span>
+          <a
+            className="settlement-github-link"
+            href={`https://github.com/${encodeURIComponent(item.workflow.state.githubOwner)}/${encodeURIComponent(item.workflow.state.githubRepo)}/pull/${item.workflow.state.pullNumber.toString()}`}
+            rel="noreferrer noopener"
+            target="_blank"
+          >
+            <GitPullRequest aria-hidden="true" size={13} strokeWidth={1.7} />
+            PR #{item.workflow.state.pullNumber.toString()}
+          </a>
           <time dateTime={time.iso} suppressHydrationWarning>{time.label}</time>
         </div>
       </div>
+      <div className="settlement-activity__amount">
+        <strong>{formatRlo(item.workflow.state.amountKelvin)} <small>RLO</small></strong>
+        <span>Bounty amount</span>
+      </div>
       <div className="settlement-activity__actions">
-        <a
-          className="settlement-github-link"
-          href={`https://github.com/${encodeURIComponent(item.workflow.state.githubOwner)}/${encodeURIComponent(item.workflow.state.githubRepo)}/pull/${item.workflow.state.pullNumber.toString()}`}
-          rel="noreferrer"
-          target="_blank"
-        >
-          <GitPullRequest aria-hidden="true" size={14} strokeWidth={1.7} />
-          PR #{item.workflow.state.pullNumber.toString()}
-        </a>
-        <Link className="settlement-receipt-link" href={receiptHref}>
+        <Link className="settlement-receipt-link" href={receiptHref} aria-label={`View receipt for ${item.workflow.state.githubOwner}/${item.workflow.state.githubRepo} #${item.workflow.state.pullNumber.toString()}`}>
           <ReceiptText aria-hidden="true" size={14} strokeWidth={1.7} />
           View receipt
         </Link>
@@ -678,6 +664,7 @@ function SettlementPageLoadingState({ count }: Readonly<{ count: number }>) {
           <div className="settlement-activity__skeleton-row" key={index}>
             <span className="settlement-activity__skeleton settlement-activity__skeleton--mark" />
             <span className="settlement-activity__skeleton settlement-activity__skeleton--main" />
+            <span className="settlement-activity__skeleton settlement-activity__skeleton--amount" />
             <span className="settlement-activity__skeleton settlement-activity__skeleton--actions" />
           </div>
         ))}

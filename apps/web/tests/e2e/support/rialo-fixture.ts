@@ -3,6 +3,7 @@ import {
   BincodeWriter,
   MERGEPAY_PROGRAM_ID,
   PublicKey,
+  buildCheckMergeInstruction,
   buildFundInstruction,
   deriveWorkflowPda,
 } from "@mergepay/rialo-client";
@@ -17,7 +18,7 @@ const BASE58_ALPHABET =
   "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const PAGE_TRANSITION_DELAY_MS = 350;
 
-type RpcScenario = "empty" | "activity" | "settlements";
+type RpcScenario = "empty" | "activity" | "activity-checks" | "settlements";
 export type WorkflowLifecycleState =
   | "approved"
   | "funded"
@@ -179,6 +180,30 @@ export async function installRialoRpcMock(
       record.transaction,
     ]),
   );
+  if (scenario === "activity-checks") {
+    const input = {
+      payer: MOCK_WALLET_ADDRESS,
+      programId: MERGEPAY_PROGRAM_ID,
+      workflowSlug: "c".repeat(64),
+    };
+    activityFirstPage.forEach((signature, index) => {
+      if (index === 6) return; // A network record remains separate from checks.
+      const instruction = index === 0 ? buildFundInstruction(input) : buildCheckMergeInstruction(input);
+      transactionsBySignature.set(signature.signature, {
+        blockHeight: signature.blockHeight,
+        blockTime: signature.blockTime,
+        transaction: {
+          signatures: [signature.signature],
+          validFrom: "1787941000000",
+          message: {
+            accountKeys: [MOCK_WALLET_ADDRESS, instruction.workflowPda, MERGEPAY_PROGRAM_ID],
+            instructions: [{ programIdIndex: 2, accounts: [0, 1], data: Buffer.from(instruction.data).toString("base64") }],
+          },
+        },
+        meta: { err: index === 5 ? { InstructionError: [0, "InvalidArgument"] } : null, fee: "100" },
+      });
+    });
+  }
   const accountsByAddress = new Map(
     settlementRecords.map((record) => [record.workflowAddress, record.account]),
   );
@@ -220,7 +245,7 @@ export async function installRialoRpcMock(
       const before = typeof config.before === "string" ? config.before : null;
       let signatures: SignatureRecord[] = [];
 
-      if (scenario === "activity") {
+      if (scenario === "activity" || scenario === "activity-checks") {
         signatures = before ? activitySecondPage : activityFirstPage;
       } else if (scenario === "settlements") {
         signatures = before
@@ -242,7 +267,7 @@ export async function installRialoRpcMock(
       await fulfillResult(
         route,
         request,
-        scenario === "settlements"
+        scenario === "settlements" || scenario === "activity-checks"
           ? transactionsBySignature.get(signature) ?? null
           : null,
       );
@@ -369,6 +394,7 @@ export async function installWorkflowLifecycleRpcMock(
 
 function createSettlementRecords(): SettlementRecord[] {
   return Array.from({ length: 7 }, (_, index) => {
+    const paid = index % 2 === 0;
     const slug = (index + 1).toString(16).padStart(64, "0");
     const workflowAddress = deriveWorkflowPda(
       MERGEPAY_PROGRAM_ID,
@@ -392,9 +418,9 @@ function createSettlementRecords(): SettlementRecord[] {
       .writeU64(BigInt(1_000_000_000 + index * 100_000_000))
       .writeU64(1_900_000_000_000n)
       .writeBool(true)
-      .writeBool(true)
-      .writeBool(true)
-      .writeBool(false)
+      .writeBool(paid)
+      .writeBool(paid)
+      .writeBool(!paid)
       .writeU64(2n)
       .writeBool(false)
       .writeFixedArray(new Uint8Array(32), 32)
