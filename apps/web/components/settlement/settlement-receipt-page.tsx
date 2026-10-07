@@ -27,38 +27,25 @@ export function SettlementReceiptPage({
         <div className="ledger-hero__copy bounty-flow-hero__copy">
           <div className="ledger-eyebrow bounty-flow-eyebrow">
             <span><i aria-hidden="true" /> Onchain settlement proof</span>
-            <b>Paid / Refunded</b>
+            <b>Rialo DevNet</b>
           </div>
-          <h1>
-            <span>Know where</span>
-            <em>the bounty went.</em>
-          </h1>
+          <h1>Settlement receipt</h1>
           <p>
-            Paid and refunded receipts are decoded from the exact Rialo workflow
-            account. The amount and destination remain visible even when the
-            wallet balance change is easy to miss.
+            The final amount, destination, and workflow state—read directly from Rialo.
           </p>
         </div>
-        {valid && identifier ? (
-          <aside className="bounty-flow-hero__card settlement-page__identity" aria-label="Settlement workflow identifier">
-            <div className="bounty-flow-hero__card-head">
-              <span className="bounty-flow-hero__card-icon" aria-hidden="true">
-                <ReceiptText size={20} strokeWidth={1.6} />
-              </span>
-              <span className="bounty-flow-hero__card-state"><i aria-hidden="true" /> Proof ready</span>
-            </div>
-            <div className="bounty-flow-hero__card-body">
-              <span>{slug ? "WORKFLOW ID" : "WORKFLOW ACCOUNT"}</span>
-              <CopyValue value={identifier} />
-              <p>Rialo DevNet · live account read</p>
-            </div>
-          </aside>
-        ) : (
-          <Link className="button" href={routes.settlements}>
-            Back to settlements
-          </Link>
-        )}
+        <Link className="button button--dark" href={routes.settlements}>
+          <ReceiptText aria-hidden="true" size={16} /> Back to settlements
+        </Link>
       </div>
+
+      {valid && identifier && (
+        <div className="settlement-page__identity" aria-label="Settlement workflow identifier">
+          <span>{slug ? "Workflow ID" : "Workflow account"}</span>
+          <CopyValue value={identifier} />
+          <small>Workflow account read · not a balance estimate</small>
+        </div>
+      )}
 
       {valid ? (
         <SettlementReceipt

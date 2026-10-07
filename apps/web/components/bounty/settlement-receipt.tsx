@@ -8,6 +8,7 @@ import {
   Activity,
   BadgeCheck,
   Check,
+  ChevronDown,
   CircleAlert,
   Clock3,
   GitCommitHorizontal,
@@ -54,10 +55,6 @@ function settlementProofLabel(status: DecodedMergePayWorkflow["state"]["proofSta
     7: "Latest REX proof inconclusive",
   } as const;
   return labels[status];
-}
-
-function shortCommit(value: string) {
-  return value.length === 40 ? `${value.slice(0, 10)}…${value.slice(-7)}` : "Not recorded";
 }
 
 export function SettlementReceipt({
@@ -262,10 +259,10 @@ function VerifiedSettlementReceipt({
           <p suppressHydrationWarning>
             {paid
               ? hasStrongProof
-                ? "The exact bounty amount was released only after unanimous REX evidence reproduced every locked GitHub condition."
+                ? "The approved contributor received the exact reward after all locked GitHub conditions passed."
                 : "The exact bounty amount was released to the approved contributor after the workflow recorded merged proof."
               : hasStrongProof
-                ? "The exact bounty amount returned to the sponsor at the deadline; an unmet proof condition could not redirect or release it."
+                ? "The sponsor recovered the exact reward after the deadline. No payout was recorded for this workflow."
                 : "The exact bounty amount was returned to the sponsor after the workflow reached its deadline."}
           </p>
         </div>
@@ -274,115 +271,110 @@ function VerifiedSettlementReceipt({
         </span>
       </header>
 
-      <div className="settlement-receipt__amount">
-        <span>{paid ? "PAID AMOUNT" : "REFUNDED AMOUNT"}</span>
-        <strong>
-          {formatRlo(workflow.state.amountKelvin)} <small>RLO</small>
-        </strong>
-        <p>Exact amount released from escrow</p>
-      </div>
-
-      <div className="settlement-receipt__terminal-proof">
-        <span>TERMINAL WORKFLOW FLAG</span>
-        <strong>
-          <Check aria-hidden="true" size={14} strokeWidth={2.2} />
-          {paid ? "paid = true" : "refunded = true"}
-        </strong>
-        <small>{paid && hasStrongProof ? "proof_status = 6 and the opposite release path is permanently unavailable." : "The opposite release path is permanently unavailable."}</small>
-      </div>
-
-      <dl className="settlement-receipt__details">
-        <div className="settlement-receipt__detail settlement-receipt__detail--destination">
+      <div className="settlement-receipt__summary">
+        <div className="settlement-receipt__amount" data-compact={formatRlo(workflow.state.amountKelvin).length > 12}>
+          <span>{paid ? "PAID AMOUNT" : "REFUNDED AMOUNT"}</span>
+          <strong>{formatRlo(workflow.state.amountKelvin)} <small>RLO</small></strong>
+          <p>Exact reward released from escrow</p>
+        </div>
+        <dl className="settlement-receipt__destination">
           <dt>{paid ? "Paid to" : "Returned to"}</dt>
           <dd>
-            <strong>{paid ? "Approved contributor" : "Workflow sponsor"}</strong>
+            <strong><WalletCards aria-hidden="true" size={16} /> {paid ? "Approved contributor" : "Workflow sponsor"}</strong>
             <CopyValue value={destination} />
           </dd>
+        </dl>
+        <div className="settlement-receipt__terminal-proof">
+          <span>FINAL WORKFLOW STATE</span>
+          <strong><Check aria-hidden="true" size={14} strokeWidth={2.2} />{paid ? "paid = true" : "refunded = true"}</strong>
+          <small>Final settlement. The other release path is permanently closed.</small>
         </div>
-        <div>
-          <dt>GitHub target</dt>
-          <dd>
-            <strong>
-              {workflow.state.githubOwner}/{workflow.state.githubRepo}
-            </strong>
-            <a href={githubUrl} rel="noreferrer" target="_blank">
-              <GitPullRequest aria-hidden="true" size={14} strokeWidth={1.8} />
-              Pull request #{workflow.state.pullNumber.toString()}
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          </dd>
-        </div>
-        <div>
-          <dt>Workflow account</dt>
-          <dd>
-            <CopyValue value={workflow.address} />
-          </dd>
-        </div>
-        <div>
-          <dt>Deadline</dt>
-          <dd>
-            <strong suppressHydrationWarning>
-              {formatDeadline(workflow.state.deadlineUnixMs)}
-            </strong>
-          </dd>
-        </div>
-        <div>
-          <dt>Settlement path</dt>
-          <dd>
-            <strong>{paid ? "Verified policy payout" : "Deadline refund"}</strong>
-            <span>{paid ? hasStrongProof ? "Exact revision proof passed" : "REX merge proof confirmed" : hasStrongProof ? settlementProofLabel(workflow.state.proofStatus) : "Expired escrow recovered"}</span>
-          </dd>
-        </div>
-        <div>
-          <dt>Remaining account balance</dt>
-          <dd>
-            <strong>{formatRlo(workflow.account.kelvin)} RLO remains</strong>
-            <span>The committed bounty is no longer held in escrow</span>
-          </dd>
-        </div>
-        {hasStrongProof ? (
-          <>
+      </div>
+
+      <div className="settlement-receipt__primary">
+        <section aria-labelledby="receipt-details-title" className="settlement-receipt__record">
+          <h3 id="receipt-details-title">Settlement details</h3>
+          <dl className="settlement-receipt__details">
+            <div>
+              <dt>GitHub target</dt>
+              <dd>
+                <strong>{workflow.state.githubOwner}/{workflow.state.githubRepo}</strong>
+                <a href={githubUrl} rel="noreferrer noopener" target="_blank">
+                  <GitPullRequest aria-hidden="true" size={14} strokeWidth={1.8} /> Pull request #{workflow.state.pullNumber.toString()}
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              </dd>
+            </div>
+            <div>
+              <dt>Deadline</dt>
+              <dd><strong suppressHydrationWarning>{formatDeadline(workflow.state.deadlineUnixMs)}</strong><span>The absolute deadline locked at creation</span></dd>
+            </div>
+            <div>
+              <dt>Settlement path</dt>
+              <dd>
+                <strong>{paid ? hasStrongProof ? "Verified policy payout" : "Verified merge payout" : "Deadline refund"}</strong>
+                <span>{paid ? hasStrongProof ? "All locked conditions passed" : "REX merge proof confirmed" : hasStrongProof ? settlementProofLabel(workflow.state.proofStatus) : "Expired escrow recovered"}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Workflow account</dt>
+              <dd><CopyValue value={workflow.address} /></dd>
+            </div>
+          </dl>
+        </section>
+
+        <aside aria-labelledby="receipt-transaction-title" className="settlement-receipt__transaction-card">
+          <div className="settlement-receipt__transaction-heading"><ReceiptText aria-hidden="true" size={18} /><h3 id="receipt-transaction-title">Transaction record</h3></div>
+          {transactionSignature ? (
+            <div className="settlement-receipt__detail--proof">
+              <span>Settlement transaction</span>
+              <TransactionProof signature={transactionSignature} />
+              <p>Copy the signature or open the transaction in Rialo Scan.</p>
+            </div>
+          ) : (
+            <div className="settlement-receipt__transaction-missing"><strong>Transaction link not provided</strong><p>The workflow state is verified. Open this receipt from the settlement ledger to include its transaction link.</p></div>
+          )}
+          <dl className="settlement-receipt__transaction-meta">
+            <div><dt>Network</dt><dd>Rialo DevNet</dd></div>
+            <div><dt>Verification source</dt><dd>Workflow account</dd></div>
+          </dl>
+        </aside>
+      </div>
+
+      <details className="settlement-receipt__audit">
+        <summary>
+          <span><GitCommitHorizontal aria-hidden="true" size={18} /><span><strong>Onchain verification details</strong><small>Account flags{hasStrongProof ? ", locked policy, and REX evidence" : " and remaining account balance"}</small></span></span>
+          <ChevronDown aria-hidden="true" size={17} />
+        </summary>
+        <dl className="settlement-receipt__details settlement-receipt__audit-grid">
+          <div>
+            <dt>Terminal account flags</dt>
+            <dd><code>funded = true · paid = {String(workflow.state.paid)} · refunded = {String(workflow.state.refunded)}</code><span>{paid && hasStrongProof ? "proof_status = 6 · all locked conditions passed" : "Verified from the decoded workflow account"}</span></dd>
+          </div>
+          <div>
+            <dt>Remaining account balance</dt>
+            <dd><strong>{formatRlo(workflow.account.kelvin)} RLO remains</strong><span>This is separate from the reward already released.</span></dd>
+          </div>
+          {hasStrongProof && <>
             <div>
               <dt>Locked GitHub revision</dt>
-              <dd>
-                <strong><GitCommitHorizontal aria-hidden="true" size={14} /> {shortCommit(workflow.state.expectedHeadSha)}</strong>
-                <span>Target branch: {workflow.state.expectedBaseRef}</span>
-              </dd>
+              <dd><CopyValue value={workflow.state.expectedHeadSha} /><span>Target branch: {workflow.state.expectedBaseRef}</span></dd>
             </div>
             <div>
-              <dt>Locked policy</dt>
-              <dd>
-                <strong>{workflow.state.requireCiSuccess ? "CI required" : "CI optional"} · {workflow.state.minimumApprovals.toString()} approval{workflow.state.minimumApprovals === 1n ? "" : "s"}</strong>
-                <span>{settlementProofLabel(workflow.state.proofStatus)}</span>
-              </dd>
+              <dt>Locked payout policy</dt>
+              <dd><strong>{workflow.state.requireCiSuccess ? "CI required" : "CI optional"} · Minimum {workflow.state.minimumApprovals.toString()} approval{workflow.state.minimumApprovals === 1n ? "" : "s"}</strong><span>{settlementProofLabel(workflow.state.proofStatus)}</span></dd>
             </div>
-            {paid ? (
-              <div>
-                <dt>Verified merge commit</dt>
-                <dd>
-                  <strong>{shortCommit(workflow.state.proofMergeCommitSha)}</strong>
-                  <span>Observed by REX before the deadline</span>
-                </dd>
-              </div>
-            ) : null}
-            {workflow.state.proofCheckedUnixMs > 0n ? (
-              <div>
-                <dt>Last REX evidence</dt>
-                <dd>
-                  <strong suppressHydrationWarning>{formatDeadline(workflow.state.proofCheckedUnixMs)}</strong>
-                  <span>CI {workflow.state.proofCiSuccess ? "successful" : "not successful"} · {workflow.state.proofApprovals.toString()} eligible approvals</span>
-                </dd>
-              </div>
-            ) : null}
-          </>
-        ) : null}
-        {transactionSignature ? (
-          <div className="settlement-receipt__detail settlement-receipt__detail--proof">
-            <dt>Settlement transaction</dt>
-            <dd><TransactionProof signature={transactionSignature} /></dd>
-          </div>
-        ) : null}
-      </dl>
+            {paid && <div>
+              <dt>Verified merge commit</dt>
+              <dd><CopyValue value={workflow.state.proofMergeCommitSha} /><span>Observed by REX before the deadline</span></dd>
+            </div>}
+            {workflow.state.proofCheckedUnixMs > 0n && <div>
+              <dt>Last REX evidence</dt>
+              <dd><strong suppressHydrationWarning>{formatDeadline(workflow.state.proofCheckedUnixMs)}</strong><span>CI {workflow.state.proofCiSuccess ? "successful" : "not successful"} · {workflow.state.proofApprovals.toString()} eligible approvals</span></dd>
+            </div>}
+          </>}
+        </dl>
+      </details>
 
       <footer className="settlement-receipt__footer">
         <div>
@@ -398,7 +390,7 @@ function VerifiedSettlementReceipt({
           </Link>
           <Link className="text-link" href={routes.activity}>
             <Activity aria-hidden="true" className="ui-icon" size={15} strokeWidth={1.8} />
-            Wallet activity
+            Activity ledger
           </Link>
         </div>
       </footer>

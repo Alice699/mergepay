@@ -13,6 +13,7 @@ import { AppProviders } from "@/providers";
 import "./globals.css";
 import "./wallet.css";
 import "./bounty-workspace.css";
+import "./settlement-receipt.css";
 
 const title = "MergePay — Code merged. Bounty settled.";
 const description =

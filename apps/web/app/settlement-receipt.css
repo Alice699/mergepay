@@ -1,0 +1,139 @@
+/* Shareable settlement receipt: result first, technical evidence on demand. */
+.bounty-receipt-page.bounty-flow-page.ledger-page { --receipt-text: #e4e4e4; --receipt-muted: #a2aab0; --receipt-secondary: #889299; padding-top: 2.75rem; }
+.bounty-receipt-page.ledger-page::before { right: 0; width: min(48rem, 100%); }
+.bounty-receipt-page.bounty-flow-page::after { display: none; }
+.bounty-receipt-page.bounty-flow-page.ledger-page .bounty-receipt-hero { grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 1.5rem; min-height: 0; margin: 0; border-bottom: 1px solid var(--line); padding: 0 0 1.5rem; }
+.bounty-receipt-page.ledger-page .ledger-eyebrow { margin-bottom: 1rem; font-size: 0.625rem; }
+.bounty-receipt-page.ledger-page .ledger-hero h1 { margin: 0; color: var(--receipt-text); font-size: clamp(2rem, 3.5vw, 2.75rem); font-weight: 550; letter-spacing: -0.055em; line-height: 1.1; }
+.bounty-receipt-page.ledger-page .ledger-hero__copy > p { max-width: 45rem; margin: 0.875rem 0 0; color: var(--receipt-muted); font-size: 0.875rem; line-height: 1.65; }
+.bounty-receipt-page .bounty-receipt-hero > .button { min-height: 2.75rem; border-radius: 0.75rem; font-size: 0.75rem; }
+.bounty-receipt-page .settlement-page__identity { display: flex; align-items: center; flex-direction: row; flex-wrap: wrap; gap: 0.75rem; width: 100%; min-height: 0; margin-top: 1rem; border: 0; background: none; padding: 0; box-shadow: none; }
+.bounty-receipt-page .settlement-page__identity > span { color: var(--receipt-secondary); font-size: 0.6875rem; }
+.bounty-receipt-page .settlement-page__identity .copy-value { width: auto; max-width: 100%; min-height: 2rem; font-size: 0.625rem; }
+.bounty-receipt-page .settlement-page__identity > small { margin-left: auto; color: var(--receipt-secondary); font-size: 0.625rem; }
+
+.bounty-receipt-page .settlement-receipt { --receipt-state: #80dba6; display: block; margin-top: 1.25rem; border-color: var(--line); border-radius: 1.125rem; background: linear-gradient(145deg, #11171b, #0b0e10 65%); }
+.bounty-receipt-page .settlement-receipt[data-outcome="refunded"] { --receipt-state: #e7bd79; background: linear-gradient(145deg, #11171b, #0b0e10 65%); }
+.bounty-receipt-page .settlement-receipt__header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 1rem; border-color: var(--line); padding: 1.75rem; }
+.bounty-receipt-page .settlement-receipt__seal, .bounty-receipt-page .settlement-receipt[data-outcome="refunded"] .settlement-receipt__seal { width: 3rem; height: 3rem; border-color: color-mix(in oklab, var(--receipt-state) 25%, transparent); background: color-mix(in oklab, var(--receipt-state) 6%, transparent); color: var(--receipt-state); }
+.bounty-receipt-page .settlement-receipt__heading .eyebrow { margin-bottom: 0.5rem; color: var(--receipt-secondary); font-size: 0.5625rem; letter-spacing: 0.075em; }
+.bounty-receipt-page .settlement-receipt__heading h2 { color: var(--receipt-text); font-size: clamp(1.5rem, 2.8vw, 2.125rem); font-weight: 550; letter-spacing: -0.045em; line-height: 1.2; }
+.bounty-receipt-page .settlement-receipt__heading > p:last-child { max-width: 42rem; margin-top: 0.625rem; color: var(--receipt-muted); font-size: 0.8125rem; line-height: 1.65; }
+.bounty-receipt-page .settlement-receipt__verified { grid-column: auto; font-size: 0.5625rem; letter-spacing: 0; }
+.bounty-receipt-page .settlement-receipt__summary { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1fr); align-items: center; border-bottom: 1px solid var(--line); background: #00000010; }
+.bounty-receipt-page .settlement-receipt__summary > :is(.settlement-receipt__amount, .settlement-receipt__destination, .settlement-receipt__terminal-proof) { min-width: 0; min-height: 0; margin: 0; border: 0; background: none; padding: 1.5rem 1.75rem; }
+.bounty-receipt-page .settlement-receipt__summary > :not(:first-child) { border-left: 1px solid var(--line); }
+.bounty-receipt-page :is(.settlement-receipt__amount > span, .settlement-receipt__terminal-proof > span, .settlement-receipt__destination dt) { color: var(--receipt-secondary); font-family: var(--font-mono); font-size: 0.5625rem; font-weight: 500; letter-spacing: 0.065em; text-transform: uppercase; }
+.bounty-receipt-page .settlement-receipt__amount > strong { margin-top: 0.75rem; color: var(--receipt-text); font-size: clamp(2.5rem, 4vw, 3.5rem); font-weight: 500; line-height: 1.1; letter-spacing: -0.045em; }
+.bounty-receipt-page .settlement-receipt__amount[data-compact="true"] > strong { font-size: clamp(1.5rem, 2.2vw, 2rem); }
+.bounty-receipt-page .settlement-receipt__amount > strong small { padding-left: 0.25rem; color: var(--receipt-muted); font-size: 0.75rem; font-weight: 500; letter-spacing: 0; }
+.bounty-receipt-page .settlement-receipt__amount > p { margin-top: 0.625rem; color: var(--receipt-muted); font-size: 0.6875rem; line-height: 1.5; }
+.bounty-receipt-page .settlement-receipt__destination dd { display: grid; gap: 0.75rem; margin: 0.875rem 0 0; }
+.bounty-receipt-page .settlement-receipt__destination dd > strong { display: flex; align-items: center; gap: 0.5rem; color: var(--receipt-text); font-size: 0.875rem; font-weight: 500; }
+.bounty-receipt-page .settlement-receipt__destination dd > strong svg { flex: 0 0 auto; color: var(--receipt-muted); }
+.bounty-receipt-page .settlement-receipt__destination .copy-value { width: 100%; min-height: 2.25rem; font-size: 0.625rem; }
+.bounty-receipt-page .settlement-receipt__terminal-proof > strong { width: fit-content; margin-top: 0.875rem; border: 1px solid color-mix(in oklab, var(--receipt-state) 20%, transparent); border-radius: 0.5rem; background: color-mix(in oklab, var(--receipt-state) 5%, transparent); color: var(--receipt-state); padding: 0.5rem 0.625rem; font-size: 0.75rem; }
+.bounty-receipt-page .settlement-receipt[data-outcome="refunded"] .settlement-receipt__terminal-proof > strong { color: var(--receipt-state); }
+.bounty-receipt-page .settlement-receipt__terminal-proof > small { max-width: 20rem; margin-top: 0.75rem; color: var(--receipt-muted); font-size: 0.6875rem; line-height: 1.6; }
+
+.bounty-receipt-page .settlement-receipt__primary { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.75rem; padding: 1.75rem; }
+.bounty-receipt-page .settlement-receipt__record { min-width: 0; }
+.bounty-receipt-page .settlement-receipt__record > h3 { margin: 0 0 1.5rem; color: var(--receipt-text); font-size: 0.9375rem; font-weight: 550; }
+.bounty-receipt-page .settlement-receipt__details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; margin: 0; border: 0; background: none; }
+.bounty-receipt-page .settlement-receipt__details > div { display: block; min-width: 0; min-height: 0; border: 0; padding: 0; }
+.bounty-receipt-page .settlement-receipt__details dt { color: var(--receipt-secondary); font-family: var(--font-display); font-size: 0.6875rem; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.bounty-receipt-page .settlement-receipt__details dd { gap: 0.5rem; margin-top: 0.625rem; }
+.bounty-receipt-page .settlement-receipt__details dd > strong { max-width: 100%; color: var(--receipt-text); font-size: 0.8125rem; font-weight: 500; line-height: 1.6; overflow-wrap: anywhere; }
+.bounty-receipt-page .settlement-receipt__details dd > :is(span, a) { max-width: 100%; color: var(--receipt-muted); font-size: 0.6875rem; line-height: 1.6; overflow-wrap: anywhere; }
+.bounty-receipt-page .settlement-receipt__details dd > a:hover { color: var(--receipt-text); }
+.bounty-receipt-page .settlement-receipt__details dd > code { max-width: 100%; color: var(--receipt-text); font-family: var(--font-mono); font-size: 0.625rem; line-height: 1.8; overflow-wrap: anywhere; }
+.bounty-receipt-page .settlement-receipt__details .copy-value { width: min(19rem, 100%); min-height: 2.25rem; font-size: 0.625rem; }
+.bounty-receipt-page .settlement-receipt__transaction-card { min-width: 0; align-self: start; border: 1px solid var(--line); border-radius: 0.875rem; background: #ffffff03; padding: 1.25rem; }
+.bounty-receipt-page .settlement-receipt__transaction-heading { display: flex; align-items: center; gap: 0.625rem; margin-bottom: 1.25rem; color: var(--receipt-muted); }
+.bounty-receipt-page .settlement-receipt__transaction-heading h3 { margin: 0; color: var(--receipt-text); font-size: 0.875rem; font-weight: 550; }
+.bounty-receipt-page .settlement-receipt__transaction-card .settlement-receipt__detail--proof { grid-column: auto; min-width: 0; border: 0; background: none; }
+.bounty-receipt-page .settlement-receipt__detail--proof > span { display: block; margin-bottom: 0.625rem; color: var(--receipt-secondary); font-size: 0.625rem; }
+.bounty-receipt-page .settlement-receipt__detail--proof .transaction-proof { display: flex; gap: 0.375rem; width: 100%; min-width: 0; }
+.bounty-receipt-page .settlement-receipt__detail--proof .transaction-proof .copy-value { flex: 1 1 auto; width: auto; min-width: 0; min-height: 2.25rem; font-size: 0.625rem; }
+.bounty-receipt-page .settlement-receipt__detail--proof .transaction-proof__link { flex: 0 0 auto; min-height: 2.25rem; font-size: 0.625rem; }
+.bounty-receipt-page .settlement-receipt__transaction-card p { margin: 0.75rem 0 0; color: var(--receipt-muted); font-size: 0.6875rem; line-height: 1.65; }
+.bounty-receipt-page .settlement-receipt__transaction-missing > strong { color: var(--receipt-text); font-size: 0.8125rem; font-weight: 500; }
+.bounty-receipt-page .settlement-receipt__transaction-meta { display: grid; gap: 0.75rem; margin: 1.25rem 0 0; border-top: 1px solid var(--line); padding-top: 1rem; }
+.bounty-receipt-page .settlement-receipt__transaction-meta > div { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; font-size: 0.625rem; line-height: 1.5; }
+.bounty-receipt-page .settlement-receipt__transaction-meta dt { color: var(--receipt-secondary); }
+.bounty-receipt-page .settlement-receipt__transaction-meta dd { margin: 0; color: var(--receipt-text); }
+
+.bounty-receipt-page .settlement-receipt__audit { border-top: 1px solid var(--line); }
+.bounty-receipt-page .settlement-receipt__audit > summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.75rem; cursor: pointer; list-style: none; }
+.bounty-receipt-page .settlement-receipt__audit > summary::-webkit-details-marker { display: none; }
+.bounty-receipt-page .settlement-receipt__audit > summary:hover { background: #ffffff03; }
+.bounty-receipt-page .settlement-receipt__audit > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.bounty-receipt-page .settlement-receipt__audit > summary > span { display: flex; align-items: center; gap: 0.875rem; min-width: 0; }
+.bounty-receipt-page .settlement-receipt__audit summary svg { flex: 0 0 auto; color: var(--receipt-secondary); }
+.bounty-receipt-page .settlement-receipt__audit summary strong { display: block; color: var(--receipt-text); font-size: 0.8125rem; font-weight: 500; }
+.bounty-receipt-page .settlement-receipt__audit summary small { display: block; margin-top: 0.3125rem; color: var(--receipt-muted); font-size: 0.6875rem; line-height: 1.5; }
+.bounty-receipt-page .settlement-receipt__audit > summary > svg { transition: transform 160ms ease; }
+.bounty-receipt-page .settlement-receipt__audit[open] > summary > svg { transform: rotate(180deg); }
+.bounty-receipt-page .settlement-receipt__audit-grid { padding: 0.375rem 1.75rem 1.75rem; }
+.bounty-receipt-page .settlement-receipt__footer { align-items: center; flex-direction: row; gap: 1.5rem; min-height: 0; border-top: 1px solid var(--line); background: #00000012; padding: 1.25rem 1.75rem; }
+.bounty-receipt-page .settlement-receipt__footer p { max-width: 42rem; color: var(--receipt-muted); font-size: 0.6875rem; line-height: 1.7; }
+.bounty-receipt-page .settlement-receipt__actions { flex-direction: row; align-items: center; gap: 1rem; width: auto; }
+.bounty-receipt-page .settlement-receipt__actions :is(.button, .text-link) { width: auto; font-size: 0.75rem; white-space: nowrap; }
+.bounty-receipt-page .settlement-receipt__actions .button { min-height: 2.5rem; border-radius: 0.625rem; }
+
+.bounty-receipt-page .settlement-receipt--pending { --receipt-state: #e7bd79; }
+.bounty-receipt-page .settlement-receipt--pending .settlement-receipt__seal { color: var(--receipt-state); }
+.bounty-receipt-page .settlement-receipt__pending-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.bounty-receipt-page .settlement-receipt__pending-grid > div { min-height: 0; padding: 1.25rem 1.75rem; }
+.bounty-receipt-page .settlement-receipt__pending-grid strong { color: var(--receipt-text); font-size: 0.8125rem; line-height: 1.6; }
+.bounty-receipt-page .settlement-receipt__pending-summary { grid-template-columns: auto minmax(0, 1fr) auto; gap: 1.5rem; padding: 1.5rem 1.75rem; }
+.bounty-receipt-page .settlement-receipt__pending-summary strong { color: var(--receipt-text); }
+.bounty-receipt-page .settlement-receipt__pending-summary p { color: var(--receipt-muted); }
+.bounty-receipt-page .settlement-receipt-state { min-height: 14rem; margin-top: 1.25rem; padding: 1.75rem; }
+.bounty-receipt-page .settlement-receipt-state div > p:last-child { color: var(--receipt-muted); font-size: 0.8125rem; }
+.bounty-receipt-page .settlement-receipt-state h2 { font-size: clamp(1.5rem, 2.5vw, 2rem); }
+
+@media (max-width: 64rem) {
+  .bounty-receipt-page .settlement-receipt__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bounty-receipt-page .settlement-receipt__summary > .settlement-receipt__terminal-proof { grid-column: 1 / -1; border-top: 1px solid var(--line); border-left: 0; }
+  .bounty-receipt-page .settlement-receipt__primary { grid-template-columns: minmax(0, 1fr); }
+  .bounty-receipt-page .settlement-receipt__transaction-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 1.5rem; }
+  .bounty-receipt-page .settlement-receipt__transaction-heading { grid-column: 1 / -1; }
+  .bounty-receipt-page .settlement-receipt__transaction-meta { align-content: start; margin: 0; border-top: 0; border-left: 1px solid var(--line); padding: 0 0 0 1.5rem; }
+  .bounty-receipt-page .settlement-receipt__footer { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 40rem) {
+  .bounty-receipt-page.bounty-flow-page.ledger-page { padding-top: 1.75rem; }
+  .bounty-receipt-page.bounty-flow-page.ledger-page .bounty-receipt-hero { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .bounty-receipt-page .bounty-receipt-hero > .button { justify-self: start; }
+  .bounty-receipt-page .settlement-page__identity { gap: 0.5rem; }
+  .bounty-receipt-page .settlement-page__identity > small { display: none; }
+  .bounty-receipt-page .settlement-receipt__header { grid-template-columns: auto minmax(0, 1fr); gap: 0.875rem; padding: 1.25rem; }
+  .bounty-receipt-page .settlement-receipt__seal { align-self: start; width: 2.5rem; height: 2.5rem; }
+  .bounty-receipt-page .settlement-receipt__verified { grid-column: 2; justify-self: start; }
+  .bounty-receipt-page .settlement-receipt__summary { grid-template-columns: minmax(0, 1fr); }
+  .bounty-receipt-page .settlement-receipt__summary > :is(.settlement-receipt__amount, .settlement-receipt__destination, .settlement-receipt__terminal-proof) { padding: 1.25rem; }
+  .bounty-receipt-page .settlement-receipt__summary > :not(:first-child) { border-top: 1px solid var(--line); border-left: 0; }
+  .bounty-receipt-page .settlement-receipt__primary { gap: 1.25rem; padding: 1.25rem; }
+  .bounty-receipt-page .settlement-receipt__details { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+  .bounty-receipt-page .settlement-receipt__transaction-card { display: block; padding: 1rem; }
+  .bounty-receipt-page .settlement-receipt__transaction-meta { margin-top: 1.25rem; border-top: 1px solid var(--line); border-left: 0; padding: 1rem 0 0; }
+  .bounty-receipt-page .settlement-receipt__audit > summary { padding: 1.125rem 1.25rem; }
+  .bounty-receipt-page .settlement-receipt__audit-grid { padding: 0.25rem 1.25rem 1.25rem; }
+  .bounty-receipt-page .settlement-receipt__footer { padding: 1.25rem; }
+  .bounty-receipt-page .settlement-receipt__actions { flex-wrap: wrap; width: 100%; gap: 0.75rem; }
+  .bounty-receipt-page .settlement-receipt__pending-grid { grid-template-columns: minmax(0, 1fr); }
+  .bounty-receipt-page .settlement-receipt__pending-grid > div { padding: 1rem 1.25rem; }
+  .bounty-receipt-page .settlement-receipt__pending-summary { grid-template-columns: minmax(0, 1fr); gap: 1rem; padding: 1.25rem; }
+  .bounty-receipt-page .settlement-receipt-state { padding: 1.25rem; }
+}
+
+@media (max-width: 24rem) {
+  body:has(.bounty-receipt-page) .site-header__inner { gap: 0.5rem; }
+  body:has(.bounty-receipt-page) .site-header__actions { min-width: 0; gap: 0.375rem; }
+  body:has(.bounty-receipt-page) .wallet-control { min-width: 0; }
+  body:has(.bounty-receipt-page) .wallet-button { max-width: 100%; padding-inline: 0.625rem; font-size: 0.75rem; }
+  body:has(.bounty-receipt-page) .wallet-button__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  body:has(.bounty-receipt-page) .menu-toggle { flex: 0 0 auto; }
+}
