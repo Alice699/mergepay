@@ -8,6 +8,7 @@ import type {
 import {
   Activity,
   AlertCircle,
+  BookOpen,
   CheckCircle2,
   Clock3,
   ExternalLink,
@@ -27,6 +28,7 @@ import {
   useState,
 } from "react";
 import { CopyValue } from "@/components/ui/copy-value";
+import { EmptyState } from "@/components/ui/empty-state";
 import { TransactionProof } from "@/components/ui/transaction-proof";
 import { useAdaptivePolling } from "@/hooks/use-adaptive-polling";
 import { useNetwork } from "@/hooks/use-network";
@@ -532,6 +534,7 @@ export function WorkflowDiagnosticsDashboard() {
 
       {network.rpcStatus !== "available" && state.items.length === 0 ? (
         <DiagnosticEmpty
+          action={<button className="button button--dark" disabled={network.rpcStatus === "checking"} onClick={network.refreshRpcHealth} type="button">Check connection</button>}
           icon={<Clock3 aria-hidden="true" size={21} strokeWidth={1.7} />}
           title="Waiting for Rialo DevNet"
           description="Diagnostics begin after the RPC health check succeeds. No cached sample records are shown."
@@ -548,13 +551,13 @@ export function WorkflowDiagnosticsDashboard() {
         />
       ) : visibleItems.length === 0 ? (
         <DiagnosticEmpty
-          action={hasFilters ? <button className="button button--dark" onClick={resetFilters} type="button">Clear filters</button> : <div className="workflow-diagnostics__empty-actions">
+          action={hasFilters ? <button className="button button--dark" onClick={resetFilters} type="button">Clear filters</button> : <>
             <Link className="button" href={routes.createBounty}>Create a bounty</Link>
-            <Link className="button button--dark" href={routes.guide}>View guide</Link>
-          </div>}
-          icon={hasFilters ? <CheckCircle2 aria-hidden="true" size={21} strokeWidth={1.7} /> : <Waypoints aria-hidden="true" size={21} strokeWidth={1.7} />}
+            <Link className="text-link" href={routes.guide}><BookOpen aria-hidden="true" size={14} /> View guide</Link>
+          </>}
+          icon={hasFilters ? <Search aria-hidden="true" size={21} strokeWidth={1.7} /> : <Waypoints aria-hidden="true" size={21} strokeWidth={1.7} />}
           title={hasFilters ? "No workflow matches these filters" : "No live workflows yet"}
-          description={hasFilters ? "The loaded onchain records are still available; adjust or clear the current filters." : "Create your first bounty to start an onchain workflow. Once it is funded, it will appear here for read-only monitoring."}
+          description={hasFilters ? "The loaded onchain records are still available. Clear the filters to see them again." : "No workflows were found in the loaded program history. Create a bounty to track its claim, escrow, and settlement here."}
         />
       ) : (
         <div className="workflow-diagnostics__list" aria-live="polite">
@@ -814,14 +817,16 @@ function DiagnosticEmpty({
   tone?: "default" | "error";
 }>) {
   return (
-    <div className="workflow-diagnostics__empty" data-tone={tone}>
-      <span aria-hidden="true">{icon}</span>
-      <div>
-        <h3>{title}</h3>
-        <p>{description}</p>
-        {action}
-      </div>
-    </div>
+    <EmptyState
+      action={action}
+      className="workflow-diagnostics__empty"
+      description={description}
+      details={["Read-only monitoring", "No wallet signature needed"]}
+      eyebrow={tone === "error" ? "Read interrupted" : "Workflow diagnostics"}
+      icon={icon}
+      title={title}
+      tone={tone}
+    />
   );
 }
 

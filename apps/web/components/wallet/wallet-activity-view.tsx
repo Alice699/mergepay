@@ -4,6 +4,7 @@ import type { MergePayActivityItem, MergePayActivityPage, MergePayInstructionNam
 import { AlertCircle, Check, ChevronDown, ChevronLeft, History, LoaderCircle, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TransactionProof } from "@/components/ui/transaction-proof";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useNetwork } from "@/hooks/use-network";
 import { asError, describeRialoError } from "@/lib/errors";
 import { formatLocalDateTime, formatRlo, shortenAddress } from "@/lib/format";
@@ -123,12 +124,16 @@ export function WalletActivityView({
       </div>
 
       {!canRead ? (
-        <div className="wallet-history__empty" role="status">
-          {network.rpcStatus === "checking" && networkSupported !== false ? <LoaderCircle aria-hidden="true" className="ui-icon--spin" size={24} /> : <AlertCircle aria-hidden="true" size={24} />}
-          <h3>{networkSupported === false ? "Different wallet network" : network.rpcStatus === "checking" ? "Connecting to Rialo" : "RPC unavailable"}</h3>
-          <p>{networkSupported === false ? `Switch your wallet to ${network.label} to read this account’s history.` : "Transaction history will appear when the RPC connection is available."}</p>
-          {network.rpcStatus === "unavailable" && networkSupported !== false && <button onClick={network.refreshRpcHealth} type="button">Try again</button>}
-        </div>
+        <EmptyState
+          action={network.rpcStatus === "unavailable" && networkSupported !== false ? <button onClick={network.refreshRpcHealth} type="button">Try again</button> : undefined}
+          className="wallet-history__empty"
+          description={networkSupported === false ? `Switch your wallet to ${network.label} to read this account’s history.` : "Transaction history will appear when the RPC connection is available."}
+          icon={network.rpcStatus === "checking" && networkSupported !== false ? <LoaderCircle aria-hidden="true" className="ui-icon--spin" size={24} /> : <AlertCircle aria-hidden="true" size={24} />}
+          layout="compact"
+          role="status"
+          title={networkSupported === false ? "Different wallet network" : network.rpcStatus === "checking" ? "Connecting to Rialo" : "RPC unavailable"}
+          tone={network.rpcStatus === "checking" && networkSupported !== false ? "pending" : "error"}
+        />
       ) : (
         <div aria-busy={loading} className="wallet-history__body">
           {state.error && (
@@ -149,11 +154,15 @@ export function WalletActivityView({
               {state.items.map((item) => <WalletHistoryRow item={item} key={item.signature} />)}
             </div>
           ) : state.status === "ready" ? (
-            <div className="wallet-history__empty" role="status">
-              <History aria-hidden="true" size={27} />
-              <h3>No transactions yet</h3>
-              <p>No onchain transactions were found for this account on {network.label}.</p>
-            </div>
+            <EmptyState
+              action={<button onClick={onBack} type="button">Back to balance</button>}
+              className="wallet-history__empty"
+              description={`No onchain transactions were found for this account on ${network.label}.`}
+              icon={<History aria-hidden="true" size={24} />}
+              layout="compact"
+              role="status"
+              title="No transactions yet"
+            />
           ) : null}
           {(state.items.length > 0 || state.pageIndex > 0) && (
             <nav aria-label="Wallet transaction pages" className="wallet-history__pagination">

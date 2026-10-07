@@ -23,6 +23,7 @@ import {
   type ReactNode,
 } from "react";
 import { CopyValue } from "@/components/ui/copy-value";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useAdaptivePolling } from "@/hooks/use-adaptive-polling";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
@@ -412,7 +413,7 @@ export function SettlementActivityFeed() {
           eyebrow="WALLET REQUIRED"
           icon={<WalletCards aria-hidden="true" size={20} strokeWidth={1.7} />}
           title="Connect a wallet to see settlements"
-          description="Open the wallet control in the header. Once connected, this page will find paid and refunded bounties associated with that address."
+          description="Connect your wallet to find verified payouts and refunds associated with that address."
           action={<button className="button button--dark" onClick={requestWalletControlOpen} type="button">Open wallet</button>}
         />
       ) : !page && network.rpcStatus !== "available" ? (
@@ -448,13 +449,13 @@ export function SettlementActivityFeed() {
         />
       ) : items.length === 0 ? (
         <SettlementEmptyState
-          details={["Only paid outcomes", "Only refunded outcomes"]}
+          details={["Verified workflow state", "Paid and refunded bounties only"]}
           eyebrow="NO TERMINAL OUTCOMES"
           icon={<Clock3 aria-hidden="true" size={20} strokeWidth={1.7} />}
           title={page?.hasMore ? "No recent settlement found" : "Nothing paid or refunded yet"}
           description={page?.hasMore
             ? `We checked ${page.scannedTransactions} recent wallet transactions. Older activity is available if a paid or refunded bounty is further back.`
-            : "This page intentionally hides funding, claims, and failed attempts. A bounty appears here only after its workflow reaches a verified paid or refunded state."}
+            : "No verified payout or refund was found in the loaded wallet history. Claims, funding, and other transactions are available in Activity."}
           action={page?.hasMore
             ? <button className="button button--dark" onClick={showNextPage} type="button">Load older settlements</button>
             : <Link className="button button--dark" href={routes.activity}>View all activity</Link>}
@@ -623,27 +624,17 @@ function SettlementEmptyState({
   tone?: "error";
 }>) {
   return (
-    <div className="settlement-activity__empty" data-tone={tone ?? "default"}>
-      <div className="settlement-activity__empty-visual" aria-hidden="true">
-        <span className="settlement-activity__empty-orbit" />
-        <div className="settlement-activity__empty-icon">{icon}</div>
-        <span className="settlement-activity__empty-network">DEVNET</span>
-      </div>
-      <div className="settlement-activity__empty-body">
-        <div className="settlement-activity__empty-copy">
-          <span className="settlement-activity__empty-eyebrow">{eyebrow}</span>
-          <h3>{title}</h3>
-          <p>{description}</p>
-          <div className="settlement-activity__empty-action">{action}</div>
-        </div>
-        <div className="settlement-activity__empty-details">
-          <span>THIS PAGE SHOWS</span>
-          <ul>
-            {details.map((detail) => <li key={detail}>{detail}</li>)}
-          </ul>
-        </div>
-      </div>
-    </div>
+    <EmptyState
+      action={action}
+      actionClassName="settlement-activity__empty-action"
+      className="settlement-activity__empty"
+      description={description}
+      details={details}
+      eyebrow={eyebrow}
+      icon={icon}
+      title={title}
+      tone={tone ?? "default"}
+    />
   );
 }
 

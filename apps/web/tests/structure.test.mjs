@@ -6,6 +6,7 @@ const webRoot = new URL("../", import.meta.url);
 
 const requiredPaths = [
   "app/layout.tsx",
+  "app/empty-state.css",
   "app/page.tsx",
   "app/bounties/page.tsx",
   "app/bounties/new/page.tsx",
@@ -31,6 +32,7 @@ const requiredPaths = [
   "tests/e2e/support/rialo-fixture.ts",
   "tests/e2e/wallet-ledgers.spec.ts",
   "components/ui/brand-mark.tsx",
+  "components/ui/empty-state.tsx",
   "components/home/merge-core-scene.tsx",
   "components/feedback/route-placeholder.tsx",
   "components/feedback/transaction-notifications.tsx",
@@ -886,6 +888,8 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
     new URL("components/activity/wallet-activity-feed.tsx", webRoot),
     "utf8",
   );
+  const emptyState = await readFile(new URL("components/ui/empty-state.tsx", webRoot), "utf8");
+  const emptyStyles = await readFile(new URL("app/empty-state.css", webRoot), "utf8");
   const walletControl = await readFile(
     new URL("components/wallet/wallet-control.tsx", webRoot),
     "utf8",
@@ -910,14 +914,20 @@ test("keeps wallet activity paginated and protocol docs on the active deployment
   assert.match(activityFeed, /ActivityPageLoadingState/);
   assert.match(activityFeed, /loadingPageIndex/);
   assert.match(activityFeed, /requestWalletControlOpen/);
-  assert.match(activityFeed, /THIS FEED SHOWS/);
+  assert.match(activityFeed, /<EmptyState/);
+  assert.match(activityFeed, /details=\{details\}/);
+  assert.match(activityFeed, /actionClassName="wallet-activity__empty-action"/);
+  assert.match(activityFeed, /Confirmed and failed actions/);
+  assert.match(activityFeed, /Exact onchain signatures/);
+  assert.match(emptyState, /details\.map/);
+  assert.match(emptyState, /data-tone=\{tone\}/);
   assert.match(activityFeed, /TransactionProof/);
   assert.match(activityFeed, /groupWalletActivity/);
   assert.match(activityFeed, /<details className="wallet-activity__group"/);
   assert.match(activityFeed, /Confirmed means the transaction executed, not that a bounty was paid/);
   assert.match(walletControl, /OPEN_WALLET_CONTROL_EVENT/);
   assert.match(styles, /\.wallet-activity__pagination/);
-  assert.match(styles, /\.wallet-activity__empty-visual/);
+  assert.match(emptyStyles, /\.empty-state\[data-layout\]/);
   assert.match(styles, /\.wallet-activity__skeleton-row/);
   assert.match(styles, /Ledger hero typography polish/);
   assert.match(docsPage, /marketplaceDeployment\.programId/);

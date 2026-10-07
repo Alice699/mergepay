@@ -4,7 +4,7 @@ import type {
   MergePayPublicBounty,
   MergePayPublicBountyStatus,
 } from "@mergepay/rialo-client";
-import { AlertCircle, Clock3, GitPullRequest, RefreshCw, Search } from "lucide-react";
+import { AlertCircle, BookOpen, ChevronDown, Clock3, GitPullRequest, RefreshCw, Search } from "lucide-react";
 import Link from "next/link";
 import {
   useCallback,
@@ -20,6 +20,7 @@ import { useWallet } from "@/hooks/use-wallet";
 import { routes } from "@/lib/constants";
 import { formatDeadlineDate, formatRlo, shortenAddress } from "@/lib/format";
 import { WorkflowLookup } from "@/components/bounty/workflow-lookup";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const BOUNTY_PAGE_SIZE = 25;
 
@@ -291,6 +292,7 @@ export function OpenBountyFeed() {
 
       {network.rpcStatus !== "available" && state.items.length === 0 ? (
         <FeedMessage
+          action={<button className="button button--dark" disabled={network.rpcStatus === "checking"} onClick={network.refreshRpcHealth} type="button">Check connection</button>}
           title="Waiting for Rialo DevNet."
           description="The marketplace only shows verified accounts after the RPC reports a healthy connection."
           icon={<Clock3 aria-hidden="true" size={19} strokeWidth={1.7} />}
@@ -312,25 +314,26 @@ export function OpenBountyFeed() {
       ) : visibleItems.length === 0 ? (
         <FeedMessage
           action={(
-            <div className="bounty-feed__empty-actions">
-              <WorkflowLookup />
+            <>
+              {hasActiveFilters ? (
+                <button className="button" onClick={resetFilters} type="button">Clear filters</button>
+              ) : (
+                <Link className="button" href={routes.createBounty}>Create a bounty</Link>
+              )}
               {state.hasMore ? (
-                <div className="bounty-feed__history-action">
-                  <span>Discovery history</span>
-                  <button className="button button--dark" onClick={() => void load(true)} type="button">
-                    Load older listings
-                  </button>
-                </div>
-              ) : null}
-            </div>
+                <button className="text-link" disabled={state.status === "loading"} onClick={() => void load(true)} type="button">Load older listings</button>
+              ) : (
+                <Link className="text-link" href={routes.guide}><BookOpen aria-hidden="true" size={14} /> View guide</Link>
+              )}
+            </>
           )}
           description={
             hasActiveFilters
-              ? "No verified bounty matches the current filters. Load older history or clear the filters."
-              : "No active bounty was found in the loaded DevNet history."
+              ? "No verified bounty in the loaded history matches these filters. Clear them to see available listings."
+              : "No open claims were found in the loaded DevNet history. Publish a bounty for a public GitHub pull request to get started."
           }
-          icon={<GitPullRequest aria-hidden="true" size={19} strokeWidth={1.7} />}
-          title={hasActiveFilters ? "Nothing matched." : "The market is quiet."}
+          icon={hasActiveFilters ? <Search aria-hidden="true" size={20} strokeWidth={1.7} /> : <GitPullRequest aria-hidden="true" size={20} strokeWidth={1.7} />}
+          title={hasActiveFilters ? "No bounties match these filters" : "No open bounties found"}
           tone="default"
           variant="empty"
         />
@@ -436,13 +439,22 @@ function FeedMessage({
   variant?: "default" | "empty";
 }>) {
   return (
-    <div className="bounty-feed__message" data-tone={tone} data-variant={variant}>
-      <div className="bounty-feed__message-icon">{icon}</div>
-      <div className="bounty-feed__message-content">
-        <h3>{title}</h3>
-        <p>{description}</p>
-        {action}
-      </div>
-    </div>
+    <EmptyState
+      action={action}
+      className="bounty-feed__message"
+      description={description}
+      details={variant === "empty" ? ["Public GitHub pull requests", "Live workflow account reads"] : []}
+      eyebrow={tone === "error" ? "Read interrupted" : variant === "empty" ? "Bounty discovery" : "Connection pending"}
+      icon={icon}
+      title={title}
+      tone={tone}
+    >
+      {variant === "empty" && (
+        <details className="empty-state__lookup">
+          <summary><Search aria-hidden="true" size={14} /> Already have a workflow ID?<ChevronDown aria-hidden="true" size={15} /></summary>
+          <WorkflowLookup />
+        </details>
+      )}
+    </EmptyState>
   );
 }

@@ -18,6 +18,7 @@ import { useWallet } from "@/hooks/use-wallet";
 import { formatLocalDateTime, formatRlo, shortenAddress } from "@/lib/format";
 import { requestWalletControlOpen } from "@/lib/wallet-control-events";
 import { CopyValue } from "@/components/ui/copy-value";
+import { EmptyState } from "@/components/ui/empty-state";
 import { TransactionProof } from "@/components/ui/transaction-proof";
 import { groupWalletActivity } from "@/lib/activity-groups";
 
@@ -219,7 +220,7 @@ export function WalletActivityFeed() {
           eyebrow="WALLET REQUIRED"
           icon={<WalletCards aria-hidden="true" size={20} strokeWidth={1.7} />}
           title="Connect a wallet to see activity"
-          description="Open the wallet control in the header and connect an extension or unlock the embedded DevNet wallet."
+          description="Connect a compatible extension or unlock your local DevNet wallet. Transactions for that address will appear here."
           action={<button className="button button--dark" onClick={requestWalletControlOpen} type="button">Open wallet</button>}
         />
       ) : network.rpcStatus !== "available" ? (
@@ -245,11 +246,11 @@ export function WalletActivityFeed() {
         />
       ) : state.items.length === 0 ? (
         <ActivityEmptyState
-          details={["No sample records", "New actions appear after confirmation"]}
+          details={["Rialo DevNet history", "Newest transactions first"]}
           eyebrow="NO RECORDS YET"
           icon={<Clock3 aria-hidden="true" size={20} strokeWidth={1.7} />}
           title="No activity for this wallet yet"
-          description="Create or fund a workflow to make the first real MergePay transaction appear in this feed."
+          description="No transactions were found for this address in the loaded DevNet history. Create a bounty to start your first workflow."
           action={<Link className="button button--dark" href="/bounties/new">Create a bounty</Link>}
         />
       ) : state.status === "loading" ? (
@@ -428,27 +429,17 @@ function ActivityEmptyState({
   tone?: "error";
 }>) {
   return (
-    <div className="wallet-activity__empty" data-tone={tone ?? "default"}>
-      <div className="wallet-activity__empty-visual" aria-hidden="true">
-        <span className="wallet-activity__empty-orbit" />
-        <div className="wallet-activity__empty-icon">{icon}</div>
-        <span className="wallet-activity__empty-network">DEVNET</span>
-      </div>
-      <div className="wallet-activity__empty-body">
-        <div className="wallet-activity__empty-copy">
-          <span className="wallet-activity__empty-eyebrow">{eyebrow}</span>
-          <h3>{title}</h3>
-          <p>{description}</p>
-          <div className="wallet-activity__empty-action">{action}</div>
-        </div>
-        <div className="wallet-activity__empty-details">
-          <span>THIS FEED SHOWS</span>
-          <ul>
-            {details.map((detail) => <li key={detail}>{detail}</li>)}
-          </ul>
-        </div>
-      </div>
-    </div>
+    <EmptyState
+      action={action}
+      actionClassName="wallet-activity__empty-action"
+      className="wallet-activity__empty"
+      description={description}
+      details={details}
+      eyebrow={eyebrow}
+      icon={icon}
+      title={title}
+      tone={tone ?? "default"}
+    />
   );
 }
 

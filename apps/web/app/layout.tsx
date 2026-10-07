@@ -14,6 +14,7 @@ import "./globals.css";
 import "./wallet.css";
 import "./bounty-workspace.css";
 import "./settlement-receipt.css";
+import "./empty-state.css";
 
 const title = "MergePay — Code merged. Bounty settled.";
 const description =
