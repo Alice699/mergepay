@@ -141,7 +141,7 @@ test("the local wallet shows a native RLO portfolio and working security control
   await expect(dialog).toContainText("15 min auto-lock");
 });
 
-test("Receive exposes the actual wallet address and Activity opens the existing wallet-scoped page", async ({ page }) => {
+test("Receive exposes the actual wallet address and Activity stays inside the wallet", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await prepareExtensionWallet(page);
   const dialog = page.getByRole("dialog", { name: "Rialo wallet" });
@@ -158,9 +158,13 @@ test("Receive exposes the actual wallet address and Activity opens the existing 
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(MOCK_WALLET_ADDRESS);
   await receive.getByRole("button", { name: "Close receiving address" }).click();
   await expect(receive).toHaveCount(0);
-  await actions.getByRole("link", { name: "Activity", exact: true }).click();
-  await expect(page).toHaveURL(/\/activity$/);
-  await expect(page.getByRole("dialog", { name: "Rialo wallet" })).toHaveCount(0);
+  await actions.getByRole("button", { name: "Activity", exact: true }).click();
+  await expect(page).toHaveURL(/\/bounties\/new$/);
+  await expect(dialog.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "No transactions yet", exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Back to wallet", exact: true }).click();
+  await expect(dialog.locator(".wallet-portfolio")).toBeVisible();
+  await expect(actions.getByRole("button", { name: "Activity", exact: true })).toBeFocused();
   await expect(page.locator(".wallet-button")).toHaveAttribute("aria-label", /^Active wallet /);
 });
 

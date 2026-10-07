@@ -18,8 +18,8 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { WalletActivityView } from "@/components/wallet/wallet-activity-view";
 import { useNetwork } from "@/hooks/use-network";
 import { useWallet } from "@/hooks/use-wallet";
 import {
@@ -32,6 +32,7 @@ import { OPEN_WALLET_CONTROL_EVENT } from "@/lib/wallet-control-events";
 
 type WalletView =
   | "overview"
+  | "activity"
   | "create"
   | "unlock"
   | "restore"
@@ -116,6 +117,13 @@ export function WalletControl() {
     setActionError(null);
     setNotice(null);
     controlRef.current?.querySelector<HTMLButtonElement>(".wallet-button")?.focus();
+  }
+
+  function returnFromActivity() {
+    selectView("overview");
+    window.requestAnimationFrame(() => {
+      controlRef.current?.querySelector<HTMLButtonElement>("[data-wallet-activity]")?.focus();
+    });
   }
 
   function togglePopover() {
@@ -335,6 +343,15 @@ export function WalletControl() {
               onLock={handleLock}
               onRemove={() => selectView("remove")}
             />
+          ) : connected && view === "activity" ? (
+            <WalletActivityView
+              key={`${network.network}:${network.rpcUrl}:${network.client.programId}:${connectedAddress}`}
+              accountName={wallet.source === "embedded" ? "Local account" : wallet.walletName ?? "Rialo wallet"}
+              address={connectedAddress}
+              networkSupported={wallet.networkSupported}
+              onBack={returnFromActivity}
+              onClose={closeWallet}
+            />
           ) : connected ? (
             <ConnectedWalletView
               address={connectedAddress}
@@ -342,6 +359,7 @@ export function WalletControl() {
               isEmbedded={wallet.source === "embedded"}
               networkLabel={network.label}
               networkSupported={wallet.networkSupported}
+              onActivity={() => selectView("activity")}
               onClose={closeWallet}
               onCopyAddress={() => void handleCopyAddress()}
               onDisconnect={() => void handleDisconnect()}
@@ -402,6 +420,7 @@ function ConnectedWalletView({
   isEmbedded,
   networkLabel,
   networkSupported,
+  onActivity,
   onClose,
   onCopyAddress,
   onDisconnect,
@@ -417,6 +436,7 @@ function ConnectedWalletView({
   isEmbedded: boolean;
   networkLabel: string;
   networkSupported: boolean | null;
+  onActivity: () => void;
   onClose: () => void;
   onCopyAddress: () => void;
   onDisconnect: () => void;
@@ -528,7 +548,7 @@ function ConnectedWalletView({
         <button aria-controls="wallet-receive-address" aria-expanded={receiveOpen} onClick={() => setReceiveOpen(!receiveOpen)} type="button">
           <ArrowDownToLine aria-hidden="true" size={21} /><span>Receive</span>
         </button>
-        <Link href="/activity" onClick={onClose}><History aria-hidden="true" size={21} /><span>Activity</span></Link>
+        <button data-wallet-activity onClick={onActivity} type="button"><History aria-hidden="true" size={21} /><span>Activity</span></button>
         {isEmbedded ? (
           <button aria-label="Wallet settings" onClick={onManage} type="button"><Settings2 aria-hidden="true" size={21} /><span>Settings</span></button>
         ) : (
