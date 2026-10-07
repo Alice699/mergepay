@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   LockKeyhole,
   Plus,
+  Puzzle,
   RefreshCw,
   Settings2,
   Trash2,
@@ -61,7 +62,10 @@ export function WalletControl() {
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") closePopover();
+      if (event.key === "Escape" && controlRef.current?.querySelector(".wallet-popover")) {
+        closePopover();
+        controlRef.current.querySelector<HTMLButtonElement>(".wallet-button")?.focus();
+      }
     }
 
     function handleOpenRequest() {
@@ -70,9 +74,9 @@ export function WalletControl() {
       setNotice(null);
       setOpen(true);
       focusFrame = window.requestAnimationFrame(() => {
-        controlRef.current
-          ?.querySelector<HTMLElement>(".wallet-popover button:not(:disabled)")
-          ?.focus();
+        const primaryAction = controlRef.current?.querySelector<HTMLElement>(".wallet-popover .wallet-option--embedded:not(:disabled)");
+        const firstAction = primaryAction ?? controlRef.current?.querySelector<HTMLElement>(".wallet-popover button:not(:disabled)");
+        firstAction?.focus();
       });
     }
 
@@ -104,6 +108,14 @@ export function WalletControl() {
     setView(nextView);
     setActionError(null);
     setNotice(null);
+  }
+
+  function closeWallet() {
+    setOpen(false);
+    setView("overview");
+    setActionError(null);
+    setNotice(null);
+    controlRef.current?.querySelector<HTMLButtonElement>(".wallet-button")?.focus();
   }
 
   function togglePopover() {
@@ -330,12 +342,7 @@ export function WalletControl() {
               isEmbedded={wallet.source === "embedded"}
               networkLabel={network.label}
               networkSupported={wallet.networkSupported}
-              onClose={() => {
-                setOpen(false);
-                setView("overview");
-                setActionError(null);
-                setNotice(null);
-              }}
+              onClose={closeWallet}
               onCopyAddress={() => void handleCopyAddress()}
               onDisconnect={() => void handleDisconnect()}
               onManage={() => selectView("manage")}
@@ -372,6 +379,7 @@ export function WalletControl() {
               embeddedStatus={wallet.embedded.status}
               expectedChainId={wallet.expectedChainId}
               networkLabel={network.label}
+              onClose={closeWallet}
               onConnect={(name) => void handleConnect(name)}
               onCreate={() => selectView("create")}
               onRestore={() => selectView("restore")}
@@ -644,6 +652,7 @@ function WalletOptionsView({
   embeddedStatus,
   expectedChainId,
   networkLabel,
+  onClose,
   onConnect,
   onCreate,
   onRestore,
@@ -656,6 +665,7 @@ function WalletOptionsView({
   embeddedStatus: ReturnType<typeof useWallet>["embedded"]["status"];
   expectedChainId: ReturnType<typeof useWallet>["expectedChainId"];
   networkLabel: string;
+  onClose: () => void;
   onConnect: (name: string) => void;
   onCreate: () => void;
   onRestore: () => void;
@@ -666,36 +676,43 @@ function WalletOptionsView({
   const vaultBusy = ["loading", "creating", "unlocking", "restoring", "removing"].includes(embeddedStatus);
 
   return (
-    <div className="wallet-options-view">
-      <div className="wallet-popover__heading">
-        <div><p className="panel-label">SIGNING METHOD</p><h2>Open a Rialo wallet</h2></div>
-        <span aria-hidden="true" className="wallet-popover__form-index">DEVNET</span>
-      </div>
-      <p className="wallet-popover__copy">Use the encrypted wallet built for this DevNet demo, or connect a compatible extension when one is available.</p>
+    <div className="wallet-options-view wallet-access">
+      <header className="wallet-access__header">
+        <div className="wallet-access__brand"><WalletRobotMark size={22} /><span>MergePay wallet</span></div>
+        <div><span className="wallet-access__network">{networkLabel.replace("Rialo ", "")}</span><button aria-label="Close wallet" onClick={onClose} title="Close wallet" type="button"><X aria-hidden="true" size={17} /></button></div>
+      </header>
+      <h2>Open a Rialo wallet</h2>
+      <p className="wallet-access__intro">{hasVault ? "Unlock your saved account, or connect a compatible wallet extension." : "Create a local DevNet account, or connect a compatible wallet extension."}</p>
 
       <button
+        aria-label={hasVault ? "Unlock local wallet" : "Create local wallet"}
         className="wallet-option wallet-option--embedded"
         disabled={!embeddedAvailable || vaultBusy}
         onClick={hasVault ? onUnlock : onCreate}
+        title={hasVault && embeddedAddress ? embeddedAddress : "Create a password-protected DevNet wallet"}
         type="button"
       >
         <span aria-hidden="true" className="wallet-option__icon wallet-option__monogram">
-          <WalletRobotMark size={25} />
+          <WalletRobotMark size={30} />
         </span>
-        <span>
+        <span className="wallet-access__local-copy">
+          <span className="wallet-access__local-label">{hasVault ? "Saved in this browser" : "Local account"}</span>
           <strong>{hasVault ? "Unlock local wallet" : "Create local wallet"}</strong>
-          <small>{hasVault && embeddedAddress ? shortenAddress(embeddedAddress, 6) : "Encrypted in this browser · DevNet only"}</small>
+          <small>{hasVault && embeddedAddress ? <code>{shortenAddress(embeddedAddress, 6)}</code> : "Password-protected · DevNet only"}</small>
         </span>
-        <span className="wallet-option__state">{!embeddedAvailable ? "DevNet only" : vaultBusy ? "Loading" : hasVault ? "Unlock" : "Create"}</span>
+        <span aria-hidden="true" className="wallet-option__state">{vaultBusy ? <LoaderCircle className="ui-icon--spin" size={13} /> : hasVault ? <LockKeyhole size={13} /> : <Plus size={13} />}{!embeddedAvailable ? "DevNet only" : vaultBusy ? "Loading" : hasVault ? "Unlock" : "Create"}</span>
       </button>
 
       {!hasVault && embeddedAvailable && (
-        <button className="wallet-restore-link" onClick={onRestore} type="button"><span>RESTORE</span> encrypted backup</button>
+        <button aria-label="Restore encrypted backup" className="wallet-restore-link" onClick={onRestore} type="button"><Download aria-hidden="true" size={14} /> Restore from encrypted backup</button>
       )}
 
-      <div className="wallet-popover__section-heading"><span>Wallet extensions</span><small>Frost · Wallet Standard</small></div>
+      <div className="wallet-access__extensions-heading"><h3>Wallet extensions</h3><span>{wallets.length === 0 ? "Optional" : `${wallets.length} detected`}</span></div>
       {wallets.length === 0 ? (
-        <div className="wallet-popover__empty"><span aria-hidden="true" className="wallet-popover__empty-mark">EXT</span> No compatible extension detected. The local DevNet wallet works without one.</div>
+        <div className="wallet-access__empty" role="status">
+          <span aria-hidden="true"><Puzzle size={20} /></span>
+          <div><strong>No compatible extension detected</strong><p>{embeddedAvailable ? "You can use the local wallet without one." : "Connect a compatible extension to use this network."}</p></div>
+        </div>
       ) : (
         <div className="wallet-options">
           {wallets.map((item) => {
@@ -710,6 +727,7 @@ function WalletOptionsView({
           })}
         </div>
       )}
+      <p className="wallet-access__security"><LockKeyhole aria-hidden="true" size={12} /><span>Local keys are encrypted in browser storage.</span></p>
     </div>
   );
 }

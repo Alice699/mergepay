@@ -4,10 +4,79 @@ import {
   installMockWallet,
   installRialoRpcMock,
   MOCK_WALLET_ADDRESS,
+  MOCK_WALLET_NAME,
 } from "./support/rialo-fixture";
 
 // Isolated browser vault and mocked RPC only; no real wallet or funds are used.
 const testPassword = "MergePay-wallet-portfolio-e2e-only";
+
+test("wallet access makes the saved account primary and keeps extensions optional", async ({ page }, testInfo) => {
+  await installRialoRpcMock(page, "empty");
+  await page.goto("/bounties/new");
+  await page.locator(".wallet-button").click();
+  const dialog = page.getByRole("dialog", { name: "Rialo wallet" });
+  await expect(dialog.getByRole("heading", { name: "Open a Rialo wallet" })).toBeVisible();
+  await expect(dialog.locator(".wallet-access__empty")).toContainText("No compatible extension detected");
+  await expect(dialog.locator(".wallet-access__extensions-heading")).toContainText("Optional");
+  await dialog.getByRole("button", { name: "Restore encrypted backup", exact: true }).click();
+  await expect(dialog.getByRole("heading", { name: "Restore encrypted backup", exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Backup file")).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expectWalletWithinViewport(page);
+    await dialog.screenshot({ path: testInfo.outputPath(`wallet-access-empty-${width}.png`) });
+  }
+  await dialog.getByRole("button", { name: "Create local wallet", exact: true }).click();
+  await dialog.getByRole("textbox", { name: /^Wallet password/ }).fill(testPassword);
+  await dialog.getByRole("textbox", { name: /^Confirm password/ }).fill(testPassword);
+  await dialog.getByRole("checkbox").check();
+  await dialog.getByRole("button", { name: "Create wallet", exact: true }).click();
+  await expect(dialog.locator(".wallet-portfolio")).toBeVisible();
+  const savedAddress = await dialog.getByRole("button", { name: /^Copy wallet address/ }).getAttribute("title");
+  await dialog.getByRole("button", { name: "Close wallet", exact: true }).click();
+  await expect(page.locator(".wallet-button")).toBeFocused();
+  await page.reload();
+  await expect(page.locator(".form-submit__status")).toContainText("Wallet locked");
+  await page.locator(".form-submit").getByRole("button", { name: "Unlock wallet", exact: true }).click();
+  const unlock = dialog.getByRole("button", { name: "Unlock local wallet", exact: true });
+  await expect(unlock).toBeEnabled();
+  await expect(unlock).toBeFocused();
+  await expect(unlock).toHaveAttribute("title", savedAddress!);
+  await expect(unlock).toContainText("Saved in this browser");
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expectWalletWithinViewport(page);
+    await dialog.screenshot({ path: testInfo.outputPath(`wallet-access-locked-${width}.png`) });
+  }
+  await unlock.click();
+  await expect(dialog.getByRole("heading", { name: "Unlock local wallet", exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".wallet-button")).toBeFocused();
+});
+
+test("detected extensions remain connectable from the polished access panel", async ({ page }, testInfo) => {
+  await installMockWallet(page);
+  await installRialoRpcMock(page, "empty");
+  await page.goto("/bounties/new");
+  await page.locator(".wallet-button").click();
+  const dialog = page.getByRole("dialog", { name: "Rialo wallet" });
+  await expect(dialog.locator(".wallet-access__extensions-heading")).toContainText("1 detected");
+  await expect(dialog.locator(".wallet-access__empty")).toHaveCount(0);
+  const extension = dialog.locator(".wallet-options .wallet-option").filter({ hasText: MOCK_WALLET_NAME });
+  await expect(extension).toBeEnabled();
+  await expect(extension).toContainText("Available on Rialo DevNet");
+  for (const width of [1440, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expectWalletWithinViewport(page);
+    await dialog.screenshot({ path: testInfo.outputPath(`wallet-access-extension-${width}.png`) });
+  }
+  await extension.click();
+  await expect(dialog.locator(".wallet-portfolio__account")).toContainText(MOCK_WALLET_NAME);
+  await expect(page.locator(".wallet-button")).toHaveAttribute("aria-label", /^Active wallet /);
+});
 
 test("the local wallet shows a native RLO portfolio and working security controls", async ({ page }, testInfo) => {
   await installRialoRpcMock(page, "empty");
